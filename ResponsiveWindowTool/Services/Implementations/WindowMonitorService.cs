@@ -21,7 +21,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             _eventDelegate = WinEventProc;
             
             _debounceTimer = new DispatcherTimer();
-            _debounceTimer.Interval = TimeSpan.FromMilliseconds(250); // 250ms debounce time
+            _debounceTimer.Interval = TimeSpan.FromMilliseconds(200); // debounce time
             _debounceTimer.Tick += DebounceTimer_Tick;
         }
 

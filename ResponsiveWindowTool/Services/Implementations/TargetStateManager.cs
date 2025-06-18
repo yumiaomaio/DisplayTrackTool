@@ -3,6 +3,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
+using ResponsiveWindowTool.Interop;
 using ResponsiveWindowTool.Interop.Enums;
 using ResponsiveWindowTool.Models;
 
@@ -116,8 +117,9 @@ namespace ResponsiveWindowTool.Services.Implementations
 
         private void OnWindowStateChanged(IntPtr hwnd, Rect newRect)
         {
-            if (hwnd != _targetHwnd) return;
+            if (hwnd != _targetHwnd || !_isRunning) return;
 
+            // --- 1. 方向改变检测 ---
             var currentOrientation = newRect.Width > newRect.Height 
                 ? WindowOrientation.Landscape 
                 : WindowOrientation.Portrait;
@@ -137,6 +139,28 @@ namespace ResponsiveWindowTool.Services.Implementations
                         AddLog("Applying Landscape layout...");
                         _layoutManager.ApplyLayout(_targetHwnd, _landscapeProfile);
                         break;
+                }
+                // 当方向改变时，布局已完全重置，无需再进行下面的Topmost检查。
+                return; 
+            }
+
+            // --- 2. Topmost 状态维持 (如果方向没有改变) ---
+            var currentExStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+            if (!currentExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST))
+            {
+                AddLog($"Topmost style lost on HWND {hwnd} in {_lastOrientation} mode. Restoring...");
+
+                if (_lastOrientation == WindowOrientation.Portrait)
+                {
+                    // 在竖屏模式下，可能整个布局都被重置了，重新应用完整配置更安全
+                    AddLog("Re-applying full Portrait layout to ensure consistency.");
+                    _layoutManager.ApplyLayout(_targetHwnd, _portraitProfile);
+                }
+                else if (_lastOrientation == WindowOrientation.Landscape)
+                {
+                    // 在横屏模式下，窗口已经是全屏，只修复Topmost以避免闪烁
+                    AddLog("Patching Topmost style for Landscape mode.");
+                    _layoutManager.EnsureTopmost(_targetHwnd);
                 }
             }
         }

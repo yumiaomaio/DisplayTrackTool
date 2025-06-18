@@ -7,5 +7,6 @@ namespace ResponsiveWindowTool.Services
     public interface IWindowLayoutManager
     {
         void ApplyLayout(IntPtr hwnd, LayoutProfile profile);
+        void EnsureTopmost(IntPtr hwnd);
     }
 }

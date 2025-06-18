@@ -31,7 +31,6 @@ namespace ResponsiveWindowTool.Services.Implementations
             NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
 
             // 2. Calculate size and position (这部分代码不变)
-            // ...
             IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
             var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
             if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo)) return;
@@ -93,5 +92,30 @@ namespace ResponsiveWindowTool.Services.Implementations
                 SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
             Debug.WriteLine($"[WindowLayoutManager] Target HWND {hwnd} set to HWND_TOPMOST.");
         }
+        
+        public void EnsureTopmost(IntPtr hwnd)
+        {
+            if (hwnd == IntPtr.Zero) return;
+
+            // 1. 获取当前 ExStyle
+            var currentExStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+
+            // 2. 如果已经有 Topmost 标志，则什么都不做
+            if (currentExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST))
+            {
+                return;
+            }
+
+            // 3. 添加 Topmost 标志并应用
+            Debug.WriteLine($"[WindowLayoutManager] Patching HWND {hwnd} to add WS_EX_TOPMOST.");
+            var newExStyle = currentExStyle | WindowExStyles.WS_EX_TOPMOST;
+            NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)newExStyle);
+            
+            // 4. 重新应用 Z-Order，但不改变位置和大小，以确保样式生效
+            var topmostHwnd = new IntPtr(-1);
+            NativeMethods.SetWindowPos(hwnd, topmostHwnd, 0, 0, 0, 0,
+                SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
+        }
+        
     }
 }
