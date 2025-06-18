@@ -1,4 +1,5 @@
 ﻿// File: Services/Implementations/WindowLayoutManager.cs
+
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -12,28 +13,35 @@ namespace ResponsiveWindowTool.Services.Implementations
 {
     public class WindowLayoutManager : IWindowLayoutManager
     {
+        private readonly IOverlayService _overlayService; // 新增依赖字段
+
+        public WindowLayoutManager(IOverlayService overlayService) // 修改构造函数
+        {
+            _overlayService = overlayService;
+        }
+
         public void ApplyLayout(IntPtr hwnd, LayoutProfile profile)
         {
             if (hwnd == IntPtr.Zero || profile == null) return;
-            
+
             Debug.WriteLine($"[WindowLayoutManager] Applying profile '{profile.Name}' to HWND {hwnd}.");
 
             // 1. Apply styles
             NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
             NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
 
-            // 2. Calculate size and position
+            // 2. Calculate size and position (这部分代码不变)
+            // ...
             IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
             var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
             if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo)) return;
-            
+
             var monitorRect = monitorInfo.rcMonitor;
             int screenWidth = monitorRect.Right - monitorRect.Left;
             int screenHeight = monitorRect.Bottom - monitorRect.Top;
 
             int finalWidth, finalHeight, finalX, finalY;
 
-            // Calculate size based on sizing mode
             switch (profile.Sizing)
             {
                 case SizingMode.Fullscreen:
@@ -41,22 +49,14 @@ namespace ResponsiveWindowTool.Services.Implementations
                     finalHeight = screenHeight;
                     break;
                 case SizingMode.RelativeToScreenHeight:
-                    if (profile.AspectRatio.HasValue)
-                    {
-                        finalHeight = screenHeight;
-                        finalWidth = (int)(finalHeight * profile.AspectRatio.Value);
-                    }
-                    else // Fallback if no aspect ratio
-                    {
-                        finalHeight = screenHeight;
-                        finalWidth = screenHeight / 2;
-                    }
+                    finalHeight = screenHeight;
+                    finalWidth = profile.AspectRatio.HasValue
+                        ? (int)(finalHeight * profile.AspectRatio.Value)
+                        : screenHeight / 2;
                     break;
-                default:
-                    throw new ArgumentOutOfRangeException();
+                default: throw new ArgumentOutOfRangeException();
             }
 
-            // Calculate position based on positioning mode
             switch (profile.Positioning)
             {
                 case PositioningMode.CenterScreen:
@@ -67,15 +67,31 @@ namespace ResponsiveWindowTool.Services.Implementations
                     finalX = monitorRect.Left;
                     finalY = monitorRect.Top;
                     break;
-                default:
-                    throw new ArgumentOutOfRangeException();
+                default: throw new ArgumentOutOfRangeException();
             }
-            
-            Debug.WriteLine($"[WindowLayoutManager] Calculated Layout: X={finalX}, Y={finalY}, W={finalWidth}, H={finalHeight}");
 
-            // 3. Apply position and size
-            // Use SWP_FRAMECHANGED to force the window to redraw with new styles
-            NativeMethods.SetWindowPos(hwnd, IntPtr.Zero, finalX, finalY, finalWidth, finalHeight, SetWindowPosFlags.SWP_FRAMECHANGED);
+            Debug.WriteLine(
+                $"[WindowLayoutManager] Calculated Layout: X={finalX}, Y={finalY}, W={finalWidth}, H={finalHeight}");
+
+            // 3. Apply Z-Order, position and size (核心修改在这里)
+
+            // a. 将背景窗口置于非置顶窗口的最上层
+            var overlayHwnd = _overlayService.WindowHandle;
+            if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
+            {
+                // 对于背景，我们只关心它的Z-Order，位置和大小已在Show时设置好
+                NativeMethods.SetWindowPos(overlayHwnd.Value, (IntPtr)0, 0, 0, 0, 0,
+                    SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
+                Debug.WriteLine($"[WindowLayoutManager] Overlay HWND {overlayHwnd.Value} set to HWND_TOP.");
+            }
+
+            // b. 将目标窗口置于最顶层(Topmost)，并应用新的位置和大小
+            //  - 为了改变Z-Order，不能使用 SWP_NOZORDER 标志。
+            //  - 我们将 hWndInsertAfter 设置为 HWND_TOPMOST 的值 (-1)
+            var topmostHwnd = new IntPtr(-1);
+            NativeMethods.SetWindowPos(hwnd, topmostHwnd, finalX, finalY, finalWidth, finalHeight,
+                SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
+            Debug.WriteLine($"[WindowLayoutManager] Target HWND {hwnd} set to HWND_TOPMOST.");
         }
     }
 }
