@@ -1,0 +1,13 @@
+﻿<!-- File: Views/OverlayWindow.xaml -->
+<Window x:Class="ResponsiveWindowTool.Views.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Overlay"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Black"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Topmost="False">
+    <!-- Background is black, it will be placed behind the target window -->
+</Window>
