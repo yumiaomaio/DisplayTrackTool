@@ -9,7 +9,6 @@ using ResponsiveWindowTool.Services;
 
 namespace ResponsiveWindowTool.ViewModels
 {
-    // A simple RelayCommand implementation.
     public class RelayCommand : ICommand
     {
         private readonly Action _execute;
@@ -28,12 +27,13 @@ namespace ResponsiveWindowTool.ViewModels
         public void Execute(object? parameter) => _execute();
     }
     
-    public class MainViewModel : INotifyPropertyChanged
+    public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         private readonly ITargetStateManager _stateManager;
+        private readonly IConfigService _configService;
 
-        private string _targetProcessName = "notepad"; // Default for easy testing
-        public string TargetProcessName
+        private string? _targetProcessName;
+        public string? TargetProcessName
         {
             get => _targetProcessName;
             set => SetProperty(ref _targetProcessName, value);
@@ -51,26 +51,30 @@ namespace ResponsiveWindowTool.ViewModels
         public ICommand StartCommand { get; }
         public ICommand StopCommand { get; }
 
-        public MainViewModel(ITargetStateManager stateManager)
+        public MainViewModel(ITargetStateManager stateManager, IConfigService configService)
         {
             _stateManager = stateManager;
-            _stateManager.IsRunningChanged += OnIsRunningChanged; 
-            
+            _configService = configService;
+
+            _stateManager.IsRunningChanged += OnIsRunningChanged;
+
+            TargetProcessName = _configService.GetDefaultProcessName();
+
             StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
             StopCommand = new RelayCommand(OnStop, () => IsRunning);
         }
-        
+
         private void OnIsRunningChanged(bool isRunning)
         {
-            // 在UI线程上更新属性，以防事件从后台线程触发
             Application.Current.Dispatcher.Invoke(() =>
             {
                 IsRunning = isRunning;
             });
         }
-
+        
         private void OnStart()
         {
+            if (TargetProcessName == null) return;
             _stateManager.Start(TargetProcessName);
         }
 
@@ -78,12 +82,16 @@ namespace ResponsiveWindowTool.ViewModels
         {
             _stateManager.Stop();
         }
-        
-        public void Dispose() // <-- 实现Dispose
+
+        public void Dispose()
         {
             _stateManager.IsRunningChanged -= OnIsRunningChanged;
+            if (_stateManager is IDisposable disposableManager)
+            {
+                disposableManager.Dispose();
+            }
         }
-        
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {

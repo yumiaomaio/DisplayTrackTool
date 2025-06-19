@@ -12,6 +12,7 @@ namespace ResponsiveWindowTool.Services.Implementations
     public class TargetStateManager : ITargetStateManager, IDisposable
     {
         // Injected Services
+        private readonly IConfigService _configService;
         private readonly IWindowQueryService _queryService;
         private readonly IWindowMonitorService _monitorService;
         private readonly IWindowLayoutManager _layoutManager;
@@ -35,33 +36,18 @@ namespace ResponsiveWindowTool.Services.Implementations
             IWindowQueryService queryService,
             IWindowMonitorService monitorService,
             IWindowLayoutManager layoutManager,
-            IOverlayService overlayService)
+            IOverlayService overlayService,
+            IConfigService configService)
         {
             _queryService = queryService;
             _monitorService = monitorService;
             _layoutManager = layoutManager;
             _overlayService = overlayService;
+            _configService = configService;
 
-            // Initialize the layout profiles. These could be loaded from a config file in a real app.
-            _portraitProfile = new LayoutProfile
-            {
-                Name = "Portrait Mode",
-                Styles = WindowStyles.WS_POPUP | WindowStyles.WS_VISIBLE,
-                ExStyles = WindowExStyles.WS_EX_NONE,
-                Sizing = SizingMode.RelativeToScreenHeight,
-                Positioning = PositioningMode.CenterScreen,
-                AspectRatio = 9.0 / 16.0
-            };
-
-            _landscapeProfile = new LayoutProfile
-            {
-                Name = "Landscape Fullscreen",
-                Styles = WindowStyles.WS_POPUP | WindowStyles.WS_VISIBLE,
-                ExStyles = WindowExStyles.WS_EX_NONE,
-                Sizing = SizingMode.Fullscreen,
-                Positioning = PositioningMode.TopLeft,
-                AspectRatio = null
-            };
+            // Initialize the layout profiles.
+            _portraitProfile = _configService.GetPortraitProfile();
+            _landscapeProfile = _configService.GetLandscapeProfile();
         }
 
         public void Start(string processName)

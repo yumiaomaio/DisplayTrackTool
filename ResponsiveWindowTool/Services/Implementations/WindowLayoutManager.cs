@@ -72,25 +72,27 @@ namespace ResponsiveWindowTool.Services.Implementations
             Debug.WriteLine(
                 $"[WindowLayoutManager] Calculated Layout: X={finalX}, Y={finalY}, W={finalWidth}, H={finalHeight}");
 
-            // 3. Apply Z-Order, position and size (核心修改在这里)
-
+            // 3. Apply Z-Order, position and size
+    
             // a. 将背景窗口置于非置顶窗口的最上层
             var overlayHwnd = _overlayService.WindowHandle;
             if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
             {
-                // 对于背景，我们只关心它的Z-Order，位置和大小已在Show时设置好
-                NativeMethods.SetWindowPos(overlayHwnd.Value, (IntPtr)0, 0, 0, 0, 0,
+                NativeMethods.SetWindowPos(overlayHwnd.Value, (IntPtr)0 /*HWND_TOP*/, 0, 0, 0, 0, 
                     SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
                 Debug.WriteLine($"[WindowLayoutManager] Overlay HWND {overlayHwnd.Value} set to HWND_TOP.");
             }
 
-            // b. 将目标窗口置于最顶层(Topmost)，并应用新的位置和大小
-            //  - 为了改变Z-Order，不能使用 SWP_NOZORDER 标志。
-            //  - 我们将 hWndInsertAfter 设置为 HWND_TOPMOST 的值 (-1)
-            var topmostHwnd = new IntPtr(-1);
-            NativeMethods.SetWindowPos(hwnd, topmostHwnd, finalX, finalY, finalWidth, finalHeight,
+            // b. 根据Profile决定目标窗口是否置顶
+            IntPtr hwndInsertAfter = IntPtr.Zero; // 默认值 (HWND_TOP)
+            if (profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST))
+            {
+                hwndInsertAfter = new IntPtr(-1); // HWND_TOPMOST
+            }
+    
+            NativeMethods.SetWindowPos(hwnd, hwndInsertAfter, finalX, finalY, finalWidth, finalHeight, 
                 SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
-            Debug.WriteLine($"[WindowLayoutManager] Target HWND {hwnd} set to HWND_TOPMOST.");
+            Debug.WriteLine($"[WindowLayoutManager] Target HWND {hwnd} positioned. Topmost: {hwndInsertAfter == new IntPtr(-1)}");
         }
         
         public void EnsureTopmost(IntPtr hwnd)
