@@ -20,10 +20,24 @@ namespace ResponsiveWindowTool.Services.Implementations
         }
 
         public string GetDefaultProcessName() => _config.TargetProcessName;
+        public void SetDefaultProcessName(string processName)
+        {
+            if (_config.TargetProcessName == processName) return;
+            _config.TargetProcessName = processName;
+            SaveConfig();
+        }
         public string? GetBackgroundImageFileName() => _config.BackgroundImageFileName;
 
         public LayoutProfile GetPortraitProfile() => ConvertToLayoutProfile(_config.Profiles.Portrait);
         public LayoutProfile GetLandscapeProfile() => ConvertToLayoutProfile(_config.Profiles.Landscape);
+
+        public double GetPortraitAspectRatio() => _config.Profiles.Portrait.AspectRatio ?? (9.0 / 16.0); // 新增
+        public void SetPortraitAspectRatio(double aspectRatio) // 新增
+        {
+            if (_config.Profiles.Portrait.AspectRatio == aspectRatio) return;
+            _config.Profiles.Portrait.AspectRatio = aspectRatio;
+            SaveConfig();
+        }
 
         public void SetBackgroundImageFileName(string? fileName)
         {

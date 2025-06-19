@@ -19,6 +19,9 @@
         <StackPanel Grid.Row="0">
             <TextBlock Text="Target Process Name (without .exe):" FontWeight="Bold"/>
             <TextBox Text="{Binding TargetProcessName, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,10" IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
+            
+            <TextBlock Text="Portrait Aspect Ratio (e.g., 0.5625 for 9:16):" FontWeight="Bold"/>
+            <TextBox Text="{Binding PortraitAspectRatio, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,10" IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
         </StackPanel>
         
         <!-- Background Image Selection -->

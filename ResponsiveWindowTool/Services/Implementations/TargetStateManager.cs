@@ -24,10 +24,6 @@ namespace ResponsiveWindowTool.Services.Implementations
         private WindowOrientation _lastOrientation = WindowOrientation.Unknown;
         private bool _isRunning = false;
 
-        // Pre-defined Layout Profiles
-        private readonly LayoutProfile _portraitProfile;
-        private readonly LayoutProfile _landscapeProfile;
-
         // Logging
         public ObservableCollection<string> Logs { get; } = new();
         
@@ -48,9 +44,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             _configService = configService;
             _keyboardHookService = keyboardHookService;
 
-            // Initialize the layout profiles.
-            _portraitProfile = _configService.GetPortraitProfile();
-            _landscapeProfile = _configService.GetLandscapeProfile();
+            // 移除 LayoutProfile 缓存
         }
 
         public void Start(string processName)
@@ -87,7 +81,7 @@ namespace ResponsiveWindowTool.Services.Implementations
 
             // Apply initial layout immediately
             AddLog("Applying initial portrait layout.");
-            _layoutManager.ApplyLayout(_targetHwnd, _portraitProfile);
+            _layoutManager.ApplyLayout(_targetHwnd, _configService.GetPortraitProfile());
             _lastOrientation = WindowOrientation.Portrait;
             
             _keyboardHookService.KeyPressed += OnKeyPressed;
@@ -99,23 +93,38 @@ namespace ResponsiveWindowTool.Services.Implementations
             if (!_isRunning) return;
 
             AddLog("Stopping service...");
-            _monitorService.StopMonitoring();
-            _monitorService.WindowStateChanged -= OnWindowStateChanged;
-            
-            _overlayService.Hide();
-            
-            // Optional: Restore original window style. For now, we just stop managing it.
-            
-            _targetHwnd = IntPtr.Zero;
-            _isRunning = false;
-            IsRunningChanged?.Invoke(_isRunning);
-            
+
+            // 停止钩子，防止在恢复样式时触发不必要的事件
             _keyboardHookService.Stop();
             _keyboardHookService.KeyPressed -= OnKeyPressed;
-            
+            _monitorService.StopMonitoring();
+            _monitorService.WindowStateChanged -= OnWindowStateChanged;
+            _monitorService.WindowDestroyed -= OnWindowDestroyed;
+
+            // 在隐藏背景之前，先恢复目标窗口的样式
+            if (_targetHwnd != IntPtr.Zero)
+            {
+                // IsWindow 是一个好的安全检查，确保句柄仍然有效
+                if (NativeMethods.IsWindow(_targetHwnd))
+                {
+                    AddLog("Restoring target window to standard style.");
+                    _layoutManager.RestoreToStandard(_targetHwnd);
+                }
+            }
+        
+            // 隐藏背景
+            _overlayService.Hide();
+
+            // 清理状态
+            _targetHwnd = IntPtr.Zero;
+            _isRunning = false;
+        
+            // 触发状态更新事件
+            IsRunningChanged?.Invoke(_isRunning); 
+        
             AddLog("Service stopped.");
         }
-        
+    
         private void OnKeyPressed(int vkCode)
         {
             const int VK_ESCAPE = 0x1B;
@@ -123,13 +132,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             {
                 AddLog("ESC key pressed. Shutting down and restoring window...");
             
-                // 在停止所有服务之前，先恢复窗口样式
-                if(_targetHwnd != IntPtr.Zero)
-                {
-                    _layoutManager.RestoreToStandard(_targetHwnd);
-                }
-
-                // 调用Stop()来关闭背景、停止监控等
+                // ESC键现在只需要调用Stop()即可，因为所有恢复逻辑都在Stop()里了
                 Stop();
             }
         }
@@ -162,14 +165,13 @@ namespace ResponsiveWindowTool.Services.Implementations
                 {
                     case WindowOrientation.Portrait:
                         AddLog("Applying Portrait layout...");
-                        _layoutManager.ApplyLayout(_targetHwnd, _portraitProfile);
+                        _layoutManager.ApplyLayout(_targetHwnd, _configService.GetPortraitProfile());
                         break;
                     case WindowOrientation.Landscape:
                         AddLog("Applying Landscape layout...");
-                        _layoutManager.ApplyLayout(_targetHwnd, _landscapeProfile);
+                        _layoutManager.ApplyLayout(_targetHwnd, _configService.GetLandscapeProfile());
                         break;
                 }
-                // 当方向改变时，布局已完全重置，无需再进行下面的Topmost检查。
                 return; 
             }
 
@@ -181,13 +183,11 @@ namespace ResponsiveWindowTool.Services.Implementations
 
                 if (_lastOrientation == WindowOrientation.Portrait)
                 {
-                    // 在竖屏模式下，可能整个布局都被重置了，重新应用完整配置更安全
                     AddLog("Re-applying full Portrait layout to ensure consistency.");
-                    _layoutManager.ApplyLayout(_targetHwnd, _portraitProfile);
+                    _layoutManager.ApplyLayout(_targetHwnd, _configService.GetPortraitProfile());
                 }
                 else if (_lastOrientation == WindowOrientation.Landscape)
                 {
-                    // 在横屏模式下，窗口已经是全屏，只修复Topmost以避免闪烁
                     AddLog("Patching Topmost style for Landscape mode.");
                     _layoutManager.EnsureTopmost(_targetHwnd);
                 }

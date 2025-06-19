@@ -38,7 +38,16 @@ namespace ResponsiveWindowTool.ViewModels
         public string? TargetProcessName
         {
             get => _targetProcessName;
-            set => SetProperty(ref _targetProcessName, value);
+            set
+            {
+                if (SetProperty(ref _targetProcessName, value))
+                {
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        _configService.SetDefaultProcessName(value);
+                    }
+                }
+            }
         }
 
         private bool _isRunning;
@@ -61,6 +70,19 @@ namespace ResponsiveWindowTool.ViewModels
             set => SetProperty(ref _currentImageFileName, value);
         }
 
+        private double _portraitAspectRatio;
+        public double PortraitAspectRatio
+        {
+            get => _portraitAspectRatio;
+            set
+            {
+                if (SetProperty(ref _portraitAspectRatio, value))
+                {
+                    _configService.SetPortraitAspectRatio(value);
+                }
+            }
+        }
+
         public MainViewModel(ITargetStateManager stateManager, IConfigService configService)
         {
             _stateManager = stateManager;
@@ -69,14 +91,11 @@ namespace ResponsiveWindowTool.ViewModels
             _stateManager.IsRunningChanged += OnIsRunningChanged;
 
             TargetProcessName = _configService.GetDefaultProcessName();
-
-            // 新增：从配置加载当前图片名
             CurrentImageFileName = _configService.GetBackgroundImageFileName();
+            PortraitAspectRatio = _configService.GetPortraitAspectRatio(); // 新增
 
             StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
             StopCommand = new RelayCommand(OnStop, () => IsRunning);
-
-            // 新增：初始化选择图片命令
             SelectImageCommand = new RelayCommand(SelectImage);
         }
 
