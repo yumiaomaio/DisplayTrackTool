@@ -55,6 +55,8 @@ namespace ResponsiveWindowTool.Interop
         // --- Constants for SetWinEventHook ---
         public const uint WINEVENT_OUTOFCONTEXT = 0;
         public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
+        public const uint EVENT_OBJECT_DESTROY = 0x8001;
+        public const uint EVENT_OBJECT_HIDE = 0x8003;
         
         // --- Constants for GetWindowLong ---
         public const int GWL_STYLE = -16;

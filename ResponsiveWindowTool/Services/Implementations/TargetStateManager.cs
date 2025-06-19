@@ -28,6 +28,8 @@ namespace ResponsiveWindowTool.Services.Implementations
 
         // Logging
         public ObservableCollection<string> Logs { get; } = new();
+        
+        public event Action<bool>? IsRunningChanged;
 
         public TargetStateManager(
             IWindowQueryService queryService,
@@ -83,6 +85,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             AddLog($"Target window found: HWND {_targetHwnd}.");
             
             _isRunning = true;
+            IsRunningChanged?.Invoke(_isRunning);
             _lastOrientation = WindowOrientation.Unknown; // Reset orientation state
 
             // Show the background overlay
@@ -90,6 +93,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             
             // Subscribe to monitor events
             _monitorService.WindowStateChanged += OnWindowStateChanged;
+            _monitorService.WindowDestroyed += OnWindowDestroyed;
             _monitorService.StartMonitoring(_targetHwnd);
 
             // Apply initial layout immediately
@@ -112,9 +116,20 @@ namespace ResponsiveWindowTool.Services.Implementations
             
             _targetHwnd = IntPtr.Zero;
             _isRunning = false;
+            IsRunningChanged?.Invoke(_isRunning);
             AddLog("Service stopped.");
         }
-
+        
+        private void OnWindowDestroyed(IntPtr hwnd)
+        {
+            if (hwnd == _targetHwnd)
+            {
+                AddLog("Target window was closed. Shutting down automatically.");
+                // 调用Stop()来执行所有清理工作
+                Stop();
+            }
+        }
+        
         private void OnWindowStateChanged(IntPtr hwnd, Rect newRect)
         {
             if (hwnd != _targetHwnd || !_isRunning) return;

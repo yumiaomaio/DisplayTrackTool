@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using System.Windows;
 using ResponsiveWindowTool.Services;
 
 namespace ResponsiveWindowTool.ViewModels
@@ -53,20 +54,34 @@ namespace ResponsiveWindowTool.ViewModels
         public MainViewModel(ITargetStateManager stateManager)
         {
             _stateManager = stateManager;
+            _stateManager.IsRunningChanged += OnIsRunningChanged; 
+            
             StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
             StopCommand = new RelayCommand(OnStop, () => IsRunning);
+        }
+        
+        private void OnIsRunningChanged(bool isRunning)
+        {
+            // 在UI线程上更新属性，以防事件从后台线程触发
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                IsRunning = isRunning;
+            });
         }
 
         private void OnStart()
         {
-            IsRunning = true;
             _stateManager.Start(TargetProcessName);
         }
 
         private void OnStop()
         {
             _stateManager.Stop();
-            IsRunning = false;
+        }
+        
+        public void Dispose() // <-- 实现Dispose
+        {
+            _stateManager.IsRunningChanged -= OnIsRunningChanged;
         }
         
         public event PropertyChangedEventHandler? PropertyChanged;
