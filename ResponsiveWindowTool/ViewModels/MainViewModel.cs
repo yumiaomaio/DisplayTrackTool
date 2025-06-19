@@ -6,6 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Windows;
 using ResponsiveWindowTool.Services;
+using Microsoft.Win32; // 新增：用于文件对话框
+using System.IO;      // 新增：用于文件操作
 
 namespace ResponsiveWindowTool.ViewModels
 {
@@ -50,6 +52,14 @@ namespace ResponsiveWindowTool.ViewModels
 
         public ICommand StartCommand { get; }
         public ICommand StopCommand { get; }
+        public ICommand SelectImageCommand { get; }
+
+        private string? _currentImageFileName;
+        public string? CurrentImageFileName
+        {
+            get => _currentImageFileName;
+            set => SetProperty(ref _currentImageFileName, value);
+        }
 
         public MainViewModel(ITargetStateManager stateManager, IConfigService configService)
         {
@@ -60,8 +70,14 @@ namespace ResponsiveWindowTool.ViewModels
 
             TargetProcessName = _configService.GetDefaultProcessName();
 
+            // 新增：从配置加载当前图片名
+            CurrentImageFileName = _configService.GetBackgroundImageFileName();
+
             StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
             StopCommand = new RelayCommand(OnStop, () => IsRunning);
+
+            // 新增：初始化选择图片命令
+            SelectImageCommand = new RelayCommand(SelectImage);
         }
 
         private void OnIsRunningChanged(bool isRunning)
@@ -81,6 +97,40 @@ namespace ResponsiveWindowTool.ViewModels
         private void OnStop()
         {
             _stateManager.Stop();
+        }
+
+        private void SelectImage()
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Title = "Select a Background Image",
+                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files (*.*)|*.*"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string sourcePath = openFileDialog.FileName;
+                string fileName = Path.GetFileName(sourcePath);
+
+                // 1. 创建 Backgrounds 目录
+                string backgroundsDir = Path.Combine(AppContext.BaseDirectory, "Backgrounds");
+                Directory.CreateDirectory(backgroundsDir);
+
+                // 2. 复制文件
+                string destPath = Path.Combine(backgroundsDir, fileName);
+                try
+                {
+                    File.Copy(sourcePath, destPath, true); // 覆盖
+                    // 3. 更新配置
+                    _configService.SetBackgroundImageFileName(fileName);
+                    // 4. 更新UI
+                    CurrentImageFileName = fileName;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error copying file: {ex.Message}");
+                }
+            }
         }
 
         public void Dispose()

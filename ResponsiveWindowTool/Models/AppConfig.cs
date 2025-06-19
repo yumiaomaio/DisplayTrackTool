@@ -11,6 +11,9 @@ namespace ResponsiveWindowTool.Models
 
         [JsonPropertyName("profiles")]
         public ProfileCollection Profiles { get; set; } = new();
+        
+        [JsonPropertyName("backgroundImageFileName")]
+        public string? BackgroundImageFileName { get; set; }
     }
 
     public class ProfileCollection

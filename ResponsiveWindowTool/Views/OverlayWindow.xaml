@@ -9,5 +9,8 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         Topmost="False">
-    <!-- Background is black, it will be placed behind the target window -->
+    <Grid>
+        <!-- 背景图片将填满整个窗口 -->
+        <Image x:Name="BackgroundImage" Stretch="UniformToFill" />
+    </Grid>
 </Window>

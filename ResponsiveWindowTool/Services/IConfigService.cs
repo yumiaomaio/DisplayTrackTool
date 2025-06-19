@@ -8,5 +8,7 @@ namespace ResponsiveWindowTool.Services
         string GetDefaultProcessName();
         LayoutProfile GetPortraitProfile();
         LayoutProfile GetLandscapeProfile();
+        string? GetBackgroundImageFileName(); // <-- 新增方法
+        void SetBackgroundImageFileName(string? fileName); // <-- 新增方法
     }
 }

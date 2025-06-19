@@ -20,9 +20,33 @@ namespace ResponsiveWindowTool.Services.Implementations
         }
 
         public string GetDefaultProcessName() => _config.TargetProcessName;
+        public string? GetBackgroundImageFileName() => _config.BackgroundImageFileName;
+
         public LayoutProfile GetPortraitProfile() => ConvertToLayoutProfile(_config.Profiles.Portrait);
         public LayoutProfile GetLandscapeProfile() => ConvertToLayoutProfile(_config.Profiles.Landscape);
 
+        public void SetBackgroundImageFileName(string? fileName)
+        {
+            if (_config.BackgroundImageFileName == fileName) return;
+            _config.BackgroundImageFileName = fileName;
+            SaveConfig();
+        }
+        
+        private void SaveConfig()
+        {
+            string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
+                File.WriteAllText(configPath, JsonSerializer.Serialize(_config, options));
+                Debug.WriteLine($"[ConfigService] Config saved to '{configPath}'.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ConfigService] Error saving config: {ex.Message}");
+            }
+        }
+        
         private AppConfig LoadOrCreateConfig()
         {
             string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
@@ -54,6 +78,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             return new AppConfig
             {
                 TargetProcessName = "notepad",
+                BackgroundImageFileName = null,
                 Profiles = new ProfileCollection
                 {
                     Portrait = new ProfileDefinition

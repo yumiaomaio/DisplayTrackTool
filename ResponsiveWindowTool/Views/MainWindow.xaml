@@ -11,6 +11,7 @@
     <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -18,15 +19,32 @@
         <StackPanel Grid.Row="0">
             <TextBlock Text="Target Process Name (without .exe):" FontWeight="Bold"/>
             <TextBox Text="{Binding TargetProcessName, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,10" IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
-
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="Start" Command="{Binding StartCommand}" Width="100" Height="30" Margin="5" Background="LightGreen"/>
-                <Button Content="Stop" Command="{Binding StopCommand}" Width="100" Height="30" Margin="5" Background="Salmon"/>
+        </StackPanel>
+        
+        <!-- Background Image Selection -->
+        <StackPanel Grid.Row="1" Margin="0,15,0,0">
+            <TextBlock Text="Background Image:" FontWeight="Bold"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding CurrentImageFileName, FallbackValue='None (Solid Black)'}" 
+                           VerticalAlignment="Center" FontStyle="Italic"
+                           TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="1" Content="Select Image..." 
+                        Command="{Binding SelectImageCommand}" 
+                        IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"
+                        Padding="8,4"/>
+            </Grid>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
+                <Button Content="Start" Command="{Binding StartCommand}" Width="100" Height="30" Background="LightGreen"/>
+                <Button Content="Stop" Command="{Binding StopCommand}" Width="100" Height="30" Background="Salmon"/>
             </StackPanel>
         </StackPanel>
         
         <!-- Logs -->
-        <GroupBox Grid.Row="1" Header="Logs" Margin="0,20,0,0">
+        <GroupBox Grid.Row="2" Header="Logs" Margin="0,20,0,0">
             <ListBox ItemsSource="{Binding Logs}" FontFamily="Consolas" FontSize="11"/>
         </GroupBox>
     </Grid>
