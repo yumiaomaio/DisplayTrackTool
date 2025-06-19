@@ -119,5 +119,30 @@ namespace ResponsiveWindowTool.Services.Implementations
                 SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
         }
         
+        public void RestoreToStandard(IntPtr hwnd)
+        {
+            if (hwnd == IntPtr.Zero) return;
+    
+            Debug.WriteLine($"[WindowLayoutManager] Restoring HWND {hwnd} to a standard style.");
+
+            // 定义一个安全的、标准的窗口样式
+            var standardStyle = WindowStyles.WS_OVERLAPPEDWINDOW | WindowStyles.WS_VISIBLE;
+            var standardExStyle = WindowExStyles.WS_EX_APPWINDOW;
+
+            NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)standardStyle);
+            NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)standardExStyle);
+
+            // 获取原始窗口矩形，避免窗口变得过大或过小
+            NativeMethods.GetWindowRect(hwnd, out var rect);
+            int width = rect.Right - rect.Left;
+            int height = rect.Bottom - rect.Top;
+
+            // 刷新窗口以应用样式
+            NativeMethods.SetWindowPos(hwnd, 
+                (IntPtr)(-2), // HWND_NOTOPMOST
+                rect.Left, rect.Top, width, height,
+                SetWindowPosFlags.SWP_FRAMECHANGED);
+        }
+        
     }
 }

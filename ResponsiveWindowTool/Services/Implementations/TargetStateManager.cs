@@ -17,6 +17,7 @@ namespace ResponsiveWindowTool.Services.Implementations
         private readonly IWindowMonitorService _monitorService;
         private readonly IWindowLayoutManager _layoutManager;
         private readonly IOverlayService _overlayService;
+        private readonly IKeyboardHookService _keyboardHookService;
 
         // State
         private IntPtr _targetHwnd = IntPtr.Zero;
@@ -37,13 +38,15 @@ namespace ResponsiveWindowTool.Services.Implementations
             IWindowMonitorService monitorService,
             IWindowLayoutManager layoutManager,
             IOverlayService overlayService,
-            IConfigService configService)
+            IConfigService configService,
+            IKeyboardHookService keyboardHookService)
         {
             _queryService = queryService;
             _monitorService = monitorService;
             _layoutManager = layoutManager;
             _overlayService = overlayService;
             _configService = configService;
+            _keyboardHookService = keyboardHookService;
 
             // Initialize the layout profiles.
             _portraitProfile = _configService.GetPortraitProfile();
@@ -86,6 +89,9 @@ namespace ResponsiveWindowTool.Services.Implementations
             AddLog("Applying initial portrait layout.");
             _layoutManager.ApplyLayout(_targetHwnd, _portraitProfile);
             _lastOrientation = WindowOrientation.Portrait;
+            
+            _keyboardHookService.KeyPressed += OnKeyPressed;
+            _keyboardHookService.Start();
         }
 
         public void Stop()
@@ -103,7 +109,29 @@ namespace ResponsiveWindowTool.Services.Implementations
             _targetHwnd = IntPtr.Zero;
             _isRunning = false;
             IsRunningChanged?.Invoke(_isRunning);
+            
+            _keyboardHookService.Stop();
+            _keyboardHookService.KeyPressed -= OnKeyPressed;
+            
             AddLog("Service stopped.");
+        }
+        
+        private void OnKeyPressed(int vkCode)
+        {
+            const int VK_ESCAPE = 0x1B;
+            if (vkCode == VK_ESCAPE)
+            {
+                AddLog("ESC key pressed. Shutting down and restoring window...");
+            
+                // 在停止所有服务之前，先恢复窗口样式
+                if(_targetHwnd != IntPtr.Zero)
+                {
+                    _layoutManager.RestoreToStandard(_targetHwnd);
+                }
+
+                // 调用Stop()来关闭背景、停止监控等
+                Stop();
+            }
         }
         
         private void OnWindowDestroyed(IntPtr hwnd)
