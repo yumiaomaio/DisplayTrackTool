@@ -32,6 +32,7 @@ namespace ResponsiveWindowTool.Models
 
         [JsonPropertyName("requireConfirmationOnExit")]
         public bool RequireConfirmationOnExit { get; set; } = true;
+        
     }
     
     public class DisplayConfigSettings
