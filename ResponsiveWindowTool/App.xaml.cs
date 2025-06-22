@@ -30,6 +30,8 @@ namespace ResponsiveWindowTool
             services.AddSingleton<IConfigService, ConfigService>();
             services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
             services.AddSingleton<IDisplayInfoService, DisplayInfoService>();
+            services.AddSingleton<IDisplayInfoService, DisplayInfoService>();
+            services.AddSingleton<IDisplaySettingService, DisplaySettingService>(); 
 
             // Register ViewModels
             services.AddSingleton<MainViewModel>();

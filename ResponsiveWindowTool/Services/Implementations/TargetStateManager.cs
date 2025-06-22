@@ -1,4 +1,5 @@
 ﻿// File: Services/Implementations/TargetStateManager.cs
+
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -18,15 +19,18 @@ namespace ResponsiveWindowTool.Services.Implementations
         private readonly IWindowLayoutManager _layoutManager;
         private readonly IOverlayService _overlayService;
         private readonly IKeyboardHookService _keyboardHookService;
+        private readonly IDisplayInfoService _displayInfoService;
+        private readonly IDisplaySettingService _displaySettingService;
 
         // State
         private IntPtr _targetHwnd = IntPtr.Zero;
         private WindowOrientation _lastOrientation = WindowOrientation.Unknown;
         private bool _isRunning = false;
+        private DisplaySnapshot? _originalDisplaySnapshot;
 
         // Logging
         public ObservableCollection<string> Logs { get; } = new();
-        
+
         public event Action<bool>? IsRunningChanged;
 
         public TargetStateManager(
@@ -35,7 +39,9 @@ namespace ResponsiveWindowTool.Services.Implementations
             IWindowLayoutManager layoutManager,
             IOverlayService overlayService,
             IConfigService configService,
-            IKeyboardHookService keyboardHookService)
+            IKeyboardHookService keyboardHookService,
+            IDisplayInfoService displayInfoService,
+            IDisplaySettingService displaySettingService)
         {
             _queryService = queryService;
             _monitorService = monitorService;
@@ -43,8 +49,8 @@ namespace ResponsiveWindowTool.Services.Implementations
             _overlayService = overlayService;
             _configService = configService;
             _keyboardHookService = keyboardHookService;
-
-            // 移除 LayoutProfile 缓存
+            _displayInfoService = displayInfoService;
+            _displaySettingService = displaySettingService;
         }
 
         public void Start(string processName)
@@ -56,7 +62,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             }
 
             AddLog($"Attempting to start for process: {processName}...");
-            
+
             _targetHwnd = _queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero;
 
             if (_targetHwnd == IntPtr.Zero)
@@ -66,26 +72,87 @@ namespace ResponsiveWindowTool.Services.Implementations
             }
 
             AddLog($"Target window found: HWND {_targetHwnd}.");
-            
-            _isRunning = true;
-            IsRunningChanged?.Invoke(_isRunning);
-            _lastOrientation = WindowOrientation.Unknown; // Reset orientation state
 
-            // Show the background overlay
+            // --- 新增：显示器设置流程 ---
+
+            // 1. 快照当前显示器状态
+            AddLog("Taking snapshot of current display settings...");
+            _originalDisplaySnapshot = _displayInfoService.GetCurrentState(_targetHwnd);
+
+            if (_originalDisplaySnapshot == null)
+            {
+                AddLog("Error: Failed to get current display state. Aborting start.");
+                _targetHwnd = IntPtr.Zero; // 重置目标，防止后续操作
+                return;
+            }
+
+            AddLog(
+                $"Snapshot: {_originalDisplaySnapshot.Width}x{_originalDisplaySnapshot.Height} @ {_originalDisplaySnapshot.Dpi}% on device '{_originalDisplaySnapshot.DeviceName}'");
+
+            // 2. 从配置获取目标设置
+            var targetResolution = _configService.GetTargetResolution();
+            AddLog(
+                $"Target settings from config: {targetResolution.Width}x{targetResolution.Height} @ {targetResolution.Dpi}%");
+
+            // 3. 应用新设置
+            // 获取操作所需的ID
+            var identifiers = _displayInfoService.GetIdentifiers(_targetHwnd);
+            if (identifiers == null)
+            {
+                AddLog("Error: Failed to get display identifiers. Aborting start.");
+                _targetHwnd = IntPtr.Zero;
+                return;
+            }
+
+            AddLog("Applying target display settings...");
+            bool settingsApplied = _displaySettingService.ApplySettings(
+                identifiers.DeviceName!,
+                targetResolution.Width,
+                targetResolution.Height,
+                (uint)targetResolution.Dpi,
+                identifiers.AdapterId,
+                identifiers.SourceId
+            );
+
+            if (!settingsApplied)
+            {
+                AddLog("Error: Failed to apply target display settings. Aborting and attempting to restore.");
+                // 尝试立即恢复
+                _displaySettingService.ApplySettings(
+                    _originalDisplaySnapshot.DeviceName,
+                    _originalDisplaySnapshot.Width,
+                    _originalDisplaySnapshot.Height,
+                    _originalDisplaySnapshot.Dpi,
+                    identifiers.AdapterId,
+                    identifiers.SourceId);
+                _targetHwnd = IntPtr.Zero;
+                return;
+            }
+
+            AddLog("Target display settings applied successfully.");
+
+            // --- 现有逻辑继续 ---
+
+            _isRunning = true;
+            _lastOrientation = WindowOrientation.Unknown;
+
             _overlayService.Show(_targetHwnd);
-            
-            // Subscribe to monitor events
+
             _monitorService.WindowStateChanged += OnWindowStateChanged;
             _monitorService.WindowDestroyed += OnWindowDestroyed;
             _monitorService.StartMonitoring(_targetHwnd);
 
-            // Apply initial layout immediately
-            AddLog("Applying initial portrait layout.");
-            _layoutManager.ApplyLayout(_targetHwnd, _configService.GetPortraitProfile());
-            _lastOrientation = WindowOrientation.Portrait;
-            
             _keyboardHookService.KeyPressed += OnKeyPressed;
             _keyboardHookService.Start();
+
+            // 在显示器设置完成后，稍作延时再应用窗口布局，给系统反应时间
+            System.Threading.Thread.Sleep(200);
+
+            AddLog("Applying initial portrait layout for the window.");
+            _layoutManager.ApplyLayout(_targetHwnd, _configService.GetPortraitProfile());
+            _lastOrientation = WindowOrientation.Portrait;
+
+            IsRunningChanged?.Invoke(_isRunning);
         }
 
         public void Stop()
@@ -94,49 +161,75 @@ namespace ResponsiveWindowTool.Services.Implementations
 
             AddLog("Stopping service...");
 
-            // 停止钩子，防止在恢复样式时触发不必要的事件
             _keyboardHookService.Stop();
             _keyboardHookService.KeyPressed -= OnKeyPressed;
             _monitorService.StopMonitoring();
             _monitorService.WindowStateChanged -= OnWindowStateChanged;
             _monitorService.WindowDestroyed -= OnWindowDestroyed;
 
-            // 在隐藏背景之前，先恢复目标窗口的样式
-            if (_targetHwnd != IntPtr.Zero)
+            if (_targetHwnd != IntPtr.Zero && NativeMethods.IsWindow(_targetHwnd))
             {
-                // IsWindow 是一个好的安全检查，确保句柄仍然有效
-                if (NativeMethods.IsWindow(_targetHwnd))
-                {
-                    AddLog("Restoring target window to standard style.");
-                    _layoutManager.RestoreToStandard(_targetHwnd);
-                }
+                AddLog("Restoring target window to standard style.");
+                _layoutManager.RestoreToStandard(_targetHwnd);
             }
-        
-            // 隐藏背景
+    
             _overlayService.Hide();
 
-            // 清理状态
+            // --- 新增：恢复显示器设置流程 ---
+            if (_originalDisplaySnapshot != null)
+            {
+                AddLog("Restoring original display settings...");
+        
+                // 获取最新的ID，因为显示器配置可能已变
+                var identifiers = _displayInfoService.GetIdentifiers(_targetHwnd);
+                if (identifiers != null)
+                {
+                    bool restored = _displaySettingService.ApplySettings(
+                        _originalDisplaySnapshot.DeviceName,
+                        _originalDisplaySnapshot.Width,
+                        _originalDisplaySnapshot.Height,
+                        _originalDisplaySnapshot.Dpi,
+                        identifiers.AdapterId,
+                        identifiers.SourceId
+                    );
+
+                    if (restored)
+                    {
+                        AddLog("Original display settings restored successfully.");
+                    }
+                    else
+                    {
+                        AddLog("Warning: Failed to restore original display settings. Manual adjustment may be required.");
+                    }
+                }
+                else
+                {
+                    AddLog("Warning: Could not get display identifiers to restore settings.");
+                }
+        
+                _originalDisplaySnapshot = null; // 清理快照
+            }
+
             _targetHwnd = IntPtr.Zero;
             _isRunning = false;
-        
-            // 触发状态更新事件
+    
             IsRunningChanged?.Invoke(_isRunning); 
-        
+    
             AddLog("Service stopped.");
         }
-    
+
         private void OnKeyPressed(int vkCode)
         {
             const int VK_ESCAPE = 0x1B;
             if (vkCode == VK_ESCAPE)
             {
                 AddLog("ESC key pressed. Shutting down and restoring window...");
-            
+
                 // ESC键现在只需要调用Stop()即可，因为所有恢复逻辑都在Stop()里了
                 Stop();
             }
         }
-        
+
         private void OnWindowDestroyed(IntPtr hwnd)
         {
             if (hwnd == _targetHwnd)
@@ -146,14 +239,14 @@ namespace ResponsiveWindowTool.Services.Implementations
                 Stop();
             }
         }
-        
+
         private void OnWindowStateChanged(IntPtr hwnd, Rect newRect)
         {
             if (hwnd != _targetHwnd || !_isRunning) return;
 
             // --- 1. 方向改变检测 ---
-            var currentOrientation = newRect.Width > newRect.Height 
-                ? WindowOrientation.Landscape 
+            var currentOrientation = newRect.Width > newRect.Height
+                ? WindowOrientation.Landscape
                 : WindowOrientation.Portrait;
 
             if (currentOrientation != _lastOrientation)
@@ -172,7 +265,8 @@ namespace ResponsiveWindowTool.Services.Implementations
                         _layoutManager.ApplyLayout(_targetHwnd, _configService.GetLandscapeProfile());
                         break;
                 }
-                return; 
+
+                return;
             }
 
             // --- 2. Topmost 状态维持 (如果方向没有改变) ---
@@ -193,7 +287,7 @@ namespace ResponsiveWindowTool.Services.Implementations
                 }
             }
         }
-        
+
         private void AddLog(string message)
         {
             // Ensure logs are added on the UI thread for data binding
@@ -208,7 +302,7 @@ namespace ResponsiveWindowTool.Services.Implementations
                 }
             });
         }
-        
+
         public void Dispose()
         {
             Stop();

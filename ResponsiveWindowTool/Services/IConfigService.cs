@@ -16,5 +16,7 @@ namespace ResponsiveWindowTool.Services
         string GetBackgroundColor();
         void SetBackgroundMode(BackgroundMode mode);
         void SetBackgroundColor(string color);
+        ResolutionConfig GetTargetResolution();
+        bool IsConfirmationRequired();
     }
 }

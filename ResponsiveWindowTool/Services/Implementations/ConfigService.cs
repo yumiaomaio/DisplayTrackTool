@@ -149,6 +149,22 @@ namespace ResponsiveWindowTool.Services.Implementations
             _config.BackgroundColor = color;
             SaveConfig();
         }
+        
+        public ResolutionConfig GetTargetResolution()
+        {
+            // The _config field is loaded from profiles.json in the constructor
+            return new ResolutionConfig 
+            {
+                Width = _config.DisplaySettings.Width,
+                Height = _config.DisplaySettings.Height,
+                Dpi = _config.DisplaySettings.Dpi
+            };
+        }
+
+        public bool IsConfirmationRequired()
+        {
+            return _config.RequireConfirmationOnExit;
+        }
 
         // 新增：安全的宽高比字符串解析器
         private double? ParseAspectRatio(string? ratioString)
