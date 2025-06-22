@@ -6,7 +6,7 @@
         xmlns:helpers="clr-namespace:ResponsiveWindowTool.Helpers"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
-        <helpers:InvertBoolConverter x:Key="InvertBoolConverter"/> <!-- 将资源定义移到这里 -->
+        <helpers:InvertBoolConverter x:Key="InvertBoolConverter"/>
     </Window.Resources>
     <Grid Margin="15">
         <Grid.RowDefinitions>
@@ -20,7 +20,7 @@
             <TextBlock Text="Target Process Name (without .exe):" FontWeight="Bold"/>
             <TextBox Text="{Binding TargetProcessName, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,10" IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
             
-            <TextBlock Text="Portrait Aspect Ratio (e.g., 0.5625 for 9:16):" FontWeight="Bold"/>
+            <TextBlock Text="Portrait Aspect Ratio (e.g：9/16):" FontWeight="Bold"/>
             <TextBox Text="{Binding PortraitAspectRatio, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,10" IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
         </StackPanel>
         

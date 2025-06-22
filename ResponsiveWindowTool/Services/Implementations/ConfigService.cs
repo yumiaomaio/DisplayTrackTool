@@ -31,9 +31,11 @@ namespace ResponsiveWindowTool.Services.Implementations
         public LayoutProfile GetPortraitProfile() => ConvertToLayoutProfile(_config.Profiles.Portrait);
         public LayoutProfile GetLandscapeProfile() => ConvertToLayoutProfile(_config.Profiles.Landscape);
 
-        public double GetPortraitAspectRatio() => _config.Profiles.Portrait.AspectRatio ?? (9.0 / 16.0); // 新增
-        public void SetPortraitAspectRatio(double aspectRatio) // 新增
+        public string? GetPortraitAspectRatio() => _config.Profiles.Portrait.AspectRatio;
+
+        public void SetPortraitAspectRatio(string? aspectRatio)
         {
+            // 允许设置为空字符串或null
             if (_config.Profiles.Portrait.AspectRatio == aspectRatio) return;
             _config.Profiles.Portrait.AspectRatio = aspectRatio;
             SaveConfig();
@@ -102,7 +104,7 @@ namespace ResponsiveWindowTool.Services.Implementations
                         ExStyles = new List<string> { "WS_EX_TOPMOST" },
                         Sizing = SizingMode.RelativeToScreenHeight,
                         Positioning = PositioningMode.CenterScreen,
-                        AspectRatio = 9.0 / 16.0
+                        AspectRatio = "9/16"
                     },
                     Landscape = new ProfileDefinition
                     {
@@ -125,8 +127,38 @@ namespace ResponsiveWindowTool.Services.Implementations
                 ExStyles = ParseEnum<WindowExStyles>(def.ExStyles),
                 Sizing = def.Sizing,
                 Positioning = def.Positioning,
-                AspectRatio = def.AspectRatio
+                AspectRatio = ParseAspectRatio(def.AspectRatio) // 使用新的解析器
             };
+        }
+
+        // 新增：安全的宽高比字符串解析器
+        private double? ParseAspectRatio(string? ratioString)
+        {
+            if (string.IsNullOrWhiteSpace(ratioString))
+            {
+                return null;
+            }
+
+            try
+            {
+                var parts = ratioString.Split('/');
+                if (parts.Length != 2) return null;
+
+                if (double.TryParse(parts[0].Trim(), out double numerator) &&
+                    double.TryParse(parts[1].Trim(), out double denominator))
+                {
+                    // 防止除以零
+                    if (denominator == 0) return null;
+                    return numerator / denominator;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ConfigService] Failed to parse aspect ratio '{ratioString}': {ex.Message}");
+                return null;
+            }
+
+            return null;
         }
 
         private T ParseEnum<T>(List<string> values) where T : struct

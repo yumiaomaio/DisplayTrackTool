@@ -43,6 +43,6 @@ namespace ResponsiveWindowTool.Models
         public PositioningMode Positioning { get; set; }
 
         [JsonPropertyName("aspectRatio")]
-        public double? AspectRatio { get; set; }
+        public string? AspectRatio { get; set; }
     }
 }

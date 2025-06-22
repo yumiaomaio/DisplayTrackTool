@@ -1,13 +1,12 @@
 ﻿// File: ViewModels/MainViewModel.cs
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Windows;
 using ResponsiveWindowTool.Services;
-using Microsoft.Win32; // 新增：用于文件对话框
-using System.IO;      // 新增：用于文件操作
+using Microsoft.Win32;
+using System.IO;
 
 namespace ResponsiveWindowTool.ViewModels
 {
@@ -70,14 +69,16 @@ namespace ResponsiveWindowTool.ViewModels
             set => SetProperty(ref _currentImageFileName, value);
         }
 
-        private double _portraitAspectRatio;
-        public double PortraitAspectRatio
+        // 将属性类型从 double 改为 string?
+        private string? _portraitAspectRatio;
+        public string? PortraitAspectRatio
         {
             get => _portraitAspectRatio;
             set
             {
                 if (SetProperty(ref _portraitAspectRatio, value))
                 {
+                    // 直接将用户输入的字符串保存到配置
                     _configService.SetPortraitAspectRatio(value);
                 }
             }
@@ -92,7 +93,7 @@ namespace ResponsiveWindowTool.ViewModels
 
             TargetProcessName = _configService.GetDefaultProcessName();
             CurrentImageFileName = _configService.GetBackgroundImageFileName();
-            PortraitAspectRatio = _configService.GetPortraitAspectRatio(); // 新增
+            PortraitAspectRatio = _configService.GetPortraitAspectRatio(); // 现在获取的是字符串
 
             StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
             StopCommand = new RelayCommand(OnStop, () => IsRunning);
