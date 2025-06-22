@@ -26,6 +26,24 @@ namespace ResponsiveWindowTool.Models
 
         [JsonPropertyName("profiles")]
         public ProfileCollection Profiles { get; set; } = new();
+        
+        [JsonPropertyName("displaySettings")]
+        public DisplayConfigSettings DisplaySettings { get; set; } = new();
+
+        [JsonPropertyName("requireConfirmationOnExit")]
+        public bool RequireConfirmationOnExit { get; set; } = true;
+    }
+    
+    public class DisplayConfigSettings
+    {
+        [JsonPropertyName("width")]
+        public int Width { get; set; } = 1920;
+
+        [JsonPropertyName("height")]
+        public int Height { get; set; } = 1080;
+
+        [JsonPropertyName("dpi")]
+        public int Dpi { get; set; } = 100;
     }
 
     public class ProfileCollection
