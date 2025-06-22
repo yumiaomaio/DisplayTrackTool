@@ -8,6 +8,7 @@ using System.Windows.Interop;
 using ResponsiveWindowTool.Interop;
 using ResponsiveWindowTool.Interop.Enums;
 using ResponsiveWindowTool.Interop.Structs;
+using ResponsiveWindowTool.Models;
 using ResponsiveWindowTool.Views;
 
 namespace ResponsiveWindowTool.Services.Implementations
@@ -16,9 +17,9 @@ namespace ResponsiveWindowTool.Services.Implementations
     {
         private OverlayWindow? _overlayWindow;
         private readonly IConfigService _configService;
-        public IntPtr? WindowHandle { get; private set; } // 新增属性
+        public IntPtr? WindowHandle { get; private set; }
 
-        public OverlayService(IConfigService configService) // <-- 修改构造函数
+        public OverlayService(IConfigService configService)
         {
             _configService = configService;
         }
@@ -29,32 +30,39 @@ namespace ResponsiveWindowTool.Services.Implementations
             {
                 _overlayWindow.Close();
             }
-            
-            // 从配置服务获取图片文件名
-            string? imageName = _configService.GetBackgroundImageFileName();
-            string? imagePath = null;
 
-            if (!string.IsNullOrEmpty(imageName))
+            var backgroundMode = _configService.GetBackgroundMode();
+            string? imagePath = null;
+            string backgroundColor = "#FF000000"; // 默认黑色
+
+            if (backgroundMode == BackgroundMode.Image)
             {
-                // 构建完整路径
-                string backgroundsDir = Path.Combine(AppContext.BaseDirectory, "Backgrounds");
-                imagePath = Path.Combine(backgroundsDir, imageName);
-                if (!File.Exists(imagePath))
+                // 图片模式逻辑
+                string? imageName = _configService.GetBackgroundImageFileName();
+                if (!string.IsNullOrEmpty(imageName))
                 {
-                    Debug.WriteLine($"[OverlayService] Background image not found at: {imagePath}. Reverting to black.");
-                    imagePath = null;
+                    string backgroundsDir = Path.Combine(AppContext.BaseDirectory, "Backgrounds");
+                    string fullPath = Path.Combine(backgroundsDir, imageName);
+                    if (File.Exists(fullPath))
+                    {
+                        imagePath = fullPath;
+                    }
                 }
             }
+            else
+            {
+                // 纯色模式逻辑
+                backgroundColor = _configService.GetBackgroundColor();
+            }
 
-            _overlayWindow = new OverlayWindow(imagePath); // <-- 将路径传递给窗口
+            // 将两种可能的值都传递给 OverlayWindow
+            _overlayWindow = new OverlayWindow(imagePath, backgroundColor);
 
-            // 句柄获取，确保 SourceInitialized 后可用
             _overlayWindow.SourceInitialized += (s, e) =>
             {
                 WindowHandle = new WindowInteropHelper(_overlayWindow).Handle;
             };
 
-            // Determine which monitor the target window is on.
             IntPtr hMonitor = NativeMethods.MonitorFromWindow(targetHwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
             var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
 

@@ -94,6 +94,8 @@ namespace ResponsiveWindowTool.Services.Implementations
             return new AppConfig
             {
                 TargetProcessName = "notepad",
+                BackgroundMode = BackgroundMode.SolidColor,
+                BackgroundColor = "#FF000000",
                 BackgroundImageFileName = null,
                 Profiles = new ProfileCollection
                 {
@@ -129,6 +131,23 @@ namespace ResponsiveWindowTool.Services.Implementations
                 Positioning = def.Positioning,
                 AspectRatio = ParseAspectRatio(def.AspectRatio) // 使用新的解析器
             };
+        }
+        
+        public BackgroundMode GetBackgroundMode() => _config.BackgroundMode;
+        public string GetBackgroundColor() => _config.BackgroundColor;
+
+        public void SetBackgroundMode(BackgroundMode mode)
+        {
+            if (_config.BackgroundMode == mode) return;
+            _config.BackgroundMode = mode;
+            SaveConfig();
+        }
+
+        public void SetBackgroundColor(string color)
+        {
+            if (string.Equals(_config.BackgroundColor, color, StringComparison.InvariantCultureIgnoreCase)) return;
+            _config.BackgroundColor = color;
+            SaveConfig();
         }
 
         // 新增：安全的宽高比字符串解析器

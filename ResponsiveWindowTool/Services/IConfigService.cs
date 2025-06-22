@@ -12,5 +12,9 @@ namespace ResponsiveWindowTool.Services
         void SetBackgroundImageFileName(string? fileName);
         string? GetPortraitAspectRatio();
         void SetPortraitAspectRatio(string? aspectRatio);
+        BackgroundMode GetBackgroundMode();
+        string GetBackgroundColor();
+        void SetBackgroundMode(BackgroundMode mode);
+        void SetBackgroundColor(string color);
     }
 }

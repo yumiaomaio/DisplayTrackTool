@@ -4,16 +4,28 @@ using System.Text.Json.Serialization;
 
 namespace ResponsiveWindowTool.Models
 {
+    public enum BackgroundMode
+    {
+        SolidColor,
+        Image
+    }
+
     public class AppConfig
     {
         [JsonPropertyName("targetProcessName")]
         public string TargetProcessName { get; set; } = "notepad";
 
-        [JsonPropertyName("profiles")]
-        public ProfileCollection Profiles { get; set; } = new();
-        
+        [JsonPropertyName("backgroundMode")]
+        public BackgroundMode BackgroundMode { get; set; } = BackgroundMode.SolidColor; // <-- 默认使用纯色
+
+        [JsonPropertyName("backgroundColor")]
+        public string BackgroundColor { get; set; } = "#FF000000"; // <-- 默认纯黑 (ARGB)
+
         [JsonPropertyName("backgroundImageFileName")]
         public string? BackgroundImageFileName { get; set; }
+
+        [JsonPropertyName("profiles")]
+        public ProfileCollection Profiles { get; set; } = new();
     }
 
     public class ProfileCollection

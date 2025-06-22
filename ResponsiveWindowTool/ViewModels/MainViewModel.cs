@@ -7,6 +7,7 @@ using System.Windows;
 using ResponsiveWindowTool.Services;
 using Microsoft.Win32;
 using System.IO;
+using ResponsiveWindowTool.Models;
 
 namespace ResponsiveWindowTool.ViewModels
 {
@@ -26,6 +27,12 @@ namespace ResponsiveWindowTool.ViewModels
         }
         public bool CanExecute(object? parameter) => _canExecute == null || _canExecute();
         public void Execute(object? parameter) => _execute();
+
+        // 新增：手动触发 CanExecuteChanged
+        public void RaiseCanExecuteChanged()
+        {
+            CommandManager.InvalidateRequerySuggested();
+        }
     }
     
     public class MainViewModel : INotifyPropertyChanged, IDisposable
@@ -61,12 +68,20 @@ namespace ResponsiveWindowTool.ViewModels
         public ICommand StartCommand { get; }
         public ICommand StopCommand { get; }
         public ICommand SelectImageCommand { get; }
+        public ICommand ClearImageCommand { get; } // 新增
 
         private string? _currentImageFileName;
         public string? CurrentImageFileName
         {
             get => _currentImageFileName;
-            set => SetProperty(ref _currentImageFileName, value);
+            set
+            {
+                if (SetProperty(ref _currentImageFileName, value))
+                {
+                    // 通知 "Clear" 按钮刷新其可用状态
+                    (ClearImageCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                }
+            }
         }
 
         // 将属性类型从 double 改为 string?
@@ -93,11 +108,12 @@ namespace ResponsiveWindowTool.ViewModels
 
             TargetProcessName = _configService.GetDefaultProcessName();
             CurrentImageFileName = _configService.GetBackgroundImageFileName();
-            PortraitAspectRatio = _configService.GetPortraitAspectRatio(); // 现在获取的是字符串
+            PortraitAspectRatio = _configService.GetPortraitAspectRatio();
 
             StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
             StopCommand = new RelayCommand(OnStop, () => IsRunning);
             SelectImageCommand = new RelayCommand(SelectImage);
+            ClearImageCommand = new RelayCommand(ClearImage, CanClearImage); // 新增
         }
 
         private void OnIsRunningChanged(bool isRunning)
@@ -132,18 +148,16 @@ namespace ResponsiveWindowTool.ViewModels
                 string sourcePath = openFileDialog.FileName;
                 string fileName = Path.GetFileName(sourcePath);
 
-                // 1. 创建 Backgrounds 目录
                 string backgroundsDir = Path.Combine(AppContext.BaseDirectory, "Backgrounds");
                 Directory.CreateDirectory(backgroundsDir);
 
-                // 2. 复制文件
                 string destPath = Path.Combine(backgroundsDir, fileName);
                 try
                 {
-                    File.Copy(sourcePath, destPath, true); // 覆盖
-                    // 3. 更新配置
+                    File.Copy(sourcePath, destPath, true);
+                    // 关键：当用户选择图片时，模式自动切换为Image
+                    _configService.SetBackgroundMode(BackgroundMode.Image);
                     _configService.SetBackgroundImageFileName(fileName);
-                    // 4. 更新UI
                     CurrentImageFileName = fileName;
                 }
                 catch (Exception ex)
@@ -151,6 +165,21 @@ namespace ResponsiveWindowTool.ViewModels
                     MessageBox.Show($"Error copying file: {ex.Message}");
                 }
             }
+        }
+
+        // 新增：清除图片
+        private void ClearImage()
+        {
+            // 关键：当用户清除图片时，模式自动切换回SolidColor
+            _configService.SetBackgroundMode(BackgroundMode.SolidColor);
+            _configService.SetBackgroundImageFileName(null);
+            CurrentImageFileName = null;
+        }
+
+        // 新增：判断是否可以清除图片
+        private bool CanClearImage()
+        {
+            return !string.IsNullOrEmpty(CurrentImageFileName);
         }
 
         public void Dispose()
