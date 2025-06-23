@@ -116,7 +116,14 @@ namespace ResponsiveWindowTool.Services.Implementations
                         Sizing = SizingMode.Fullscreen,
                         Positioning = PositioningMode.TopLeft
                     }
-                }
+                },
+                DisplaySettings = new DisplayConfigSettings
+                {
+                    Width = 2560,
+                    Height = 1440,
+                    Dpi = 150
+                },
+                RequireConfirmationOnExit = true
             };
         }
         

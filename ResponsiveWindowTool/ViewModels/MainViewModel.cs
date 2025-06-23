@@ -159,7 +159,7 @@ namespace ResponsiveWindowTool.ViewModels
             StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
             StopCommand = new RelayCommand(OnStop, () => IsRunning);
             SelectImageCommand = new RelayCommand(SelectImage);
-            ClearImageCommand = new RelayCommand(ClearImage, CanClearImage); // 新增
+            ClearImageCommand = new RelayCommand(ClearImage, CanClearImage);
         }
 
         private Task<bool> OnConfirmationRequired(string message, int timeout)
