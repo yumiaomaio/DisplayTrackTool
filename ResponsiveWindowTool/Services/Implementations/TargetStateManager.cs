@@ -32,6 +32,7 @@ namespace ResponsiveWindowTool.Services.Implementations
         public ObservableCollection<string> Logs { get; } = new();
 
         public event Action<bool>? IsRunningChanged;
+        public event Func<string, int, Task<bool>>? ConfirmationRequired;
 
         public TargetStateManager(
             IWindowQueryService queryService,
@@ -155,7 +156,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             IsRunningChanged?.Invoke(_isRunning);
         }
 
-        public void Stop()
+        public async void Stop()
         {
             if (!_isRunning) return;
 
@@ -172,49 +173,63 @@ namespace ResponsiveWindowTool.Services.Implementations
                 AddLog("Restoring target window to standard style.");
                 _layoutManager.RestoreToStandard(_targetHwnd);
             }
-    
+
             _overlayService.Hide();
 
             // --- 新增：恢复显示器设置流程 ---
             if (_originalDisplaySnapshot != null)
             {
-                AddLog("Restoring original display settings...");
-        
-                // 获取最新的ID，因为显示器配置可能已变
-                var identifiers = _displayInfoService.GetIdentifiers(_targetHwnd);
-                if (identifiers != null)
+                bool shouldRestore = true; // 默认恢复
+                if (_configService.IsConfirmationRequired() && ConfirmationRequired != null)
                 {
-                    bool restored = _displaySettingService.ApplySettings(
-                        _originalDisplaySnapshot.DeviceName,
-                        _originalDisplaySnapshot.Width,
-                        _originalDisplaySnapshot.Height,
-                        _originalDisplaySnapshot.Dpi,
-                        identifiers.AdapterId,
-                        identifiers.SourceId
-                    );
+                    AddLog("Confirmation required to restore display settings...");
+                    // 触发事件，并等待ViewModel的响应
+                    shouldRestore = await ConfirmationRequired("Restore original display settings?", 10);
+                }
 
-                    if (restored)
+                if (shouldRestore)
+                {
+                    AddLog("Restoring original display settings...");
+
+                    // 获取最新的ID，因为显示器配置可能已变
+                    var identifiers = _displayInfoService.GetIdentifiers(_targetHwnd);
+                    if (identifiers != null)
                     {
-                        AddLog("Original display settings restored successfully.");
+                        bool restored = _displaySettingService.ApplySettings(
+                            _originalDisplaySnapshot.DeviceName,
+                            _originalDisplaySnapshot.Width,
+                            _originalDisplaySnapshot.Height,
+                            _originalDisplaySnapshot.Dpi,
+                            identifiers.AdapterId,
+                            identifiers.SourceId
+                        );
+
+                        if (restored)
+                        {
+                            AddLog("Original display settings restored successfully.");
+                        }
+                        else
+                        {
+                            AddLog("Warning: Failed to restore original display settings. Manual adjustment may be required.");
+                        }
                     }
                     else
                     {
-                        AddLog("Warning: Failed to restore original display settings. Manual adjustment may be required.");
+                        AddLog("Warning: Could not get display identifiers to restore settings.");
                     }
                 }
                 else
                 {
-                    AddLog("Warning: Could not get display identifiers to restore settings.");
+                    AddLog("Restore skipped by user.");
                 }
-        
                 _originalDisplaySnapshot = null; // 清理快照
             }
 
             _targetHwnd = IntPtr.Zero;
             _isRunning = false;
-    
-            IsRunningChanged?.Invoke(_isRunning); 
-    
+
+            IsRunningChanged?.Invoke(_isRunning);
+
             AddLog("Service stopped.");
         }
 

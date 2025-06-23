@@ -46,12 +46,15 @@ namespace ResponsiveWindowTool.Services.Implementations
             // 4. Find the correct display path by matching the monitor's position.
             foreach (var mode in modes)
             {
-                // We are looking for a source mode that matches our monitor's top-left corner.
-                if (mode.infoType == 2 /* SOURCE */ || mode.sourceMode.position.x != monitorRect.Left || mode.sourceMode.position.y != monitorRect.Top)
+                if ((DISPLAYCONFIG_MODE_INFO_TYPE)mode.infoType != DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
                 {
                     continue;
                 }
-
+                if (mode.sourceMode.position.x != monitorRect.Left || mode.sourceMode.position.y != monitorRect.Top)
+                {
+                    continue;
+                }
+                
                 // Found the matching source mode. Now find its GDI device name.
                 // This is done by enumerating GDI devices and matching their position.
                 var displayDevice = new DISPLAY_DEVICE { cb = Marshal.SizeOf<DISPLAY_DEVICE>() };

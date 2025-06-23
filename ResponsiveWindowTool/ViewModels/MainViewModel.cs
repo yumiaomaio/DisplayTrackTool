@@ -39,6 +39,7 @@ namespace ResponsiveWindowTool.ViewModels
     {
         private readonly ITargetStateManager _stateManager;
         private readonly IConfigService _configService;
+        private readonly IDialogService _dialogService;
 
         private string? _targetProcessName;
         public string? TargetProcessName
@@ -99,21 +100,77 @@ namespace ResponsiveWindowTool.ViewModels
             }
         }
 
-        public MainViewModel(ITargetStateManager stateManager, IConfigService configService)
+        #region New Properties for UI Binding
+        private int _targetResolutionWidth;
+        public int TargetResolutionWidth
+        {
+            get => _targetResolutionWidth;
+            set { if (SetProperty(ref _targetResolutionWidth, value)) SaveTargetResolution(); }
+        }
+
+        private int _targetResolutionHeight;
+        public int TargetResolutionHeight
+        {
+            get => _targetResolutionHeight;
+            set { if (SetProperty(ref _targetResolutionHeight, value)) SaveTargetResolution(); }
+        }
+
+        private int _targetDpi;
+        public int TargetDpi
+        {
+            get => _targetDpi;
+            set { if (SetProperty(ref _targetDpi, value)) SaveTargetResolution(); }
+        }
+
+        private bool _requireConfirmationOnExit;
+        public bool RequireConfirmationOnExit
+        {
+            get => _requireConfirmationOnExit;
+            set
+            {
+                if (SetProperty(ref _requireConfirmationOnExit, value))
+                {
+                    _configService.SetRequireConfirmation(value);
+                }
+            }
+        }
+        #endregion
+
+        public MainViewModel(ITargetStateManager stateManager, IConfigService configService, IDialogService dialogService)
         {
             _stateManager = stateManager;
             _configService = configService;
+            _dialogService = dialogService;
 
             _stateManager.IsRunningChanged += OnIsRunningChanged;
+            _stateManager.ConfirmationRequired += OnConfirmationRequired;
 
             TargetProcessName = _configService.GetDefaultProcessName();
             CurrentImageFileName = _configService.GetBackgroundImageFileName();
             PortraitAspectRatio = _configService.GetPortraitAspectRatio();
 
+            RequireConfirmationOnExit = _configService.IsConfirmationRequired();
+
+            var initialResolution = _configService.GetTargetResolution();
+            _targetResolutionWidth = initialResolution.Width;
+            _targetResolutionHeight = initialResolution.Height;
+            _targetDpi = initialResolution.Dpi;
+
             StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
             StopCommand = new RelayCommand(OnStop, () => IsRunning);
             SelectImageCommand = new RelayCommand(SelectImage);
             ClearImageCommand = new RelayCommand(ClearImage, CanClearImage); // 新增
+        }
+
+        private Task<bool> OnConfirmationRequired(string message, int timeout)
+        {
+            // 当StateManager需要确认时，调用DialogService
+            return _dialogService.ShowConfirmationDialog(message, timeout);
+        }
+
+        private void SaveTargetResolution()
+        {
+            _configService.SetTargetResolution(TargetResolutionWidth, TargetResolutionHeight, TargetDpi);
         }
 
         private void OnIsRunningChanged(bool isRunning)
@@ -185,6 +242,7 @@ namespace ResponsiveWindowTool.ViewModels
         public void Dispose()
         {
             _stateManager.IsRunningChanged -= OnIsRunningChanged;
+            _stateManager.ConfirmationRequired -= OnConfirmationRequired;
             if (_stateManager is IDisposable disposableManager)
             {
                 disposableManager.Dispose();

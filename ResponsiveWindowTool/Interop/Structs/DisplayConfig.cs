@@ -64,11 +64,17 @@ namespace ResponsiveWindowTool.Interop.Structs
     public struct DISPLAYCONFIG_MODE_INFO
     {
         [FieldOffset(0)]
-        public uint infoType; // Corresponds to DISPLAYCONFIG_MODE_INFO_TYPE
+        public uint infoType; // Corresponds to DISPLAYCONFIG_MODE_INFO_TYPE enum
+
         [FieldOffset(4)]
         public uint id;
+
         [FieldOffset(8)]
         public LUID adapterId;
+
+        [FieldOffset(16)]
+        public DISPLAYCONFIG_TARGET_MODE targetMode; // MUST include the larger union member
+
         [FieldOffset(16)]
         public DISPLAYCONFIG_SOURCE_MODE sourceMode;
     }
@@ -98,5 +104,37 @@ namespace ResponsiveWindowTool.Interop.Structs
     {
         public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
         public int scaleRel;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISPLAYCONFIG_RATIONAL
+    {
+        public uint Numerator;
+        public uint Denominator;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SIZE
+    {
+        public int cx;
+        public int cy;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISPLAYCONFIG_VIDEO_SIGNAL_INFO
+    {
+        public ulong pixelRate;
+        public DISPLAYCONFIG_RATIONAL hSyncFreq;
+        public DISPLAYCONFIG_RATIONAL vSyncFreq;
+        public SIZE activeSize;
+        public SIZE totalSize;
+        public uint videoStandard;
+        public uint scanLineOrdering;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISPLAYCONFIG_TARGET_MODE
+    {
+        public DISPLAYCONFIG_VIDEO_SIGNAL_INFO targetVideoSignalInfo;
     }
 }

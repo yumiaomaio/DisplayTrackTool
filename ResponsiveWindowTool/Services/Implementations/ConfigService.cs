@@ -165,6 +165,24 @@ namespace ResponsiveWindowTool.Services.Implementations
         {
             return _config.RequireConfirmationOnExit;
         }
+        
+        public void SetTargetResolution(int width, int height, int dpi)
+        {
+            var settings = _config.DisplaySettings;
+            if (settings.Width == width && settings.Height == height && settings.Dpi == dpi) return;
+        
+            settings.Width = width;
+            settings.Height = height;
+            settings.Dpi = dpi;
+            SaveConfig();
+        }
+
+        public void SetRequireConfirmation(bool required)
+        {
+            if (_config.RequireConfirmationOnExit == required) return;
+            _config.RequireConfirmationOnExit = required;
+            SaveConfig();
+        }
 
         // 新增：安全的宽高比字符串解析器
         private double? ParseAspectRatio(string? ratioString)
