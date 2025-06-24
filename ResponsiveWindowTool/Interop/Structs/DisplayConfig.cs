@@ -1,4 +1,4 @@
-﻿// File: Interop/Structs/DisplayConfig.cs
+﻿// File: Interop/Structs/DisplayConfig.cs (Modified)
 using System.Runtime.InteropServices;
 using ResponsiveWindowTool.Interop.Enums;
 
@@ -36,7 +36,7 @@ namespace ResponsiveWindowTool.Interop.Structs
         public uint outputTechnology; // Simplified from enum for interop
         public uint rotation;
         public uint scaling;
-        public ulong refreshRate;
+        public DISPLAYCONFIG_RATIONAL refreshRate; // *** CORRECTED from ulong to struct ***
         public uint scanLineOrdering;
         [MarshalAs(UnmanagedType.Bool)]
         public bool targetAvailable;
@@ -60,24 +60,29 @@ namespace ResponsiveWindowTool.Interop.Structs
         public POINTL position;
     }
 
+    // *** START OF REFACTOR ***
+    // 1. Define the union struct using explicit layout.
+    //    This ensures that targetMode and sourceMode occupy the same memory location.
     [StructLayout(LayoutKind.Explicit)]
-    public struct DISPLAYCONFIG_MODE_INFO
+    public struct DISPLAYCONFIG_MODE_INFO_UNION
     {
         [FieldOffset(0)]
-        public uint infoType; // Corresponds to DISPLAYCONFIG_MODE_INFO_TYPE enum
+        public DISPLAYCONFIG_TARGET_MODE targetMode;
 
-        [FieldOffset(4)]
-        public uint id;
-
-        [FieldOffset(8)]
-        public LUID adapterId;
-
-        [FieldOffset(16)]
-        public DISPLAYCONFIG_TARGET_MODE targetMode; // MUST include the larger union member
-
-        [FieldOffset(16)]
+        [FieldOffset(0)]
         public DISPLAYCONFIG_SOURCE_MODE sourceMode;
     }
+
+    // 2. Redefine the main struct to use the union.
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DISPLAYCONFIG_MODE_INFO
+    {
+        public DISPLAYCONFIG_MODE_INFO_TYPE infoType;
+        public uint id;
+        public LUID adapterId;
+        public DISPLAYCONFIG_MODE_INFO_UNION modeInfo;
+    }
+    // *** END OF REFACTOR ***
 
     // --- For DPI Scaling ---
 
@@ -136,5 +141,13 @@ namespace ResponsiveWindowTool.Interop.Structs
     public struct DISPLAYCONFIG_TARGET_MODE
     {
         public DISPLAYCONFIG_VIDEO_SIGNAL_INFO targetVideoSignalInfo;
+    }
+    
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct DISPLAYCONFIG_SOURCE_DEVICE_NAME
+    {
+        public DISPLAYCONFIG_DEVICE_INFO_HEADER header;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string viewGdiDeviceName;
     }
 }

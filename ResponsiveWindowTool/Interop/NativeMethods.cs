@@ -1,4 +1,4 @@
-﻿// File: Interop/NativeMethods.cs (Final Corrected Version)
+﻿// File: Interop/NativeMethods.cs (Modified)
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -43,7 +43,7 @@ namespace ResponsiveWindowTool.Interop
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool IsWindowVisible(IntPtr hWnd);
         
-        [DllImport("user32.dll")] // <-- 新增方法
+        [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool IsWindow(IntPtr hWnd);
 
@@ -82,6 +82,7 @@ namespace ResponsiveWindowTool.Interop
             ref DISPLAY_DEVICE lpDisplayDevice, 
             uint dwFlags);
 
+        // EnumDisplaySettingsEx is still used by DisplayInfoService to match GDI device names to coordinates.
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool EnumDisplaySettingsEx(
@@ -89,14 +90,6 @@ namespace ResponsiveWindowTool.Interop
             int iModeNum, 
             ref DEVMODE lpDevMode, 
             int dwFlags);
-
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        public static extern int ChangeDisplaySettingsEx(
-            string? lpszDeviceName, 
-            ref DEVMODE lpDevMode, 
-            IntPtr hwnd, 
-            ChangeDisplaySettingsFlags dwflags, 
-            IntPtr lParam);
 
         // --- Modern Display Configuration (CCD APIs) ---
 
@@ -115,6 +108,18 @@ namespace ResponsiveWindowTool.Interop
             [Out] DISPLAYCONFIG_MODE_INFO[] modeInfoArray, 
             IntPtr currentTopologyId);
         
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern int DisplayConfigGetDeviceInfo(ref DISPLAYCONFIG_SOURCE_DEVICE_NAME requestPacket);
+        
+        // *** NEW: Add SetDisplayConfig ***
+        [DllImport("user32.dll")]
+        public static extern int SetDisplayConfig(
+            uint numPathArrayElements,
+            [In] DISPLAYCONFIG_PATH_INFO[] pathArray,
+            uint numModeInfoArrayElements,
+            [In] DISPLAYCONFIG_MODE_INFO[] modeInfoArray,
+            SDCFlags flags);
+
         [DllImport("user32.dll")]
         public static extern int DisplayConfigGetDeviceInfo(
             ref DISPLAYCONFIG_GET_DPI requestPacket);
@@ -122,6 +127,9 @@ namespace ResponsiveWindowTool.Interop
         [DllImport("user32.dll")]
         public static extern int DisplayConfigSetDeviceInfo(
             ref DISPLAYCONFIG_SET_DPI requestPacket);
+        
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX lpmi);
     
         
         // --- Constants ---

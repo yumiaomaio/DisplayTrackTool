@@ -1,7 +1,6 @@
-﻿// File: Services/Implementations/DisplayInfoService.cs
+﻿// File: Services/Implementations/DisplayInfoService.cs (FINAL REFACTORED VERSION)
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
 using ResponsiveWindowTool.Interop;
 using ResponsiveWindowTool.Interop.Enums;
@@ -14,7 +13,8 @@ namespace ResponsiveWindowTool.Services.Implementations
     {
         public DisplayIdentifiers? GetIdentifiers(IntPtr hwnd)
         {
-            // 1. Get the monitor handle from the window handle.
+            // --- Stage 1: Get the GDI device name of the target monitor ---
+
             IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
             if (hMonitor == IntPtr.Zero)
             {
@@ -22,82 +22,82 @@ namespace ResponsiveWindowTool.Services.Implementations
                 return null;
             }
 
-            // 2. Get the monitor's screen coordinates. This is our primary key for matching.
-            var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
+            var monitorInfoEx = new MONITORINFOEX();
+            monitorInfoEx.cbSize = Marshal.SizeOf(monitorInfoEx);
+            if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfoEx))
             {
-                Debug.WriteLine("[DisplayInfoService] Failed to get monitor info.");
+                Debug.WriteLine("[DisplayInfoService] GetMonitorInfoEx failed.");
                 return null;
             }
-            var monitorRect = monitorInfo.rcMonitor;
 
-            // 3. Use QueryDisplayConfig to get modern display path information.
+            string targetDeviceName = monitorInfoEx.szDevice;
+            Debug.WriteLine($"[DisplayInfoService] Target window is on monitor with GDI name: '{targetDeviceName}'");
+
+            // --- Stage 2: Query all active display paths ---
+
             if (NativeMethods.GetDisplayConfigBufferSizes(QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS, out uint pathCount, out uint modeCount) != 0)
             {
+                Debug.WriteLine("[DisplayInfoService] GetDisplayConfigBufferSizes failed.");
                 return null;
             }
             var paths = new DISPLAYCONFIG_PATH_INFO[pathCount];
             var modes = new DISPLAYCONFIG_MODE_INFO[modeCount];
             if (NativeMethods.QueryDisplayConfig(QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS, ref pathCount, paths, ref modeCount, modes, IntPtr.Zero) != 0)
             {
+                Debug.WriteLine("[DisplayInfoService] QueryDisplayConfig failed.");
                 return null;
             }
 
-            // 4. Find the correct display path by matching the monitor's position.
-            foreach (var mode in modes)
-            {
-                if ((DISPLAYCONFIG_MODE_INFO_TYPE)mode.infoType != DISPLAYCONFIG_MODE_INFO_TYPE.DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
-                {
-                    continue;
-                }
-                if (mode.sourceMode.position.x != monitorRect.Left || mode.sourceMode.position.y != monitorRect.Top)
-                {
-                    continue;
-                }
-                
-                // Found the matching source mode. Now find its GDI device name.
-                // This is done by enumerating GDI devices and matching their position.
-                var displayDevice = new DISPLAY_DEVICE { cb = Marshal.SizeOf<DISPLAY_DEVICE>() };
-                for (uint i = 0; NativeMethods.EnumDisplayDevices(null, i, ref displayDevice, 0); i++)
-                {
-                    if ((displayDevice.StateFlags & 1 /* DISPLAY_DEVICE_ACTIVE */) == 0) continue;
+            // --- Stage 3: Iterate through paths and find the one matching our GDI device name ---
 
-                    var devMode = new DEVMODE { dmSize = (ushort)Marshal.SizeOf<DEVMODE>() };
-                    if (NativeMethods.EnumDisplaySettingsEx(displayDevice.DeviceName, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode, 0))
+            foreach (var path in paths)
+            {
+                // For each path, get its source information (adapter and source ID)
+                var sourceInfo = path.sourceInfo;
+
+                // Prepare a request to get the GDI device name for this specific source
+                var sourceNameRequest = new DISPLAYCONFIG_SOURCE_DEVICE_NAME();
+                sourceNameRequest.header.type = DisplayConfigDeviceInfoType.DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+                sourceNameRequest.header.size = (uint)Marshal.SizeOf<DISPLAYCONFIG_SOURCE_DEVICE_NAME>();
+                sourceNameRequest.header.adapterId = sourceInfo.adapterId;
+                sourceNameRequest.header.id = sourceInfo.id;
+
+                // Call the API to fill the request structure with the device name
+                if (NativeMethods.DisplayConfigGetDeviceInfo(ref sourceNameRequest) == 0)
+                {
+                    Debug.WriteLine($"[DisplayInfoService] Checking path... CCD source (Adapter: {sourceInfo.adapterId.LowPart}, ID: {sourceInfo.id}) -> GDI Name: '{sourceNameRequest.viewGdiDeviceName}'");
+
+                    // Direct string comparison. This is robust and DPI-unaware.
+                    if (targetDeviceName.Equals(sourceNameRequest.viewGdiDeviceName, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (devMode.dmPositionX == monitorRect.Left && devMode.dmPositionY == monitorRect.Top)
+                        // Match found!
+                        Debug.WriteLine($"[DisplayInfoService] SUCCESS: Found matching path. Identifiers are ready.");
+                        return new DisplayIdentifiers
                         {
-                            // Success! We found all identifiers.
-                            Debug.WriteLine($"[DisplayInfoService] Found match: Device={displayDevice.DeviceName}, AdapterID={mode.adapterId.LowPart}, SourceID={mode.id}");
-                            return new DisplayIdentifiers
-                            {
-                                DeviceName = displayDevice.DeviceName,
-                                AdapterId = mode.adapterId,
-                                SourceId = mode.id
-                            };
-                        }
+                            DeviceName = targetDeviceName, // or sourceNameRequest.viewGdiDeviceName
+                            AdapterId = sourceInfo.adapterId,
+                            SourceId = sourceInfo.id
+                        };
                     }
-                    displayDevice.cb = Marshal.SizeOf<DISPLAY_DEVICE>(); // Reset for next iteration
                 }
             }
 
-            Debug.WriteLine($"[DisplayInfoService] Could not find a matching display for monitor at {monitorRect.Left},{monitorRect.Top}.");
+            Debug.WriteLine($"[DisplayInfoService] CRITICAL: Could not find a display path matching GDI device name '{targetDeviceName}'.");
             return null;
         }
 
+        // The GetCurrentState method remains unchanged as it relies on the now-robust GetIdentifiers.
         public DisplaySnapshot? GetCurrentState(IntPtr hwnd)
         {
             var identifiers = GetIdentifiers(hwnd);
             if (identifiers?.DeviceName == null) return null;
 
-            // Get Resolution
             var devMode = new DEVMODE { dmSize = (ushort)Marshal.SizeOf<DEVMODE>() };
             if (!NativeMethods.EnumDisplaySettingsEx(identifiers.DeviceName, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode, 0))
             {
                 return null;
             }
 
-            // Get DPI
             var dpiRequest = new DISPLAYCONFIG_GET_DPI
             {
                 header = new DISPLAYCONFIG_DEVICE_INFO_HEADER
@@ -109,10 +109,9 @@ namespace ResponsiveWindowTool.Services.Implementations
                 }
             };
 
-            uint currentDpi = 100; // Default DPI
+            uint currentDpi = 100;
             if (NativeMethods.DisplayConfigGetDeviceInfo(ref dpiRequest) == 0)
             {
-                // This logic is borrowed from BorderlessWindowApp. It converts a relative scale value to a percentage.
                 uint[] dpiVals = { 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450, 500 };
                 int offset = Math.Abs(dpiRequest.minScaleRel);
                 if (dpiVals.Length > offset + dpiRequest.curScaleRel)
