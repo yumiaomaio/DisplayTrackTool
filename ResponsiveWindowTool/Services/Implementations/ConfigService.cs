@@ -94,6 +94,8 @@ namespace ResponsiveWindowTool.Services.Implementations
             return new AppConfig
             {
                 TargetProcessName = "notepad",
+                EnableDisplaySettingsOverride = true, // 新增默认值
+                EnableBackgroundOverlay = true, // 新增默认值
                 BackgroundMode = BackgroundMode.SolidColor,
                 BackgroundColor = "#FF000000",
                 BackgroundImageFileName = null,
@@ -188,6 +190,26 @@ namespace ResponsiveWindowTool.Services.Implementations
         {
             if (_config.RequireConfirmationOnExit == required) return;
             _config.RequireConfirmationOnExit = required;
+            SaveConfig();
+        }
+
+        // 新增：DisplaySettingsOverride 开关
+        public bool IsDisplaySettingsOverrideEnabled() => _config.EnableDisplaySettingsOverride;
+
+        public void SetEnableDisplaySettingsOverride(bool enabled)
+        {
+            if (_config.EnableDisplaySettingsOverride == enabled) return;
+            _config.EnableDisplaySettingsOverride = enabled;
+            SaveConfig();
+        }
+
+        // 新增：BackgroundOverlay 开关
+        public bool IsBackgroundOverlayEnabled() => _config.EnableBackgroundOverlay;
+
+        public void SetEnableBackgroundOverlay(bool enabled)
+        {
+            if (_config.EnableBackgroundOverlay == enabled) return;
+            _config.EnableBackgroundOverlay = enabled;
             SaveConfig();
         }
 

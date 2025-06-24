@@ -134,6 +134,34 @@ namespace ResponsiveWindowTool.ViewModels
                 }
             }
         }
+
+        // 新增：显示设置覆盖开关属性
+        private bool _enableDisplaySettingsOverride;
+        public bool EnableDisplaySettingsOverride
+        {
+            get => _enableDisplaySettingsOverride;
+            set
+            {
+                if (SetProperty(ref _enableDisplaySettingsOverride, value))
+                {
+                    _configService.SetEnableDisplaySettingsOverride(value);
+                }
+            }
+        }
+
+        // 新增：背景遮罩开关属性
+        private bool _enableBackgroundOverlay;
+        public bool EnableBackgroundOverlay
+        {
+            get => _enableBackgroundOverlay;
+            set
+            {
+                if (SetProperty(ref _enableBackgroundOverlay, value))
+                {
+                    _configService.SetEnableBackgroundOverlay(value);
+                }
+            }
+        }
         #endregion
 
         public MainViewModel(ITargetStateManager stateManager, IConfigService configService, IDialogService dialogService)
@@ -150,6 +178,10 @@ namespace ResponsiveWindowTool.ViewModels
             PortraitAspectRatio = _configService.GetPortraitAspectRatio();
 
             RequireConfirmationOnExit = _configService.IsConfirmationRequired();
+
+            // 新增：初始化两个开关
+            EnableDisplaySettingsOverride = _configService.IsDisplaySettingsOverrideEnabled();
+            EnableBackgroundOverlay = _configService.IsBackgroundOverlayEnabled();
 
             var initialResolution = _configService.GetTargetResolution();
             _targetResolutionWidth = initialResolution.Width;

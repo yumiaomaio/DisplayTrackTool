@@ -14,12 +14,16 @@ namespace ResponsiveWindowTool.Models
     {
         [JsonPropertyName("targetProcessName")]
         public string TargetProcessName { get; set; } = "notepad";
+        [JsonPropertyName("enableDisplaySettingsOverride")]
+        public bool EnableDisplaySettingsOverride { get; set; } = true; 
+        [JsonPropertyName("enableBackgroundOverlay")]
+        public bool EnableBackgroundOverlay { get; set; } = true;
 
         [JsonPropertyName("backgroundMode")]
-        public BackgroundMode BackgroundMode { get; set; } = BackgroundMode.SolidColor; // <-- 默认使用纯色
+        public BackgroundMode BackgroundMode { get; set; } = BackgroundMode.SolidColor;
 
         [JsonPropertyName("backgroundColor")]
-        public string BackgroundColor { get; set; } = "#FF000000"; // <-- 默认纯黑 (ARGB)
+        public string BackgroundColor { get; set; } = "#FF000000";
 
         [JsonPropertyName("backgroundImageFileName")]
         public string? BackgroundImageFileName { get; set; }

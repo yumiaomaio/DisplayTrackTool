@@ -25,9 +25,16 @@
         <TextBlock Text="Portrait Aspect Ratio (e.g., 9/16):" FontWeight="Bold"/>
         <TextBox Text="{Binding PortraitAspectRatio, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,10" IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
         
-        <!-- NEW: Display Settings -->
-        <TextBlock Text="Target Display Settings:" FontWeight="Bold" Margin="0,10,0,0"/>
-        <Grid Margin="0,5,0,10">
+        <!-- 显示设置开关 -->
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <TextBlock Text="Target Display Settings:" FontWeight="Bold" VerticalAlignment="Center"/>
+            <CheckBox IsChecked="{Binding EnableDisplaySettingsOverride}" VerticalAlignment="Center" Margin="10,0,0,0"
+                      ToolTip="Enable to change screen resolution and DPI"
+                      IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
+        </StackPanel>
+
+        <!-- 显示设置输入区域，受开关控制 -->
+        <Grid Margin="0,5,0,10" IsEnabled="{Binding EnableDisplaySettingsOverride}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -53,19 +60,25 @@
                   IsChecked="{Binding RequireConfirmationOnExit, Mode=TwoWay}" 
                   Margin="0,5,0,0" 
                   IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
-
     </StackPanel>
         
-        <!-- Background Image Selection -->
+        <!-- 背景遮罩开关 -->
         <StackPanel Grid.Row="1" Margin="0,15,0,0">
-            <TextBlock Text="Background Image:" FontWeight="Bold"/>
-            <Grid>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Background:" FontWeight="Bold" VerticalAlignment="Center"/>
+                <CheckBox IsChecked="{Binding EnableBackgroundOverlay}" VerticalAlignment="Center" Margin="10,0,0,0"
+                          ToolTip="Enable to show a background color or image behind the target window"
+                          IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
+            </StackPanel>
+            
+            <!-- 背景选项区域，受开关控制 -->
+            <Grid Margin="0,5,0,0" IsEnabled="{Binding EnableBackgroundOverlay}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="{Binding CurrentImageFileName, FallbackValue='None (Solid Black)'}" 
+                <TextBlock Grid.Column="0" Text="{Binding CurrentImageFileName, FallbackValue='None (Solid Color)'}" 
                            VerticalAlignment="Center" FontStyle="Italic"
                            TextTrimming="CharacterEllipsis"/>
                 <Button Grid.Column="1" Content="Select Image..." 

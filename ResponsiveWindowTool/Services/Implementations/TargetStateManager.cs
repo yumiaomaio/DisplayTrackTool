@@ -74,70 +74,79 @@ namespace ResponsiveWindowTool.Services.Implementations
 
             AddLog($"Target window found: HWND {_targetHwnd}.");
 
-            // --- 新增：显示器设置流程 ---
-
-            // 1. 快照当前显示器状态
-            AddLog("Taking snapshot of current display settings...");
-            _originalDisplaySnapshot = _displayInfoService.GetCurrentState(_targetHwnd);
-
-            if (_originalDisplaySnapshot == null)
+            // --- 显示器设置覆盖开关 ---
+            if (_configService.IsDisplaySettingsOverrideEnabled())
             {
-                AddLog("Error: Failed to get current display state. Aborting start.");
-                _targetHwnd = IntPtr.Zero; // 重置目标，防止后续操作
-                return;
-            }
+                AddLog("Display settings override is ENABLED.");
+                AddLog("Taking snapshot of current display settings...");
+                _originalDisplaySnapshot = _displayInfoService.GetCurrentState(_targetHwnd);
 
-            AddLog(
-                $"Snapshot: {_originalDisplaySnapshot.Width}x{_originalDisplaySnapshot.Height} @ {_originalDisplaySnapshot.Dpi}% on device '{_originalDisplaySnapshot.DeviceName}'");
+                if (_originalDisplaySnapshot == null)
+                {
+                    AddLog("Error: Failed to get current display state. Aborting start.");
+                    _targetHwnd = IntPtr.Zero;
+                    return;
+                }
+                AddLog($"Snapshot: {_originalDisplaySnapshot.Width}x{_originalDisplaySnapshot.Height} @ {_originalDisplaySnapshot.Dpi}% on device '{_originalDisplaySnapshot.DeviceName}'");
 
-            // 2. 从配置获取目标设置
-            var targetResolution = _configService.GetTargetResolution();
-            AddLog(
-                $"Target settings from config: {targetResolution.Width}x{targetResolution.Height} @ {targetResolution.Dpi}%");
+                var targetResolution = _configService.GetTargetResolution();
+                AddLog($"Target settings from config: {targetResolution.Width}x{targetResolution.Height} @ {targetResolution.Dpi}%");
 
-            // 3. 应用新设置
-            // 获取操作所需的ID
-            var identifiers = _displayInfoService.GetIdentifiers(_targetHwnd);
-            if (identifiers == null)
-            {
-                AddLog("Error: Failed to get display identifiers. Aborting start.");
-                _targetHwnd = IntPtr.Zero;
-                return;
-            }
+                var identifiers = _displayInfoService.GetIdentifiers(_targetHwnd);
+                if (identifiers == null)
+                {
+                    AddLog("Error: Failed to get display identifiers. Aborting start.");
+                    _targetHwnd = IntPtr.Zero;
+                    return;
+                }
 
-            AddLog("Applying target display settings...");
-            bool settingsApplied = _displaySettingService.ApplySettings(
-                identifiers.DeviceName!,
-                targetResolution.Width,
-                targetResolution.Height,
-                (uint)targetResolution.Dpi,
-                identifiers.AdapterId,
-                identifiers.SourceId
-            );
-
-            if (!settingsApplied)
-            {
-                AddLog("Error: Failed to apply target display settings. Aborting and attempting to restore.");
-                // 尝试立即恢复
-                _displaySettingService.ApplySettings(
-                    _originalDisplaySnapshot.DeviceName,
-                    _originalDisplaySnapshot.Width,
-                    _originalDisplaySnapshot.Height,
-                    _originalDisplaySnapshot.Dpi,
+                AddLog("Applying target display settings...");
+                bool settingsApplied = _displaySettingService.ApplySettings(
+                    identifiers.DeviceName!,
+                    targetResolution.Width,
+                    targetResolution.Height,
+                    (uint)targetResolution.Dpi,
                     identifiers.AdapterId,
-                    identifiers.SourceId);
-                _targetHwnd = IntPtr.Zero;
-                return;
+                    identifiers.SourceId
+                );
+
+                if (!settingsApplied)
+                {
+                    AddLog("Error: Failed to apply target display settings. Aborting and attempting to restore.");
+                    if (_originalDisplaySnapshot != null)
+                    {
+                        _displaySettingService.ApplySettings(
+                            _originalDisplaySnapshot.DeviceName,
+                            _originalDisplaySnapshot.Width,
+                            _originalDisplaySnapshot.Height,
+                            _originalDisplaySnapshot.Dpi,
+                            identifiers.AdapterId,
+                            identifiers.SourceId);
+                    }
+                    _targetHwnd = IntPtr.Zero;
+                    return;
+                }
+                AddLog("Target display settings applied successfully.");
             }
-
-            AddLog("Target display settings applied successfully.");
-
-            // --- 现有逻辑继续 ---
+            else
+            {
+                AddLog("Display settings override is DISABLED. Skipping resolution and DPI changes.");
+                _originalDisplaySnapshot = null;
+            }
 
             _isRunning = true;
             _lastOrientation = WindowOrientation.Unknown;
 
-            _overlayService.Show(_targetHwnd);
+            // --- 背景遮罩开关 ---
+            if (_configService.IsBackgroundOverlayEnabled())
+            {
+                AddLog("Background overlay is ENABLED. Showing overlay.");
+                _overlayService.Show(_targetHwnd);
+            }
+            else
+            {
+                AddLog("Background overlay is DISABLED. Skipping.");
+            }
 
             _monitorService.WindowStateChanged += OnWindowStateChanged;
             _monitorService.WindowDestroyed += OnWindowDestroyed;
@@ -146,7 +155,6 @@ namespace ResponsiveWindowTool.Services.Implementations
             _keyboardHookService.KeyPressed += OnKeyPressed;
             _keyboardHookService.Start();
 
-            // 在显示器设置完成后，稍作延时再应用窗口布局，给系统反应时间
             System.Threading.Thread.Sleep(200);
 
             AddLog("Applying initial portrait layout for the window.");
@@ -154,6 +162,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             _lastOrientation = WindowOrientation.Portrait;
 
             IsRunningChanged?.Invoke(_isRunning);
+            AddLog("Service started. Press F12 to stop and restore settings.");
         }
 
         public async void Stop()
@@ -174,16 +183,19 @@ namespace ResponsiveWindowTool.Services.Implementations
                 _layoutManager.RestoreToStandard(_targetHwnd);
             }
 
-            _overlayService.Hide();
+            // 仅在启用遮罩时隐藏遮罩
+            if (_configService.IsBackgroundOverlayEnabled())
+            {
+                _overlayService.Hide();
+            }
 
-            // --- 新增：恢复显示器设置流程 ---
+            // 仅在启用显示器设置覆盖且有快照时恢复
             if (_originalDisplaySnapshot != null)
             {
-                bool shouldRestore = true; // 默认恢复
+                bool shouldRestore = true;
                 if (_configService.IsConfirmationRequired() && ConfirmationRequired != null)
                 {
                     AddLog("Confirmation required to restore display settings...");
-                    // 触发事件，并等待ViewModel的响应
                     shouldRestore = await ConfirmationRequired("Do you want to restore the original display settings?", 10);
                 }
 
@@ -191,7 +203,6 @@ namespace ResponsiveWindowTool.Services.Implementations
                 {
                     AddLog("Restoring original display settings...");
 
-                    // 获取最新的ID，因为显示器配置可能已变
                     var identifiers = _displayInfoService.GetIdentifiers(_targetHwnd);
                     if (identifiers != null)
                     {
@@ -222,7 +233,7 @@ namespace ResponsiveWindowTool.Services.Implementations
                 {
                     AddLog("Restore skipped by user. The new display settings will be kept.");
                 }
-                _originalDisplaySnapshot = null; // 清理快照
+                _originalDisplaySnapshot = null;
             }
 
             _targetHwnd = IntPtr.Zero;
