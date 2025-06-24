@@ -72,6 +72,14 @@ namespace ResponsiveWindowTool.Services.Implementations
                 return;
             }
 
+            // 检查并还原最小化窗口
+            if (NativeMethods.IsIconic(_targetHwnd))
+            {
+                AddLog("Target window is minimized. Restoring it to normal state before proceeding...");
+                NativeMethods.ShowWindow(_targetHwnd, NativeMethods.SW_RESTORE);
+                System.Threading.Thread.Sleep(100);
+            }
+
             AddLog($"Target window found: HWND {_targetHwnd}.");
 
             // --- 显示器设置覆盖开关 ---

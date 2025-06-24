@@ -46,6 +46,12 @@ namespace ResponsiveWindowTool.Interop
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool IsWindow(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         // --- WinEvent Hook ---
         public delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
@@ -133,6 +139,8 @@ namespace ResponsiveWindowTool.Interop
     
         
         // --- Constants ---
+        public const int SW_RESTORE = 9;
+        
         public const int WH_KEYBOARD_LL = 13;
         public const int WM_KEYDOWN = 0x0100;
         public const int WM_SYSKEYDOWN = 0x0104;
