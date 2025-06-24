@@ -17,6 +17,10 @@ public partial class ConfirmationDialog : Window
             _remainingTime = timeout;
             UpdateCountdownText(); // Initial text
 
+            // 让按钮文本更通用或与新问题匹配
+            KeepButton.Content = "Yes, Restore"; // 或者 "Restore"
+            RevertButton.Content = "No, Keep Changes"; // 或者 "Keep"
+
             _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
@@ -42,25 +46,29 @@ public partial class ConfirmationDialog : Window
             if (_remainingTime <= TimeSpan.Zero)
             {
                 _timer.Stop();
-                SetResultAndClose(false); // Timeout means Revert (false)
+                // 关键：超时现在意味着 "不恢复" (false)
+                SetResultAndClose(false); 
             }
         }
 
         private void UpdateCountdownText()
         {
-            CountdownTextBlock.Text = $"Reverting in {(int)Math.Ceiling(_remainingTime.TotalSeconds)} seconds...";
+            // 改变倒计时的含义
+            CountdownTextBlock.Text = $"Keeping changes in {(int)Math.Ceiling(_remainingTime.TotalSeconds)} seconds...";
         }
 
         private void KeepButton_Click(object sender, RoutedEventArgs e)
         {
             _timer.Stop();
-            SetResultAndClose(true); // Keep means true
+            // 用户点击 "Yes, Restore"，所以返回 true
+            SetResultAndClose(true); 
         }
 
         private void RevertButton_Click(object sender, RoutedEventArgs e)
         {
             _timer.Stop();
-            SetResultAndClose(false); // Revert means false
+            // 用户点击 "No, Keep Changes"，所以返回 false
+            SetResultAndClose(false); 
         }
 
         private void SetResultAndClose(bool result)
@@ -74,7 +82,7 @@ public partial class ConfirmationDialog : Window
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             _timer.Stop();
-            // If closing manually before a choice, treat as Revert/Timeout
+            // 手动关闭（如按对话框的ESC键），也视为 "不恢复" (false)
             _tcs.TrySetResult(false);
             base.OnClosing(e);
         }

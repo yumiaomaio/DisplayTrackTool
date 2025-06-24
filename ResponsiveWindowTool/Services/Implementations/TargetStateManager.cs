@@ -184,7 +184,7 @@ namespace ResponsiveWindowTool.Services.Implementations
                 {
                     AddLog("Confirmation required to restore display settings...");
                     // 触发事件，并等待ViewModel的响应
-                    shouldRestore = await ConfirmationRequired("Restore original display settings?", 10);
+                    shouldRestore = await ConfirmationRequired("Do you want to restore the original display settings?", 10);
                 }
 
                 if (shouldRestore)
@@ -220,7 +220,7 @@ namespace ResponsiveWindowTool.Services.Implementations
                 }
                 else
                 {
-                    AddLog("Restore skipped by user.");
+                    AddLog("Restore skipped by user. The new display settings will be kept.");
                 }
                 _originalDisplaySnapshot = null; // 清理快照
             }
@@ -235,12 +235,14 @@ namespace ResponsiveWindowTool.Services.Implementations
 
         private void OnKeyPressed(int vkCode)
         {
-            const int VK_ESCAPE = 0x1B;
-            if (vkCode == VK_ESCAPE)
-            {
-                AddLog("ESC key pressed. Shutting down and restoring window...");
+            // 原始代码: const int VK_ESCAPE = 0x1B;
+            const int VK_F12 = 0x7B; // F12的虚拟键码
 
-                // ESC键现在只需要调用Stop()即可，因为所有恢复逻辑都在Stop()里了
+            if (vkCode == VK_F12)
+            {
+                AddLog("F12 key pressed. Shutting down and restoring settings...");
+
+                // 调用Stop()来执行所有清理工作
                 Stop();
             }
         }
