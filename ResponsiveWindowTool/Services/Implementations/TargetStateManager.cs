@@ -77,7 +77,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             {
                 AddLog("Target window is minimized. Restoring it to normal state before proceeding...");
                 NativeMethods.ShowWindow(_targetHwnd, NativeMethods.SW_RESTORE);
-                System.Threading.Thread.Sleep(100);
+                //Thread.Sleep(100);
             }
 
             AddLog($"Target window found: HWND {_targetHwnd}.");
@@ -163,7 +163,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             _keyboardHookService.KeyPressed += OnKeyPressed;
             _keyboardHookService.Start();
 
-            System.Threading.Thread.Sleep(200);
+            //Thread.Sleep(200);
 
             AddLog("Applying initial portrait layout for the window.");
             _layoutManager.ApplyLayout(_targetHwnd, _configService.GetPortraitProfile());
