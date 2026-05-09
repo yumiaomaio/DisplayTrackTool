@@ -22,6 +22,8 @@ namespace ResponsiveWindowTool
         private void ConfigureServices(IServiceCollection services)
         {
             // Register services as Singleton since this is a stateful desktop tool
+            services.AddSingleton<IPrivilegeService, PrivilegeService>();
+            services.AddSingleton<ILoggingService, LoggingService>();
             services.AddSingleton<IWindowQueryService, WindowQueryService>();
             services.AddSingleton<IOverlayService, OverlayService>();
             services.AddSingleton<IWindowLayoutManager, WindowLayoutManager>();

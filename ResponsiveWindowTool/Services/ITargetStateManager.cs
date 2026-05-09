@@ -2,13 +2,14 @@
 using System;
 using System.Collections.ObjectModel;
 
+using System.Threading.Tasks;
+
 namespace ResponsiveWindowTool.Services
 {
     public interface ITargetStateManager
     {
         event Action<bool> IsRunningChanged;
-        ObservableCollection<string> Logs { get; }
-        void Start(string processName);
-        void Stop();
+        Task StartAsync(string processName);
+        Task StopAsync();
     }
 }

@@ -8,37 +8,21 @@ using ResponsiveWindowTool.Services;
 using Microsoft.Win32;
 using System.IO;
 using ResponsiveWindowTool.Models;
+using ResponsiveWindowTool.Helpers;
+using System.Threading.Tasks;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ResponsiveWindowTool.ViewModels
 {
-    public class RelayCommand : ICommand
-    {
-        private readonly Action _execute;
-        private readonly Func<bool>? _canExecute;
-        public event EventHandler? CanExecuteChanged
-        {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
-        }
-        public RelayCommand(Action execute, Func<bool>? canExecute = null)
-        {
-            _execute = execute;
-            _canExecute = canExecute;
-        }
-        public bool CanExecute(object? parameter) => _canExecute == null || _canExecute();
-        public void Execute(object? parameter) => _execute();
-
-        public void RaiseCanExecuteChanged()
-        {
-            CommandManager.InvalidateRequerySuggested();
-        }
-    }
-    
-    public class MainViewModel : INotifyPropertyChanged, IDisposable
+    public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErrorInfo
     {
         private readonly ITargetStateManager _stateManager;
         private readonly IConfigService _configService;
         private readonly IDialogService _dialogService;
+        private readonly ILoggingService _loggingService;
+        private readonly IPrivilegeService _privilegeService;
 
         private string? _targetProcessName;
         public string? TargetProcessName
@@ -63,12 +47,20 @@ namespace ResponsiveWindowTool.ViewModels
             set => SetProperty(ref _isRunning, value);
         }
 
-        public ObservableCollection<string> Logs => _stateManager.Logs;
+        private bool _isAdmin;
+        public bool IsAdmin
+        {
+            get => _isAdmin;
+            set => SetProperty(ref _isAdmin, value);
+        }
+
+        public ObservableCollection<string> Logs => _loggingService.Logs;
 
         public ICommand StartCommand { get; }
         public ICommand StopCommand { get; }
         public ICommand SelectImageCommand { get; }
         public ICommand ClearImageCommand { get; }
+        public ICommand RestartAsAdminCommand { get; }
 
         private string? _currentImageFileName;
         public string? CurrentImageFileName
@@ -91,6 +83,7 @@ namespace ResponsiveWindowTool.ViewModels
             {
                 if (SetProperty(ref _portraitAspectRatio, value))
                 {
+                    ValidateAspectRatio(value);
                     _configService.SetPortraitAspectRatio(value);
                 }
             }
@@ -111,13 +104,88 @@ namespace ResponsiveWindowTool.ViewModels
         }
         #endregion
 
-        public MainViewModel(ITargetStateManager stateManager, IConfigService configService, IDialogService dialogService)
+        #region Validation
+        private readonly Dictionary<string, List<string>> _errors = new();
+        public bool HasErrors => _errors.Count > 0;
+        public event EventHandler<DataErrorsChangedEventArgs>? ErrorsChanged;
+
+        public IEnumerable GetErrors(string? propertyName)
+        {
+            if (string.IsNullOrEmpty(propertyName) || !_errors.ContainsKey(propertyName))
+                return Enumerable.Empty<string>();
+            return _errors[propertyName];
+        }
+
+        private void ValidateAspectRatio(string? value)
+        {
+            const string propertyName = nameof(PortraitAspectRatio);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                ClearErrors(propertyName);
+                return;
+            }
+
+            var parts = value.Split('/');
+            bool isValid = false;
+            if (parts.Length == 2)
+            {
+                if (double.TryParse(parts[0].Trim(), out double n) && 
+                    double.TryParse(parts[1].Trim(), out double d) && d != 0)
+                {
+                    isValid = true;
+                }
+            }
+
+            if (!isValid)
+            {
+                AddError(propertyName, "Invalid aspect ratio. Use format 'Width/Height' (e.g., 9/16).");
+            }
+            else
+            {
+                ClearErrors(propertyName);
+            }
+        }
+
+        private void AddError(string propertyName, string error)
+        {
+            if (!_errors.ContainsKey(propertyName))
+                _errors[propertyName] = new List<string>();
+
+            if (!_errors[propertyName].Contains(error))
+            {
+                _errors[propertyName].Add(error);
+                ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
+                OnPropertyChanged(nameof(HasErrors));
+            }
+        }
+
+        private void ClearErrors(string propertyName)
+        {
+            if (_errors.ContainsKey(propertyName))
+            {
+                _errors.Remove(propertyName);
+                ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
+                OnPropertyChanged(nameof(HasErrors));
+            }
+        }
+        #endregion
+
+        public MainViewModel(
+            ITargetStateManager stateManager, 
+            IConfigService configService, 
+            IDialogService dialogService,
+            ILoggingService loggingService,
+            IPrivilegeService privilegeService)
         {
             _stateManager = stateManager;
             _configService = configService;
             _dialogService = dialogService;
+            _loggingService = loggingService;
+            _privilegeService = privilegeService;
 
             _stateManager.IsRunningChanged += OnIsRunningChanged;
+
+            IsAdmin = _privilegeService.IsAdministrator();
 
             TargetProcessName = _configService.GetDefaultProcessName();
             CurrentImageFileName = _configService.GetBackgroundImageFileName();
@@ -125,10 +193,11 @@ namespace ResponsiveWindowTool.ViewModels
 
             EnableBackgroundOverlay = _configService.IsBackgroundOverlayEnabled();
 
-            StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
-            StopCommand = new RelayCommand(OnStop, () => IsRunning);
+            StartCommand = new RelayCommand(async () => await OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName) && !HasErrors);
+            StopCommand = new RelayCommand(async () => await OnStopAsync(), () => IsRunning);
             SelectImageCommand = new RelayCommand(SelectImage);
             ClearImageCommand = new RelayCommand(ClearImage, CanClearImage);
+            RestartAsAdminCommand = new RelayCommand(OnRestartAsAdmin);
         }
 
         private void OnIsRunningChanged(bool isRunning)
@@ -139,15 +208,20 @@ namespace ResponsiveWindowTool.ViewModels
             });
         }
         
-        private void OnStart()
+        private async Task OnStartAsync()
         {
             if (TargetProcessName == null) return;
-            _stateManager.Start(TargetProcessName);
+            await _stateManager.StartAsync(TargetProcessName);
         }
 
-        private void OnStop()
+        private async Task OnStopAsync()
         {
-            _stateManager.Stop();
+            await _stateManager.StopAsync();
+        }
+
+        private void OnRestartAsAdmin()
+        {
+            _privilegeService.RestartAsAdministrator();
         }
 
         private void SelectImage()

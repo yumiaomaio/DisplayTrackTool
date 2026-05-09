@@ -1,8 +1,8 @@
 // File: Services/Implementations/TargetStateManager.cs
 
 using System;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Windows;
 using ResponsiveWindowTool.Interop;
 using ResponsiveWindowTool.Interop.Enums;
@@ -19,14 +19,12 @@ namespace ResponsiveWindowTool.Services.Implementations
         private readonly IWindowLayoutManager _layoutManager;
         private readonly IOverlayService _overlayService;
         private readonly IKeyboardHookService _keyboardHookService;
+        private readonly ILoggingService _loggingService;
 
         // State
         private IntPtr _targetHwnd = IntPtr.Zero;
         private WindowOrientation _lastOrientation = WindowOrientation.Unknown;
         private bool _isRunning = false;
-
-        // Logging
-        public ObservableCollection<string> Logs { get; } = new();
 
         public event Action<bool>? IsRunningChanged;
 
@@ -36,7 +34,8 @@ namespace ResponsiveWindowTool.Services.Implementations
             IWindowLayoutManager layoutManager,
             IOverlayService overlayService,
             IConfigService configService,
-            IKeyboardHookService keyboardHookService)
+            IKeyboardHookService keyboardHookService,
+            ILoggingService loggingService)
         {
             _queryService = queryService;
             _monitorService = monitorService;
@@ -44,9 +43,10 @@ namespace ResponsiveWindowTool.Services.Implementations
             _overlayService = overlayService;
             _configService = configService;
             _keyboardHookService = keyboardHookService;
+            _loggingService = loggingService;
         }
 
-        public void Start(string processName)
+        public async Task StartAsync(string processName)
         {
             if (_isRunning)
             {
@@ -56,7 +56,7 @@ namespace ResponsiveWindowTool.Services.Implementations
 
             AddLog($"Attempting to start for process: {processName}...");
 
-            _targetHwnd = _queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero;
+            _targetHwnd = await Task.Run(() => _queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero);
 
             if (_targetHwnd == IntPtr.Zero)
             {
@@ -102,7 +102,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             AddLog("Service started. Press F12 to stop.");
         }
 
-        public void Stop()
+        public async Task StopAsync()
         {
             if (!_isRunning) return;
 
@@ -117,7 +117,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             if (_targetHwnd != IntPtr.Zero && NativeMethods.IsWindow(_targetHwnd))
             {
                 AddLog("Restoring target window to standard style.");
-                _layoutManager.RestoreToStandard(_targetHwnd);
+                await Task.Run(() => _layoutManager.RestoreToStandard(_targetHwnd));
             }
 
             // 仅在启用遮罩时隐藏遮罩
@@ -134,23 +134,23 @@ namespace ResponsiveWindowTool.Services.Implementations
             AddLog("Service stopped.");
         }
 
-        private void OnKeyPressed(int vkCode)
+        private async void OnKeyPressed(int vkCode)
         {
             const int VK_F12 = 0x7B; // F12的虚拟键码
 
             if (vkCode == VK_F12)
             {
                 AddLog("F12 key pressed. Shutting down...");
-                Stop();
+                await StopAsync();
             }
         }
 
-        private void OnWindowDestroyed(IntPtr hwnd)
+        private async void OnWindowDestroyed(IntPtr hwnd)
         {
             if (hwnd == _targetHwnd)
             {
                 AddLog("Target window was closed. Shutting down automatically.");
-                Stop();
+                await StopAsync();
             }
         }
 
@@ -204,22 +204,15 @@ namespace ResponsiveWindowTool.Services.Implementations
 
         private void AddLog(string message)
         {
-            // Ensure logs are added on the UI thread for data binding
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                string logEntry = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
-                Debug.WriteLine(logEntry); // Also write to debug output
-                Logs.Insert(0, logEntry); // Add to top of list
-                while (Logs.Count > 100)
-                {
-                    Logs.RemoveAt(Logs.Count - 1);
-                }
-            });
+            _loggingService.AddLog(message);
         }
 
         public void Dispose()
         {
-            Stop();
+            // Note: StopAsync is async, but Dispose is not. 
+            // In a real app, you might use IAsyncDisposable.
+            // For now, we just call StopAsync and don't await (fire and forget in dispose).
+            _ = StopAsync();
         }
     }
 }
