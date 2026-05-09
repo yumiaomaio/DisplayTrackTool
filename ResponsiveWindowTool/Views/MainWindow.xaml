@@ -129,7 +129,14 @@
                             <!-- Background Overlay -->
                             <CheckBox IsChecked="{Binding EnableBackgroundOverlay}"
                                       Content="Enable Background Overlay" FontWeight="SemiBold"
-                                      IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
+                                      IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}" Margin="0,0,0,10"/>
+
+                            <!-- Taskbar Auto-Hide -->
+                            <CheckBox IsChecked="{Binding EnableTaskbarAutoHide}"
+                                      Content="Auto-hide Taskbar (During Monitoring)" FontWeight="SemiBold"
+                                      IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"
+                                      ToolTip="Automatically hides the taskbar when monitoring starts and restores it when finished." Margin="0,0,0,15"/>
+
                             <Border Padding="10" Margin="0,5,0,0" BorderBrush="#FFDDDDDD" BorderThickness="1" CornerRadius="3"
                                     IsEnabled="{Binding EnableBackgroundOverlay}">
                                 <Grid>

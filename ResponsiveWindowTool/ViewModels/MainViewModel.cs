@@ -23,6 +23,7 @@ namespace ResponsiveWindowTool.ViewModels
         private readonly IDialogService _dialogService;
         private readonly ILoggingService _loggingService;
         private readonly IPrivilegeService _privilegeService;
+        private readonly ITaskbarService _taskbarService;
 
         private string? _targetProcessName;
         public string? TargetProcessName
@@ -52,6 +53,19 @@ namespace ResponsiveWindowTool.ViewModels
         {
             get => _isAdmin;
             set => SetProperty(ref _isAdmin, value);
+        }
+
+        private bool _enableTaskbarAutoHide;
+        public bool EnableTaskbarAutoHide
+        {
+            get => _enableTaskbarAutoHide;
+            set
+            {
+                if (SetProperty(ref _enableTaskbarAutoHide, value))
+                {
+                    _configService.SetEnableTaskbarAutoHide(value);
+                }
+            }
         }
 
         public ObservableCollection<string> Logs => _loggingService.Logs;
@@ -175,17 +189,20 @@ namespace ResponsiveWindowTool.ViewModels
             IConfigService configService, 
             IDialogService dialogService,
             ILoggingService loggingService,
-            IPrivilegeService privilegeService)
+            IPrivilegeService privilegeService,
+            ITaskbarService taskbarService)
         {
             _stateManager = stateManager;
             _configService = configService;
             _dialogService = dialogService;
             _loggingService = loggingService;
             _privilegeService = privilegeService;
+            _taskbarService = taskbarService;
 
             _stateManager.IsRunningChanged += OnIsRunningChanged;
 
             IsAdmin = _privilegeService.IsAdministrator();
+            EnableTaskbarAutoHide = _configService.IsTaskbarAutoHideEnabled();
 
             TargetProcessName = _configService.GetDefaultProcessName();
             CurrentImageFileName = _configService.GetBackgroundImageFileName();

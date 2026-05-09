@@ -18,5 +18,7 @@ namespace ResponsiveWindowTool.Services
         void SetBackgroundColor(string color);
         bool IsBackgroundOverlayEnabled();
         void SetEnableBackgroundOverlay(bool enabled);
+        bool IsTaskbarAutoHideEnabled();
+        void SetEnableTaskbarAutoHide(bool enabled);
     }
 }

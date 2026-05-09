@@ -17,6 +17,9 @@ namespace ResponsiveWindowTool.Models
         [JsonPropertyName("enableBackgroundOverlay")]
         public bool EnableBackgroundOverlay { get; set; } = true;
 
+        [JsonPropertyName("enableTaskbarAutoHide")]
+        public bool EnableTaskbarAutoHide { get; set; } = true;
+
         [JsonPropertyName("backgroundMode")]
         public BackgroundMode BackgroundMode { get; set; } = BackgroundMode.SolidColor;
 

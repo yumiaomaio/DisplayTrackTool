@@ -20,12 +20,14 @@ namespace ResponsiveWindowTool.Services.Implementations
         private readonly IOverlayService _overlayService;
         private readonly IKeyboardHookService _keyboardHookService;
         private readonly ILoggingService _loggingService;
+        private readonly ITaskbarService _taskbarService;
 
         // State
         private IntPtr _targetHwnd = IntPtr.Zero;
         private WindowOrientation _lastOrientation = WindowOrientation.Unknown;
         private bool _isRunning = false;
         private WindowSnapshot? _originalSnapshot;
+        private bool _originalTaskbarAutoHide;
 
         public event Action<bool>? IsRunningChanged;
 
@@ -36,7 +38,8 @@ namespace ResponsiveWindowTool.Services.Implementations
             IOverlayService overlayService,
             IConfigService configService,
             IKeyboardHookService keyboardHookService,
-            ILoggingService loggingService)
+            ILoggingService loggingService,
+            ITaskbarService taskbarService)
         {
             _queryService = queryService;
             _monitorService = monitorService;
@@ -45,6 +48,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             _configService = configService;
             _keyboardHookService = keyboardHookService;
             _loggingService = loggingService;
+            _taskbarService = taskbarService;
         }
 
         public async Task StartAsync(string processName)
@@ -87,9 +91,16 @@ namespace ResponsiveWindowTool.Services.Implementations
                 AddLog("Background overlay is ENABLED. Showing overlay.");
                 _overlayService.Show(_targetHwnd);
             }
-            else
+
+            // --- 任务栏自动隐藏集成 ---
+            if (_configService.IsTaskbarAutoHideEnabled())
             {
-                AddLog("Background overlay is DISABLED. Skipping.");
+                _originalTaskbarAutoHide = _taskbarService.IsAutoHideEnabled();
+                if (!_originalTaskbarAutoHide)
+                {
+                    AddLog("Enabling Taskbar auto-hide...");
+                    _taskbarService.SetAutoHide(true);
+                }
             }
 
             _monitorService.WindowStateChanged += OnWindowStateChanged;
@@ -126,13 +137,15 @@ namespace ResponsiveWindowTool.Services.Implementations
                     AddLog("Restoring target window to original styles and position.");
                     await Task.Run(() => _layoutManager.Restore(_targetHwnd, _originalSnapshot));
                 }
-                else
-                {
-                    AddLog("Warning: No original window snapshot found for restoration.");
-                }
             }
 
-            // 仅在启用遮罩时隐藏遮罩
+            // 还原任务栏状态
+            if (_configService.IsTaskbarAutoHideEnabled() && !_originalTaskbarAutoHide)
+            {
+                AddLog("Restoring Taskbar auto-hide state...");
+                _taskbarService.SetAutoHide(false);
+            }
+
             if (_configService.IsBackgroundOverlayEnabled())
             {
                 _overlayService.Hide();

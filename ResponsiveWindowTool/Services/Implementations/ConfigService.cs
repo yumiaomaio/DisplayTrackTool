@@ -159,6 +159,15 @@ namespace ResponsiveWindowTool.Services.Implementations
             SaveConfig();
         }
 
+        public bool IsTaskbarAutoHideEnabled() => _config.EnableTaskbarAutoHide;
+
+        public void SetEnableTaskbarAutoHide(bool enabled)
+        {
+            if (_config.EnableTaskbarAutoHide == enabled) return;
+            _config.EnableTaskbarAutoHide = enabled;
+            SaveConfig();
+        }
+
         private double? ParseAspectRatio(string? ratioString)
         {
             if (string.IsNullOrWhiteSpace(ratioString))
