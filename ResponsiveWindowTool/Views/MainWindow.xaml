@@ -1,9 +1,9 @@
-﻿<!-- File: Views/MainWindow.xaml (Beautified) -->
+<!-- File: Views/MainWindow.xaml (Beautified) -->
 <Window x:Class="ResponsiveWindowTool.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:helpers="clr-namespace:ResponsiveWindowTool.Helpers"
-        Title="Responsive Window Tool" Height="550" Width="600" MinWidth="500" MinHeight="550"
+        Title="Responsive Window Tool" Height="500" Width="600" MinWidth="500" MinHeight="450"
         WindowStartupLocation="CenterScreen"
         Background="#FFEFEFEF">
     
@@ -85,28 +85,6 @@
                                      ToolTip="The aspect ratio for portrait mode (e.g., 9/16 or 0.5625)"/>
                         </Grid>
                         
-                        <!-- Display Settings Override -->
-                        <CheckBox IsChecked="{Binding EnableDisplaySettingsOverride}"
-                                  Content="Override Display Settings (Resolution and DPI)" FontWeight="SemiBold"
-                                  IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
-                        <Border Padding="15,10" Margin="0,5,0,15" BorderBrush="#FFDDDDDD" BorderThickness="1" CornerRadius="3"
-                                IsEnabled="{Binding EnableDisplaySettingsOverride}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" Text="{Binding TargetResolutionWidth, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
-                                <TextBlock Grid.Column="1" Text=" x " VerticalAlignment="Center" Margin="5,0"/>
-                                <TextBox Grid.Column="2" Text="{Binding TargetResolutionHeight, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
-                                <TextBlock Grid.Column="3" Text=" @ " VerticalAlignment="Center" Margin="5,0"/>
-                                <TextBox Grid.Column="4" Text="{Binding TargetDpi, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}" ToolTip="DPI Scale (%)"/>
-                            </Grid>
-                        </Border>
-
                         <!-- Background Overlay -->
                         <CheckBox IsChecked="{Binding EnableBackgroundOverlay}"
                                   Content="Enable Background Overlay" FontWeight="SemiBold"
@@ -127,13 +105,6 @@
                             </Grid>
                         </Border>
                     </StackPanel>
-                </GroupBox>
-
-                 <!-- Options Group -->
-                <GroupBox Header="Options">
-                     <CheckBox Content="Require confirmation on exit" 
-                               IsChecked="{Binding RequireConfirmationOnExit, Mode=TwoWay}" 
-                               IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"/>
                 </GroupBox>
             </StackPanel>
         </ScrollViewer>

@@ -16,12 +16,6 @@ namespace ResponsiveWindowTool.Services
         string GetBackgroundColor();
         void SetBackgroundMode(BackgroundMode mode);
         void SetBackgroundColor(string color);
-        ResolutionConfig GetTargetResolution();
-        bool IsConfirmationRequired();
-        void SetTargetResolution(int width, int height, int dpi);
-        void SetRequireConfirmation(bool required);
-        bool IsDisplaySettingsOverrideEnabled();
-        void SetEnableDisplaySettingsOverride(bool enabled);
         bool IsBackgroundOverlayEnabled();
         void SetEnableBackgroundOverlay(bool enabled);
     }

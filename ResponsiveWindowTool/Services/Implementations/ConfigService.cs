@@ -1,4 +1,4 @@
-﻿// File: Services/Implementations/ConfigService.cs (Final Corrected Version)
+// File: Services/Implementations/ConfigService.cs
 
 using System.Diagnostics;
 using System.IO;
@@ -35,7 +35,6 @@ namespace ResponsiveWindowTool.Services.Implementations
 
         public void SetPortraitAspectRatio(string? aspectRatio)
         {
-            // 允许设置为空字符串或null
             if (_config.Profiles.Portrait.AspectRatio == aspectRatio) return;
             _config.Profiles.Portrait.AspectRatio = aspectRatio;
             SaveConfig();
@@ -94,8 +93,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             return new AppConfig
             {
                 TargetProcessName = "notepad",
-                EnableDisplaySettingsOverride = true, // 新增默认值
-                EnableBackgroundOverlay = true, // 新增默认值
+                EnableBackgroundOverlay = true,
                 BackgroundMode = BackgroundMode.SolidColor,
                 BackgroundColor = "#FF000000",
                 BackgroundImageFileName = null,
@@ -118,14 +116,7 @@ namespace ResponsiveWindowTool.Services.Implementations
                         Sizing = SizingMode.Fullscreen,
                         Positioning = PositioningMode.TopLeft
                     }
-                },
-                DisplaySettings = new DisplayConfigSettings
-                {
-                    Width = 2560,
-                    Height = 1440,
-                    Dpi = 150
-                },
-                RequireConfirmationOnExit = true
+                }
             };
         }
         
@@ -138,7 +129,7 @@ namespace ResponsiveWindowTool.Services.Implementations
                 ExStyles = ParseEnum<WindowExStyles>(def.ExStyles),
                 Sizing = def.Sizing,
                 Positioning = def.Positioning,
-                AspectRatio = ParseAspectRatio(def.AspectRatio) // 使用新的解析器
+                AspectRatio = ParseAspectRatio(def.AspectRatio)
             };
         }
         
@@ -158,52 +149,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             _config.BackgroundColor = color;
             SaveConfig();
         }
-        
-        public ResolutionConfig GetTargetResolution()
-        {
-            // The _config field is loaded from profiles.json in the constructor
-            return new ResolutionConfig 
-            {
-                Width = _config.DisplaySettings.Width,
-                Height = _config.DisplaySettings.Height,
-                Dpi = _config.DisplaySettings.Dpi
-            };
-        }
 
-        public bool IsConfirmationRequired()
-        {
-            return _config.RequireConfirmationOnExit;
-        }
-        
-        public void SetTargetResolution(int width, int height, int dpi)
-        {
-            var settings = _config.DisplaySettings;
-            if (settings.Width == width && settings.Height == height && settings.Dpi == dpi) return;
-        
-            settings.Width = width;
-            settings.Height = height;
-            settings.Dpi = dpi;
-            SaveConfig();
-        }
-
-        public void SetRequireConfirmation(bool required)
-        {
-            if (_config.RequireConfirmationOnExit == required) return;
-            _config.RequireConfirmationOnExit = required;
-            SaveConfig();
-        }
-
-        // 新增：DisplaySettingsOverride 开关
-        public bool IsDisplaySettingsOverrideEnabled() => _config.EnableDisplaySettingsOverride;
-
-        public void SetEnableDisplaySettingsOverride(bool enabled)
-        {
-            if (_config.EnableDisplaySettingsOverride == enabled) return;
-            _config.EnableDisplaySettingsOverride = enabled;
-            SaveConfig();
-        }
-
-        // 新增：BackgroundOverlay 开关
         public bool IsBackgroundOverlayEnabled() => _config.EnableBackgroundOverlay;
 
         public void SetEnableBackgroundOverlay(bool enabled)
@@ -213,7 +159,6 @@ namespace ResponsiveWindowTool.Services.Implementations
             SaveConfig();
         }
 
-        // 新增：安全的宽高比字符串解析器
         private double? ParseAspectRatio(string? ratioString)
         {
             if (string.IsNullOrWhiteSpace(ratioString))
@@ -229,7 +174,6 @@ namespace ResponsiveWindowTool.Services.Implementations
                 if (double.TryParse(parts[0].Trim(), out double numerator) &&
                     double.TryParse(parts[1].Trim(), out double denominator))
                 {
-                    // 防止除以零
                     if (denominator == 0) return null;
                     return numerator / denominator;
                 }

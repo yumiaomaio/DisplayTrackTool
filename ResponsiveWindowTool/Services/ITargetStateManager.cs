@@ -1,4 +1,4 @@
-﻿// File: Services/ITargetStateManager.cs
+// File: Services/ITargetStateManager.cs
 using System;
 using System.Collections.ObjectModel;
 
@@ -6,7 +6,6 @@ namespace ResponsiveWindowTool.Services
 {
     public interface ITargetStateManager
     {
-        event Func<string, int, Task<bool>>? ConfirmationRequired;
         event Action<bool> IsRunningChanged;
         ObservableCollection<string> Logs { get; }
         void Start(string processName);

@@ -1,4 +1,4 @@
-﻿// File: Services/Implementations/TargetStateManager.cs
+// File: Services/Implementations/TargetStateManager.cs
 
 using System;
 using System.Collections.ObjectModel;
@@ -19,20 +19,16 @@ namespace ResponsiveWindowTool.Services.Implementations
         private readonly IWindowLayoutManager _layoutManager;
         private readonly IOverlayService _overlayService;
         private readonly IKeyboardHookService _keyboardHookService;
-        private readonly IDisplayInfoService _displayInfoService;
-        private readonly IDisplaySettingService _displaySettingService;
 
         // State
         private IntPtr _targetHwnd = IntPtr.Zero;
         private WindowOrientation _lastOrientation = WindowOrientation.Unknown;
         private bool _isRunning = false;
-        private DisplaySnapshot? _originalDisplaySnapshot;
 
         // Logging
         public ObservableCollection<string> Logs { get; } = new();
 
         public event Action<bool>? IsRunningChanged;
-        public event Func<string, int, Task<bool>>? ConfirmationRequired;
 
         public TargetStateManager(
             IWindowQueryService queryService,
@@ -40,9 +36,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             IWindowLayoutManager layoutManager,
             IOverlayService overlayService,
             IConfigService configService,
-            IKeyboardHookService keyboardHookService,
-            IDisplayInfoService displayInfoService,
-            IDisplaySettingService displaySettingService)
+            IKeyboardHookService keyboardHookService)
         {
             _queryService = queryService;
             _monitorService = monitorService;
@@ -50,8 +44,6 @@ namespace ResponsiveWindowTool.Services.Implementations
             _overlayService = overlayService;
             _configService = configService;
             _keyboardHookService = keyboardHookService;
-            _displayInfoService = displayInfoService;
-            _displaySettingService = displaySettingService;
         }
 
         public void Start(string processName)
@@ -77,70 +69,9 @@ namespace ResponsiveWindowTool.Services.Implementations
             {
                 AddLog("Target window is minimized. Restoring it to normal state before proceeding...");
                 NativeMethods.ShowWindow(_targetHwnd, NativeMethods.SW_RESTORE);
-                //Thread.Sleep(100);
             }
 
             AddLog($"Target window found: HWND {_targetHwnd}.");
-
-            // --- 显示器设置覆盖开关 ---
-            if (_configService.IsDisplaySettingsOverrideEnabled())
-            {
-                AddLog("Display settings override is ENABLED.");
-                AddLog("Taking snapshot of current display settings...");
-                _originalDisplaySnapshot = _displayInfoService.GetCurrentState(_targetHwnd);
-
-                if (_originalDisplaySnapshot == null)
-                {
-                    AddLog("Error: Failed to get current display state. Aborting start.");
-                    _targetHwnd = IntPtr.Zero;
-                    return;
-                }
-                AddLog($"Snapshot: {_originalDisplaySnapshot.Width}x{_originalDisplaySnapshot.Height} @ {_originalDisplaySnapshot.Dpi}% on device '{_originalDisplaySnapshot.DeviceName}'");
-
-                var targetResolution = _configService.GetTargetResolution();
-                AddLog($"Target settings from config: {targetResolution.Width}x{targetResolution.Height} @ {targetResolution.Dpi}%");
-
-                var identifiers = _displayInfoService.GetIdentifiers(_targetHwnd);
-                if (identifiers == null)
-                {
-                    AddLog("Error: Failed to get display identifiers. Aborting start.");
-                    _targetHwnd = IntPtr.Zero;
-                    return;
-                }
-
-                AddLog("Applying target display settings...");
-                bool settingsApplied = _displaySettingService.ApplySettings(
-                    identifiers.DeviceName!,
-                    targetResolution.Width,
-                    targetResolution.Height,
-                    (uint)targetResolution.Dpi,
-                    identifiers.AdapterId,
-                    identifiers.SourceId
-                );
-
-                if (!settingsApplied)
-                {
-                    AddLog("Error: Failed to apply target display settings. Aborting and attempting to restore.");
-                    if (_originalDisplaySnapshot != null)
-                    {
-                        _displaySettingService.ApplySettings(
-                            _originalDisplaySnapshot.DeviceName,
-                            _originalDisplaySnapshot.Width,
-                            _originalDisplaySnapshot.Height,
-                            _originalDisplaySnapshot.Dpi,
-                            identifiers.AdapterId,
-                            identifiers.SourceId);
-                    }
-                    _targetHwnd = IntPtr.Zero;
-                    return;
-                }
-                AddLog("Target display settings applied successfully.");
-            }
-            else
-            {
-                AddLog("Display settings override is DISABLED. Skipping resolution and DPI changes.");
-                _originalDisplaySnapshot = null;
-            }
 
             _isRunning = true;
             _lastOrientation = WindowOrientation.Unknown;
@@ -163,17 +94,15 @@ namespace ResponsiveWindowTool.Services.Implementations
             _keyboardHookService.KeyPressed += OnKeyPressed;
             _keyboardHookService.Start();
 
-            //Thread.Sleep(200);
-
             AddLog("Applying initial portrait layout for the window.");
             _layoutManager.ApplyLayout(_targetHwnd, _configService.GetPortraitProfile());
             _lastOrientation = WindowOrientation.Portrait;
 
             IsRunningChanged?.Invoke(_isRunning);
-            AddLog("Service started. Press F12 to stop and restore settings.");
+            AddLog("Service started. Press F12 to stop.");
         }
 
-        public async void Stop()
+        public void Stop()
         {
             if (!_isRunning) return;
 
@@ -197,53 +126,6 @@ namespace ResponsiveWindowTool.Services.Implementations
                 _overlayService.Hide();
             }
 
-            // 仅在启用显示器设置覆盖且有快照时恢复
-            if (_originalDisplaySnapshot != null)
-            {
-                bool shouldRestore = true;
-                if (_configService.IsConfirmationRequired() && ConfirmationRequired != null)
-                {
-                    AddLog("Confirmation required to restore display settings...");
-                    shouldRestore = await ConfirmationRequired("Do you want to restore the original display settings?", 10);
-                }
-
-                if (shouldRestore)
-                {
-                    AddLog("Restoring original display settings...");
-
-                    var identifiers = _displayInfoService.GetIdentifiers(_targetHwnd);
-                    if (identifiers != null)
-                    {
-                        bool restored = _displaySettingService.ApplySettings(
-                            _originalDisplaySnapshot.DeviceName,
-                            _originalDisplaySnapshot.Width,
-                            _originalDisplaySnapshot.Height,
-                            _originalDisplaySnapshot.Dpi,
-                            identifiers.AdapterId,
-                            identifiers.SourceId
-                        );
-
-                        if (restored)
-                        {
-                            AddLog("Original display settings restored successfully.");
-                        }
-                        else
-                        {
-                            AddLog("Warning: Failed to restore original display settings. Manual adjustment may be required.");
-                        }
-                    }
-                    else
-                    {
-                        AddLog("Warning: Could not get display identifiers to restore settings.");
-                    }
-                }
-                else
-                {
-                    AddLog("Restore skipped by user. The new display settings will be kept.");
-                }
-                _originalDisplaySnapshot = null;
-            }
-
             _targetHwnd = IntPtr.Zero;
             _isRunning = false;
 
@@ -254,14 +136,11 @@ namespace ResponsiveWindowTool.Services.Implementations
 
         private void OnKeyPressed(int vkCode)
         {
-            // 原始代码: const int VK_ESCAPE = 0x1B;
             const int VK_F12 = 0x7B; // F12的虚拟键码
 
             if (vkCode == VK_F12)
             {
-                AddLog("F12 key pressed. Shutting down and restoring settings...");
-
-                // 调用Stop()来执行所有清理工作
+                AddLog("F12 key pressed. Shutting down...");
                 Stop();
             }
         }
@@ -271,7 +150,6 @@ namespace ResponsiveWindowTool.Services.Implementations
             if (hwnd == _targetHwnd)
             {
                 AddLog("Target window was closed. Shutting down automatically.");
-                // 调用Stop()来执行所有清理工作
                 Stop();
             }
         }

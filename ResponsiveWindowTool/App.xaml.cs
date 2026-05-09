@@ -29,9 +29,6 @@ namespace ResponsiveWindowTool
             services.AddSingleton<ITargetStateManager, TargetStateManager>();
             services.AddSingleton<IConfigService, ConfigService>();
             services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
-            services.AddSingleton<IDisplayInfoService, DisplayInfoService>();
-            services.AddSingleton<IDisplayInfoService, DisplayInfoService>();
-            services.AddSingleton<IDisplaySettingService, DisplaySettingService>(); 
             services.AddSingleton<IDialogService, DialogService>();
 
             // Register ViewModels

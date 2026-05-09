@@ -1,4 +1,4 @@
-﻿// File: ViewModels/MainViewModel.cs
+// File: ViewModels/MainViewModel.cs
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -28,7 +28,6 @@ namespace ResponsiveWindowTool.ViewModels
         public bool CanExecute(object? parameter) => _canExecute == null || _canExecute();
         public void Execute(object? parameter) => _execute();
 
-        // 新增：手动触发 CanExecuteChanged
         public void RaiseCanExecuteChanged()
         {
             CommandManager.InvalidateRequerySuggested();
@@ -69,7 +68,7 @@ namespace ResponsiveWindowTool.ViewModels
         public ICommand StartCommand { get; }
         public ICommand StopCommand { get; }
         public ICommand SelectImageCommand { get; }
-        public ICommand ClearImageCommand { get; } // 新增
+        public ICommand ClearImageCommand { get; }
 
         private string? _currentImageFileName;
         public string? CurrentImageFileName
@@ -79,13 +78,11 @@ namespace ResponsiveWindowTool.ViewModels
             {
                 if (SetProperty(ref _currentImageFileName, value))
                 {
-                    // 通知 "Clear" 按钮刷新其可用状态
                     (ClearImageCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 }
             }
         }
 
-        // 将属性类型从 double 改为 string?
         private string? _portraitAspectRatio;
         public string? PortraitAspectRatio
         {
@@ -94,62 +91,12 @@ namespace ResponsiveWindowTool.ViewModels
             {
                 if (SetProperty(ref _portraitAspectRatio, value))
                 {
-                    // 直接将用户输入的字符串保存到配置
                     _configService.SetPortraitAspectRatio(value);
                 }
             }
         }
 
         #region New Properties for UI Binding
-        private int _targetResolutionWidth;
-        public int TargetResolutionWidth
-        {
-            get => _targetResolutionWidth;
-            set { if (SetProperty(ref _targetResolutionWidth, value)) SaveTargetResolution(); }
-        }
-
-        private int _targetResolutionHeight;
-        public int TargetResolutionHeight
-        {
-            get => _targetResolutionHeight;
-            set { if (SetProperty(ref _targetResolutionHeight, value)) SaveTargetResolution(); }
-        }
-
-        private int _targetDpi;
-        public int TargetDpi
-        {
-            get => _targetDpi;
-            set { if (SetProperty(ref _targetDpi, value)) SaveTargetResolution(); }
-        }
-
-        private bool _requireConfirmationOnExit;
-        public bool RequireConfirmationOnExit
-        {
-            get => _requireConfirmationOnExit;
-            set
-            {
-                if (SetProperty(ref _requireConfirmationOnExit, value))
-                {
-                    _configService.SetRequireConfirmation(value);
-                }
-            }
-        }
-
-        // 新增：显示设置覆盖开关属性
-        private bool _enableDisplaySettingsOverride;
-        public bool EnableDisplaySettingsOverride
-        {
-            get => _enableDisplaySettingsOverride;
-            set
-            {
-                if (SetProperty(ref _enableDisplaySettingsOverride, value))
-                {
-                    _configService.SetEnableDisplaySettingsOverride(value);
-                }
-            }
-        }
-
-        // 新增：背景遮罩开关属性
         private bool _enableBackgroundOverlay;
         public bool EnableBackgroundOverlay
         {
@@ -171,38 +118,17 @@ namespace ResponsiveWindowTool.ViewModels
             _dialogService = dialogService;
 
             _stateManager.IsRunningChanged += OnIsRunningChanged;
-            _stateManager.ConfirmationRequired += OnConfirmationRequired;
 
             TargetProcessName = _configService.GetDefaultProcessName();
             CurrentImageFileName = _configService.GetBackgroundImageFileName();
             PortraitAspectRatio = _configService.GetPortraitAspectRatio();
 
-            RequireConfirmationOnExit = _configService.IsConfirmationRequired();
-
-            // 新增：初始化两个开关
-            EnableDisplaySettingsOverride = _configService.IsDisplaySettingsOverrideEnabled();
             EnableBackgroundOverlay = _configService.IsBackgroundOverlayEnabled();
-
-            var initialResolution = _configService.GetTargetResolution();
-            _targetResolutionWidth = initialResolution.Width;
-            _targetResolutionHeight = initialResolution.Height;
-            _targetDpi = initialResolution.Dpi;
 
             StartCommand = new RelayCommand(OnStart, () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
             StopCommand = new RelayCommand(OnStop, () => IsRunning);
             SelectImageCommand = new RelayCommand(SelectImage);
             ClearImageCommand = new RelayCommand(ClearImage, CanClearImage);
-        }
-
-        private Task<bool> OnConfirmationRequired(string message, int timeout)
-        {
-            // 当StateManager需要确认时，调用DialogService
-            return _dialogService.ShowConfirmationDialog(message, timeout);
-        }
-
-        private void SaveTargetResolution()
-        {
-            _configService.SetTargetResolution(TargetResolutionWidth, TargetResolutionHeight, TargetDpi);
         }
 
         private void OnIsRunningChanged(bool isRunning)
@@ -244,7 +170,6 @@ namespace ResponsiveWindowTool.ViewModels
                 try
                 {
                     File.Copy(sourcePath, destPath, true);
-                    // 关键：当用户选择图片时，模式自动切换为Image
                     _configService.SetBackgroundMode(BackgroundMode.Image);
                     _configService.SetBackgroundImageFileName(fileName);
                     CurrentImageFileName = fileName;
@@ -256,16 +181,13 @@ namespace ResponsiveWindowTool.ViewModels
             }
         }
 
-        // 新增：清除图片
         private void ClearImage()
         {
-            // 关键：当用户清除图片时，模式自动切换回SolidColor
             _configService.SetBackgroundMode(BackgroundMode.SolidColor);
             _configService.SetBackgroundImageFileName(null);
             CurrentImageFileName = null;
         }
 
-        // 新增：判断是否可以清除图片
         private bool CanClearImage()
         {
             return !string.IsNullOrEmpty(CurrentImageFileName);
@@ -274,7 +196,6 @@ namespace ResponsiveWindowTool.ViewModels
         public void Dispose()
         {
             _stateManager.IsRunningChanged -= OnIsRunningChanged;
-            _stateManager.ConfirmationRequired -= OnConfirmationRequired;
             if (_stateManager is IDisposable disposableManager)
             {
                 disposableManager.Dispose();
