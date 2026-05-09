@@ -75,6 +75,8 @@ namespace ResponsiveWindowTool.ViewModels
         public ICommand SelectImageCommand { get; }
         public ICommand ClearImageCommand { get; }
         public ICommand RestartAsAdminCommand { get; }
+        public ICommand AboutCommand { get; }
+        public ICommand ExitCommand { get; }
 
         private string? _currentImageFileName;
         public string? CurrentImageFileName
@@ -99,6 +101,19 @@ namespace ResponsiveWindowTool.ViewModels
                 {
                     ValidateAspectRatio(value);
                     _configService.SetPortraitAspectRatio(value);
+                }
+            }
+        }
+
+        private string _backgroundColor = "#FF000000";
+        public string BackgroundColor
+        {
+            get => _backgroundColor;
+            set
+            {
+                if (SetProperty(ref _backgroundColor, value))
+                {
+                    _configService.SetBackgroundColor(value);
                 }
             }
         }
@@ -207,6 +222,7 @@ namespace ResponsiveWindowTool.ViewModels
             TargetProcessName = _configService.GetDefaultProcessName();
             CurrentImageFileName = _configService.GetBackgroundImageFileName();
             PortraitAspectRatio = _configService.GetPortraitAspectRatio();
+            BackgroundColor = _configService.GetBackgroundColor();
 
             EnableBackgroundOverlay = _configService.IsBackgroundOverlayEnabled();
 
@@ -215,6 +231,17 @@ namespace ResponsiveWindowTool.ViewModels
             SelectImageCommand = new RelayCommand(SelectImage);
             ClearImageCommand = new RelayCommand(ClearImage, CanClearImage);
             RestartAsAdminCommand = new RelayCommand(OnRestartAsAdmin);
+            AboutCommand = new RelayCommand(OnAbout);
+            ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
+        }
+
+        private void OnAbout()
+        {
+            MessageBox.Show(
+                "Responsive Window Tool\nVersion 1.2.0\n\nA modern UI powered by WebView2.", 
+                "About", 
+                MessageBoxButton.OK, 
+                MessageBoxImage.Information);
         }
 
         private void OnIsRunningChanged(bool isRunning)

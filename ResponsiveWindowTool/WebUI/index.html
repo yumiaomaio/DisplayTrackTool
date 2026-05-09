@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Window Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="light">
+    <!-- UAC Warning -->
+    <div id="uac-banner" class="banner hidden">
+        <span id="txt-uac-msg">⚠ Administrator rights required.</span>
+        <button class="btn-link" onclick="bridge.RestartAsAdmin()" id="btn-restart-uac">Restart as Admin</button>
+    </div>
+
+    <main class="container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="brand">
+                <h1 id="txt-app-title">Game Tool</h1>
+                <div id="status-dot" class="status-dot stopped"></div>
+            </div>
+            <div class="header-controls">
+                <button class="control-btn" onclick="toggleTheme()" id="btn-theme" title="Theme">🌓</button>
+                <button class="control-btn" onclick="toggleLanguage()" id="btn-lang" title="Language">EN</button>
+                <button class="control-btn" onclick="bridge.ShowAbout()">ⓘ</button>
+            </div>
+        </header>
+
+        <!-- MAIN SCROLLABLE CONTENT -->
+        <div class="main-content-wrapper">
+            <div id="setup-view" class="content-section">
+                <!-- Target Application -->
+                <section class="card">
+                    <h3 id="txt-card-target">Target Application</h3>
+                    <div class="input-group">
+                        <label id="txt-label-process">Process Name</label>
+                        <input type="text" id="process-name" placeholder="e.g. notepad">
+                    </div>
+                </section>
+
+                <!-- Window Layout (SPLIT INPUTS) -->
+                <section class="card">
+                    <h3 id="txt-card-layout">Window Layout</h3>
+                    <div class="input-group">
+                        <label id="txt-label-ratio">Portrait Aspect Ratio</label>
+                        <div class="ratio-inputs">
+                            <input type="number" id="ratio-w" placeholder="W" min="1">
+                            <span class="ratio-sep">:</span>
+                            <input type="number" id="ratio-h" placeholder="H" min="1">
+                            <div class="preset-group">
+                                <button class="btn-preset" onclick="setSplitRatio(9, 16)">9:16</button>
+                                <button class="btn-preset" onclick="setSplitRatio(3, 4)">3:4</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="toggle-row" onclick="toggleCheckbox('auto-hide-taskbar')">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" id="auto-hide-taskbar">
+                            <span class="checkmark"></span>
+                        </div>
+                        <label id="txt-check-taskbar">Auto-hide Taskbar</label>
+                    </div>
+                </section>
+
+                <!-- Visuals -->
+                <section class="card">
+                    <h3 id="txt-card-visuals">Visual Configuration</h3>
+                    <div class="toggle-row" onclick="toggleCheckbox('enable-overlay')">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" id="enable-overlay">
+                            <span class="checkmark"></span>
+                        </div>
+                        <label id="txt-check-overlay">Background Overlay</label>
+                    </div>
+                    
+                    <div class="overlay-details" id="overlay-config-area">
+                        <div class="config-sub-section">
+                            <label id="txt-label-color">Solid Color</label>
+                            <div class="color-picker-row">
+                                <div class="color-presets">
+                                    <div class="color-dot" style="background-color:#000000" onclick="setColor('#FF000000')"></div>
+                                    <div class="color-dot" style="background-color:#1a1a1b" onclick="setColor('#FF1A1A1B')"></div>
+                                    <div class="color-dot" style="background-color:#2d2d30" onclick="setColor('#FF2D2D30')"></div>
+                                    <div class="color-dot" style="background-color:#3e3e42" onclick="setColor('#FF3E3E42')"></div>
+                                </div>
+                                <input type="color" id="color-input" onchange="onColorPickerChange(this.value)">
+                            </div>
+                        </div>
+
+                        <div class="config-sub-section">
+                            <label id="txt-label-image">Background Image</label>
+                            <div class="image-preview-container">
+                                <div id="image-preview" class="preview-box">No Image</div>
+                                <div class="image-info">
+                                    <span id="image-name">Solid Color</span>
+                                    <div class="btn-group">
+                                        <button class="btn-mini" onclick="bridge.SelectImage()" id="btn-select">Select</button>
+                                        <button class="btn-mini btn-ghost" onclick="bridge.ClearImage()" id="btn-clear">Clear</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Spacer for floating button -->
+                <div style="height: 80px;"></div>
+            </div>
+
+            <!-- RUNNING VIEW -->
+            <div id="running-view" class="content-section hidden">
+                <section class="card running-card">
+                    <div class="running-header">
+                        <div class="running-indicator">
+                            <div class="pulse-dot"></div>
+                            <span id="txt-active-status">ACTIVE MONITORING</span>
+                        </div>
+                        <button class="btn-stop-icon" onclick="bridge.StopMonitoring()" title="Stop">✕</button>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label id="txt-info-process">PROCESS</label>
+                            <span id="info-process-val">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label id="txt-info-ratio">RATIO</label>
+                            <span id="info-ratio-val">-</span>
+                        </div>
+                    </div>
+                    <div class="info-footer">
+                        <span id="info-details-val">Ready</span>
+                    </div>
+                </section>
+                <div style="height: 20px;"></div>
+            </div>
+
+            <!-- LOGS -->
+            <div class="logs-container">
+                <div class="logs-header">
+                    <span id="txt-log-title">Activity Logs</span>
+                </div>
+                <div id="logs-content" class="logs-body"></div>
+            </div>
+        </div>
+
+        <!-- FLOATING ACTION BUTTON (SETUP MODE ONLY) -->
+        <div id="floating-action" class="floating-footer">
+            <button id="btn-start" class="btn btn-primary btn-float" onclick="startMonitoring()">START MONITORING</button>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
