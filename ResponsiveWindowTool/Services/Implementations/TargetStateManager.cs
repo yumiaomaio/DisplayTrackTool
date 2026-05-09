@@ -25,6 +25,7 @@ namespace ResponsiveWindowTool.Services.Implementations
         private IntPtr _targetHwnd = IntPtr.Zero;
         private WindowOrientation _lastOrientation = WindowOrientation.Unknown;
         private bool _isRunning = false;
+        private WindowSnapshot? _originalSnapshot;
 
         public event Action<bool>? IsRunningChanged;
 
@@ -73,6 +74,10 @@ namespace ResponsiveWindowTool.Services.Implementations
 
             AddLog($"Target window found: HWND {_targetHwnd}.");
 
+            // 备份原始状态
+            _originalSnapshot = _layoutManager.TakeSnapshot(_targetHwnd);
+            AddLog("Original window styles and position backed up.");
+
             _isRunning = true;
             _lastOrientation = WindowOrientation.Unknown;
 
@@ -116,8 +121,15 @@ namespace ResponsiveWindowTool.Services.Implementations
 
             if (_targetHwnd != IntPtr.Zero && NativeMethods.IsWindow(_targetHwnd))
             {
-                AddLog("Restoring target window to standard style.");
-                await Task.Run(() => _layoutManager.RestoreToStandard(_targetHwnd));
+                if (_originalSnapshot != null)
+                {
+                    AddLog("Restoring target window to original styles and position.");
+                    await Task.Run(() => _layoutManager.Restore(_targetHwnd, _originalSnapshot));
+                }
+                else
+                {
+                    AddLog("Warning: No original window snapshot found for restoration.");
+                }
             }
 
             // 仅在启用遮罩时隐藏遮罩
@@ -127,6 +139,7 @@ namespace ResponsiveWindowTool.Services.Implementations
             }
 
             _targetHwnd = IntPtr.Zero;
+            _originalSnapshot = null;
             _isRunning = false;
 
             IsRunningChanged?.Invoke(_isRunning);
@@ -209,9 +222,6 @@ namespace ResponsiveWindowTool.Services.Implementations
 
         public void Dispose()
         {
-            // Note: StopAsync is async, but Dispose is not. 
-            // In a real app, you might use IAsyncDisposable.
-            // For now, we just call StopAsync and don't await (fire and forget in dispose).
             _ = StopAsync();
         }
     }

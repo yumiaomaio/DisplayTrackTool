@@ -8,6 +8,7 @@ namespace ResponsiveWindowTool.Services
     {
         void ApplyLayout(IntPtr hwnd, LayoutProfile profile);
         void EnsureTopmost(IntPtr hwnd);
-        void RestoreToStandard(IntPtr hwnd);
+        WindowSnapshot TakeSnapshot(IntPtr hwnd);
+        void Restore(IntPtr hwnd, WindowSnapshot snapshot);
     }
 }
