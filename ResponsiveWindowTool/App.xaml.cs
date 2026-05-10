@@ -1,5 +1,6 @@
 ﻿// File: App.xaml.cs
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Web.WebView2.Core;
 using ResponsiveWindowTool.Services;
 using ResponsiveWindowTool.Services.Implementations;
 using ResponsiveWindowTool.ViewModels;
@@ -8,12 +9,16 @@ using System.Windows;
 
 namespace ResponsiveWindowTool;
 
-public partial class App
+public partial class App : Application
 {
     private readonly ServiceProvider _serviceProvider;
+    private readonly Task<CoreWebView2Environment> _webViewEnvTask;
 
     public App()
     {
+        // Start pre-creating the WebView2 environment as early as possible (Warm-up)
+        _webViewEnvTask = CoreWebView2Environment.CreateAsync();
+
         var serviceCollection = new ServiceCollection();
         ConfigureServices(serviceCollection);
         _serviceProvider = serviceCollection.BuildServiceProvider();
@@ -21,6 +26,9 @@ public partial class App
 
     private void ConfigureServices(IServiceCollection services)
     {
+        // Register the environment task so MainWindow can await it
+        services.AddSingleton(_webViewEnvTask);
+
         // Register services as Singleton since this is a stateful desktop tool
         services.AddSingleton<ITaskbarService, TaskbarService>();
         services.AddSingleton<IPrivilegeService, PrivilegeService>();

@@ -6,8 +6,6 @@
         WindowStartupLocation="CenterScreen"
         Background="White">
     <Grid>
-        <wv2:WebView2 x:Name="WebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <wv2:WebView2.Source><![CDATA[about:blank]]></wv2:WebView2.Source>
-        </wv2:WebView2>
+        <wv2:WebView2 x:Name="WebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
     </Grid>
 </Window>
