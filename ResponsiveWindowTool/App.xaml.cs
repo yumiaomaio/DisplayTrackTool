@@ -32,7 +32,6 @@ public partial class App : Application
         services.AddSingleton<ITargetStateManager, TargetStateManager>();
         services.AddSingleton<IConfigService, ConfigService>();
         services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
-        services.AddSingleton<IDialogService, DialogService>();
 
         // Register ViewModels
         services.AddSingleton<MainViewModel>();

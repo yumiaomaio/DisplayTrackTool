@@ -17,7 +17,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
 {
     private readonly ITargetStateManager _stateManager;
     private readonly IConfigService _configService;
-    private readonly IDialogService _dialogService;
     private readonly ILoggingService _loggingService;
     private readonly IPrivilegeService _privilegeService;
     private readonly ITaskbarService _taskbarService;
@@ -49,7 +48,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
     public bool IsAdmin
     {
         get => _isAdmin;
-        set => SetProperty(ref _isAdmin, value);
+        private set => SetProperty(ref _isAdmin, value);
     }
 
     private bool _enableTaskbarAutoHide;
@@ -137,9 +136,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
 
     public IEnumerable GetErrors(string? propertyName)
     {
-        if (string.IsNullOrEmpty(propertyName) || !_errors.ContainsKey(propertyName))
+        if (string.IsNullOrEmpty(propertyName) || !_errors.TryGetValue(propertyName, out var errors))
             return Enumerable.Empty<string>();
-        return _errors[propertyName];
+        return errors;
     }
 
     private void ValidateAspectRatio(string? value)
@@ -187,9 +186,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
 
     private void ClearErrors(string propertyName)
     {
-        if (_errors.ContainsKey(propertyName))
+        if (_errors.Remove(propertyName))
         {
-            _errors.Remove(propertyName);
             ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
             OnPropertyChanged(nameof(HasErrors));
         }
@@ -199,14 +197,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
     public MainViewModel(
         ITargetStateManager stateManager, 
         IConfigService configService, 
-        IDialogService dialogService,
         ILoggingService loggingService,
         IPrivilegeService privilegeService,
         ITaskbarService taskbarService)
     {
         _stateManager = stateManager;
         _configService = configService;
-        _dialogService = dialogService;
         _loggingService = loggingService;
         _privilegeService = privilegeService;
         _taskbarService = taskbarService;
@@ -333,14 +329,16 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
-    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+
+    private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value)) return false;
         field = value;
         OnPropertyChanged(propertyName);
         return true;
     }
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
