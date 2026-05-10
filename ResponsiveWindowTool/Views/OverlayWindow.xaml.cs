@@ -1,15 +1,16 @@
 ﻿// File: Views/OverlayWindow.xaml.cs (Modified)
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
-using System.Windows.Media; // <-- 需要这个命名空间
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace ResponsiveWindowTool.Views
 {
     public partial class OverlayWindow : Window
     {
-        public OverlayWindow(string? imagePath, string backgroundColor) // <-- 修改构造函数签名
+        public OverlayWindow(string? imagePath, string backgroundColor)
         {
             InitializeComponent();
             
@@ -21,7 +22,10 @@ namespace ResponsiveWindowTool.Views
                     var uri = new Uri(imagePath, UriKind.Absolute);
                     BackgroundImage.Source = new BitmapImage(uri);
                 }
-                catch { /* Fallback to color if image fails */ }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[OverlayWindow] Failed to load background image '{imagePath}': {ex.Message}");
+                }
             }
             else
             {
@@ -33,7 +37,10 @@ namespace ResponsiveWindowTool.Views
                     // 确保图片控件是透明的，以免遮挡颜色
                     BackgroundImage.Source = null; 
                 }
-                catch { /* Fallback to default black if color string is invalid */ }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[OverlayWindow] Failed to parse background color '{backgroundColor}': {ex.Message}. Falling back to black.");
+                }
             }
         }
     }

@@ -162,21 +162,35 @@ namespace ResponsiveWindowTool.Services.Implementations
 
         private async void OnKeyPressed(int vkCode)
         {
-            const int VK_F12 = 0x7B; // F12的虚拟键码
-
-            if (vkCode == VK_F12)
+            try
             {
-                AddLog("F12 key pressed. Shutting down...");
-                await StopAsync();
+                const int VK_F12 = 0x7B; // F12的虚拟键码
+
+                if (vkCode == VK_F12)
+                {
+                    AddLog("F12 key pressed. Shutting down...");
+                    await StopAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"Error during F12 shutdown: {ex.Message}");
             }
         }
 
         private async void OnWindowDestroyed(IntPtr hwnd)
         {
-            if (hwnd == _targetHwnd)
+            try
             {
-                AddLog("Target window was closed. Shutting down automatically.");
-                await StopAsync();
+                if (hwnd == _targetHwnd)
+                {
+                    AddLog("Target window was closed. Shutting down automatically.");
+                    await StopAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"Error during automatic shutdown: {ex.Message}");
             }
         }
 

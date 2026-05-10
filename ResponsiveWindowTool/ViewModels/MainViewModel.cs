@@ -255,12 +255,27 @@ namespace ResponsiveWindowTool.ViewModels
         private async Task OnStartAsync()
         {
             if (TargetProcessName == null) return;
-            await _stateManager.StartAsync(TargetProcessName);
+            try
+            {
+                await _stateManager.StartAsync(TargetProcessName);
+            }
+            catch (Exception ex)
+            {
+                _loggingService.AddLog($"Failed to start monitoring: {ex.Message}");
+                MessageBox.Show($"An error occurred while starting the service: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async Task OnStopAsync()
         {
-            await _stateManager.StopAsync();
+            try
+            {
+                await _stateManager.StopAsync();
+            }
+            catch (Exception ex)
+            {
+                _loggingService.AddLog($"Error during stop: {ex.Message}");
+            }
         }
 
         private void OnRestartAsAdmin()

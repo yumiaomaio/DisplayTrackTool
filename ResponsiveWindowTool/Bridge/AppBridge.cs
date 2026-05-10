@@ -91,6 +91,7 @@ namespace ResponsiveWindowTool.Bridge
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"[AppBridge] Error encoding image to base64: {ex.Message}");
                 return "";
             }
         }
@@ -128,8 +129,9 @@ namespace ResponsiveWindowTool.Bridge
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Debug.WriteLine($"[AppBridge] Error extracting process icon: {ex.Message}");
                 return "";
             }
         }
