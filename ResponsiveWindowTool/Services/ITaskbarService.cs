@@ -1,8 +1,7 @@
-namespace ResponsiveWindowTool.Services
+namespace ResponsiveWindowTool.Services;
+
+public interface ITaskbarService
 {
-    public interface ITaskbarService
-    {
-        bool IsAutoHideEnabled();
-        void SetAutoHide(bool enable);
-    }
+    bool IsAutoHideEnabled();
+    void SetAutoHide(bool enable);
 }

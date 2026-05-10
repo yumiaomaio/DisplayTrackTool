@@ -1,10 +1,9 @@
 ﻿// File: Models/WindowOrientation.cs
-namespace ResponsiveWindowTool.Models
+namespace ResponsiveWindowTool.Models;
+
+public enum WindowOrientation
 {
-    public enum WindowOrientation
-    {
-        Unknown,
-        Portrait,
-        Landscape
-    }
+    Unknown,
+    Portrait,
+    Landscape
 }

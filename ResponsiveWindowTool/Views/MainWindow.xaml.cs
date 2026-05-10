@@ -1,82 +1,79 @@
-using System;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
-using Microsoft.Web.WebView2.Core;
 using ResponsiveWindowTool.Bridge;
 using ResponsiveWindowTool.ViewModels;
 
-namespace ResponsiveWindowTool.Views
+namespace ResponsiveWindowTool.Views;
+
+public partial class MainWindow : Window
 {
-    public partial class MainWindow : Window
+    private readonly MainViewModel _viewModel;
+    private AppBridge? _bridge;
+
+    public MainWindow(MainViewModel viewModel)
     {
-        private readonly MainViewModel _viewModel;
-        private AppBridge? _bridge;
+        InitializeComponent();
+        _viewModel = viewModel;
+        DataContext = _viewModel;
+        
+        Loaded += MainWindow_Loaded;
+        
+        // Subscribe to state changes to push to JS
+        _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+        _viewModel.Logs.CollectionChanged += Logs_CollectionChanged;
+    }
 
-        public MainWindow(MainViewModel viewModel)
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        try
         {
-            InitializeComponent();
-            _viewModel = viewModel;
-            DataContext = _viewModel;
+            await webView.EnsureCoreWebView2Async();
             
-            Loaded += MainWindow_Loaded;
+            _bridge = new AppBridge(_viewModel);
+            webView.CoreWebView2.AddHostObjectToScript("bridge", _bridge);
             
-            // Subscribe to state changes to push to JS
-            _viewModel.PropertyChanged += ViewModel_PropertyChanged;
-            _viewModel.Logs.CollectionChanged += Logs_CollectionChanged;
-        }
-
-        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
-        {
-            try
+            string htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebUI", "index.html");
+            if (File.Exists(htmlPath))
             {
-                await webView.EnsureCoreWebView2Async();
-                
-                _bridge = new AppBridge(_viewModel);
-                webView.CoreWebView2.AddHostObjectToScript("bridge", _bridge);
-                
-                string htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebUI", "index.html");
-                if (File.Exists(htmlPath))
-                {
-                    webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
-                }
-                else
-                {
-                    MessageBox.Show($"Web UI file not found at: {htmlPath}");
-                }
+                webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show($"WebView2 Initialization failed: {ex.Message}");
+                MessageBox.Show($"Web UI file not found at: {htmlPath}");
             }
         }
-
-        private async void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        catch (Exception ex)
         {
-            if (_bridge == null || webView.CoreWebView2 == null) return;
-
-            // Push specific changes to JS
-            var state = new { };
-            if (e.PropertyName == nameof(_viewModel.IsRunning))
-            {
-                await UpdateJsState(new { IsRunning = _viewModel.IsRunning });
-            }
-            else if (e.PropertyName == nameof(_viewModel.CurrentImageFileName))
-            {
-                await UpdateJsState(new { CurrentImageFileName = _viewModel.CurrentImageFileName });
-            }
+            MessageBox.Show($"WebView2 Initialization failed: {ex.Message}");
         }
+    }
 
-        private async void Logs_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    private async void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_bridge == null || webView.CoreWebView2 == null) return;
+
+        // Push specific changes to JS
+        var state = new { };
+        if (e.PropertyName == nameof(_viewModel.IsRunning))
         {
-            await UpdateJsState(new { Logs = _viewModel.Logs });
+            await UpdateJsState(new { IsRunning = _viewModel.IsRunning });
         }
-
-        private async Task UpdateJsState(object state)
+        else if (e.PropertyName == nameof(_viewModel.CurrentImageFileName))
         {
-            if (webView.CoreWebView2 == null) return;
-            string json = JsonSerializer.Serialize(state);
-            await webView.CoreWebView2.ExecuteScriptAsync($"window.onStateChanged('{json}')");
+            await UpdateJsState(new { CurrentImageFileName = _viewModel.CurrentImageFileName });
         }
+    }
+
+    private async void Logs_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        await UpdateJsState(new { Logs = _viewModel.Logs });
+    }
+
+    private async Task UpdateJsState(object state)
+    {
+        if (webView.CoreWebView2 == null) return;
+        string json = JsonSerializer.Serialize(state);
+        await webView.CoreWebView2.ExecuteScriptAsync($"window.onStateChanged('{json}')");
     }
 }

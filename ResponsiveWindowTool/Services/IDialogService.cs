@@ -1,9 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿namespace ResponsiveWindowTool.Services;
 
-namespace ResponsiveWindowTool.Services
+public interface IDialogService
 {
-    public interface IDialogService
-    {
-        Task<bool> ShowConfirmationDialog(string message, int timeoutSeconds);
-    }
+    Task<bool> ShowConfirmationDialog(string message, int timeoutSeconds);
 }

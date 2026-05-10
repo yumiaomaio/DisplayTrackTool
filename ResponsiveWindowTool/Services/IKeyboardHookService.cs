@@ -1,12 +1,9 @@
 ﻿// File: Services/IKeyboardHookService.cs
-using System;
+namespace ResponsiveWindowTool.Services;
 
-namespace ResponsiveWindowTool.Services
+public interface IKeyboardHookService
 {
-    public interface IKeyboardHookService
-    {
-        event Action<int> KeyPressed;
-        void Start();
-        void Stop();
-    }
+    event Action<int> KeyPressed;
+    void Start();
+    void Stop();
 }

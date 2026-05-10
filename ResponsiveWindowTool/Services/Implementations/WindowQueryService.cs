@@ -1,25 +1,22 @@
 ﻿// File: Services/Implementations/WindowQueryService.cs
-using System;
 using System.Diagnostics;
-using System.Linq;
 
-namespace ResponsiveWindowTool.Services.Implementations
+namespace ResponsiveWindowTool.Services.Implementations;
+
+public class WindowQueryService : IWindowQueryService
 {
-    public class WindowQueryService : IWindowQueryService
+    public IntPtr? FindWindowByProcessName(string processName)
     {
-        public IntPtr? FindWindowByProcessName(string processName)
+        var processes = Process.GetProcessesByName(processName);
+        var process = processes.FirstOrDefault(p => p.MainWindowHandle != IntPtr.Zero);
+        
+        if (process == null)
         {
-            var processes = Process.GetProcessesByName(processName);
-            var process = processes.FirstOrDefault(p => p.MainWindowHandle != IntPtr.Zero);
-            
-            if (process == null)
-            {
-                Debug.WriteLine($"[WindowQueryService] Process '{processName}' not found or has no main window.");
-                return null;
-            }
-            
-            Debug.WriteLine($"[WindowQueryService] Found process '{processName}' with MainWindowHandle: {process.MainWindowHandle}");
-            return process.MainWindowHandle;
+            Debug.WriteLine($"[WindowQueryService] Process '{processName}' not found or has no main window.");
+            return null;
         }
+        
+        Debug.WriteLine($"[WindowQueryService] Found process '{processName}' with MainWindowHandle: {process.MainWindowHandle}");
+        return process.MainWindowHandle;
     }
 }

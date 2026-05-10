@@ -7,204 +7,203 @@ using System.Text.Json.Serialization;
 using ResponsiveWindowTool.Interop.Enums;
 using ResponsiveWindowTool.Models;
 
-namespace ResponsiveWindowTool.Services.Implementations
+namespace ResponsiveWindowTool.Services.Implementations;
+
+public class ConfigService : IConfigService
 {
-    public class ConfigService : IConfigService
+    private const string ConfigFileName = "profiles.json";
+    private readonly AppConfig _config;
+
+    public ConfigService()
     {
-        private const string ConfigFileName = "profiles.json";
-        private readonly AppConfig _config;
+        _config = LoadOrCreateConfig();
+    }
 
-        public ConfigService()
+    public string GetDefaultProcessName() => _config.TargetProcessName;
+    public void SetDefaultProcessName(string processName)
+    {
+        if (_config.TargetProcessName == processName) return;
+        _config.TargetProcessName = processName;
+        SaveConfig();
+    }
+    public string? GetBackgroundImageFileName() => _config.BackgroundImageFileName;
+
+    public LayoutProfile GetPortraitProfile() => ConvertToLayoutProfile(_config.Profiles.Portrait);
+    public LayoutProfile GetLandscapeProfile() => ConvertToLayoutProfile(_config.Profiles.Landscape);
+
+    public string? GetPortraitAspectRatio() => _config.Profiles.Portrait.AspectRatio;
+
+    public void SetPortraitAspectRatio(string? aspectRatio)
+    {
+        if (_config.Profiles.Portrait.AspectRatio == aspectRatio) return;
+        _config.Profiles.Portrait.AspectRatio = aspectRatio;
+        SaveConfig();
+    }
+
+    public void SetBackgroundImageFileName(string? fileName)
+    {
+        if (_config.BackgroundImageFileName == fileName) return;
+        _config.BackgroundImageFileName = fileName;
+        SaveConfig();
+    }
+    
+    private void SaveConfig()
+    {
+        string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
+        try
         {
-            _config = LoadOrCreateConfig();
+            var options = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
+            File.WriteAllText(configPath, JsonSerializer.Serialize(_config, options));
+            Debug.WriteLine($"[ConfigService] Config saved to '{configPath}'.");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ConfigService] Error saving config: {ex.Message}");
+        }
+    }
+    
+    private AppConfig LoadOrCreateConfig()
+    {
+        string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
+        if (!File.Exists(configPath))
+        {
+            Debug.WriteLine($"[ConfigService] Config file not found. Creating default at '{configPath}'.");
+            var defaultConfig = CreateDefaultConfig();
+            var options = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
+            File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig, options));
+            return defaultConfig;
         }
 
-        public string GetDefaultProcessName() => _config.TargetProcessName;
-        public void SetDefaultProcessName(string processName)
+        try
         {
-            if (_config.TargetProcessName == processName) return;
-            _config.TargetProcessName = processName;
-            SaveConfig();
+            Debug.WriteLine($"[ConfigService] Loading config from '{configPath}'.");
+            string json = File.ReadAllText(configPath);
+            return JsonSerializer.Deserialize<AppConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } }) 
+                   ?? CreateDefaultConfig();
         }
-        public string? GetBackgroundImageFileName() => _config.BackgroundImageFileName;
-
-        public LayoutProfile GetPortraitProfile() => ConvertToLayoutProfile(_config.Profiles.Portrait);
-        public LayoutProfile GetLandscapeProfile() => ConvertToLayoutProfile(_config.Profiles.Landscape);
-
-        public string? GetPortraitAspectRatio() => _config.Profiles.Portrait.AspectRatio;
-
-        public void SetPortraitAspectRatio(string? aspectRatio)
+        catch (Exception ex)
         {
-            if (_config.Profiles.Portrait.AspectRatio == aspectRatio) return;
-            _config.Profiles.Portrait.AspectRatio = aspectRatio;
-            SaveConfig();
+            Debug.WriteLine($"[ConfigService] Error loading config: {ex.Message}. Using default.");
+            return CreateDefaultConfig();
         }
+    }
 
-        public void SetBackgroundImageFileName(string? fileName)
+    private AppConfig CreateDefaultConfig()
+    {
+        return new AppConfig
         {
-            if (_config.BackgroundImageFileName == fileName) return;
-            _config.BackgroundImageFileName = fileName;
-            SaveConfig();
-        }
-        
-        private void SaveConfig()
-        {
-            string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
-            try
+            TargetProcessName = "notepad",
+            EnableBackgroundOverlay = true,
+            BackgroundMode = BackgroundMode.SolidColor,
+            BackgroundColor = "#FF000000",
+            BackgroundImageFileName = null,
+            Profiles = new ProfileCollection
             {
-                var options = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
-                File.WriteAllText(configPath, JsonSerializer.Serialize(_config, options));
-                Debug.WriteLine($"[ConfigService] Config saved to '{configPath}'.");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[ConfigService] Error saving config: {ex.Message}");
-            }
-        }
-        
-        private AppConfig LoadOrCreateConfig()
-        {
-            string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
-            if (!File.Exists(configPath))
-            {
-                Debug.WriteLine($"[ConfigService] Config file not found. Creating default at '{configPath}'.");
-                var defaultConfig = CreateDefaultConfig();
-                var options = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
-                File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig, options));
-                return defaultConfig;
-            }
-
-            try
-            {
-                Debug.WriteLine($"[ConfigService] Loading config from '{configPath}'.");
-                string json = File.ReadAllText(configPath);
-                return JsonSerializer.Deserialize<AppConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } }) 
-                       ?? CreateDefaultConfig();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[ConfigService] Error loading config: {ex.Message}. Using default.");
-                return CreateDefaultConfig();
-            }
-        }
-
-        private AppConfig CreateDefaultConfig()
-        {
-            return new AppConfig
-            {
-                TargetProcessName = "notepad",
-                EnableBackgroundOverlay = true,
-                BackgroundMode = BackgroundMode.SolidColor,
-                BackgroundColor = "#FF000000",
-                BackgroundImageFileName = null,
-                Profiles = new ProfileCollection
+                Portrait = new ProfileDefinition
                 {
-                    Portrait = new ProfileDefinition
-                    {
-                        Name = "Portrait Mode",
-                        Styles = new List<string> { "WS_POPUP", "WS_VISIBLE" },
-                        ExStyles = new List<string> { "WS_EX_TOPMOST" },
-                        Sizing = SizingMode.RelativeToScreenHeight,
-                        Positioning = PositioningMode.CenterScreen,
-                        AspectRatio = "9/16"
-                    },
-                    Landscape = new ProfileDefinition
-                    {
-                        Name = "Landscape Fullscreen",
-                        Styles = new List<string> { "WS_POPUP", "WS_VISIBLE" },
-                        ExStyles = new List<string> { "WS_EX_TOPMOST" },
-                        Sizing = SizingMode.Fullscreen,
-                        Positioning = PositioningMode.TopLeft
-                    }
-                }
-            };
-        }
-        
-        private LayoutProfile ConvertToLayoutProfile(ProfileDefinition def)
-        {
-            return new LayoutProfile
-            {
-                Name = def.Name,
-                Styles = ParseEnum<WindowStyles>(def.Styles),
-                ExStyles = ParseEnum<WindowExStyles>(def.ExStyles),
-                Sizing = def.Sizing,
-                Positioning = def.Positioning,
-                AspectRatio = ParseAspectRatio(def.AspectRatio)
-            };
-        }
-        
-        public BackgroundMode GetBackgroundMode() => _config.BackgroundMode;
-        public string GetBackgroundColor() => _config.BackgroundColor;
-
-        public void SetBackgroundMode(BackgroundMode mode)
-        {
-            if (_config.BackgroundMode == mode) return;
-            _config.BackgroundMode = mode;
-            SaveConfig();
-        }
-
-        public void SetBackgroundColor(string color)
-        {
-            if (string.Equals(_config.BackgroundColor, color, StringComparison.InvariantCultureIgnoreCase)) return;
-            _config.BackgroundColor = color;
-            SaveConfig();
-        }
-
-        public bool IsBackgroundOverlayEnabled() => _config.EnableBackgroundOverlay;
-
-        public void SetEnableBackgroundOverlay(bool enabled)
-        {
-            if (_config.EnableBackgroundOverlay == enabled) return;
-            _config.EnableBackgroundOverlay = enabled;
-            SaveConfig();
-        }
-
-        public bool IsTaskbarAutoHideEnabled() => _config.EnableTaskbarAutoHide;
-
-        public void SetEnableTaskbarAutoHide(bool enabled)
-        {
-            if (_config.EnableTaskbarAutoHide == enabled) return;
-            _config.EnableTaskbarAutoHide = enabled;
-            SaveConfig();
-        }
-
-        private double? ParseAspectRatio(string? ratioString)
-        {
-            if (string.IsNullOrWhiteSpace(ratioString))
-            {
-                return null;
-            }
-
-            try
-            {
-                var parts = ratioString.Split('/');
-                if (parts.Length != 2) return null;
-
-                if (double.TryParse(parts[0].Trim(), out double numerator) &&
-                    double.TryParse(parts[1].Trim(), out double denominator))
+                    Name = "Portrait Mode",
+                    Styles = new List<string> { "WS_POPUP", "WS_VISIBLE" },
+                    ExStyles = new List<string> { "WS_EX_TOPMOST" },
+                    Sizing = SizingMode.RelativeToScreenHeight,
+                    Positioning = PositioningMode.CenterScreen,
+                    AspectRatio = "9/16"
+                },
+                Landscape = new ProfileDefinition
                 {
-                    if (denominator == 0) return null;
-                    return numerator / denominator;
+                    Name = "Landscape Fullscreen",
+                    Styles = new List<string> { "WS_POPUP", "WS_VISIBLE" },
+                    ExStyles = new List<string> { "WS_EX_TOPMOST" },
+                    Sizing = SizingMode.Fullscreen,
+                    Positioning = PositioningMode.TopLeft
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[ConfigService] Failed to parse aspect ratio '{ratioString}': {ex.Message}");
-                return null;
-            }
+        };
+    }
+    
+    private LayoutProfile ConvertToLayoutProfile(ProfileDefinition def)
+    {
+        return new LayoutProfile
+        {
+            Name = def.Name,
+            Styles = ParseEnum<WindowStyles>(def.Styles),
+            ExStyles = ParseEnum<WindowExStyles>(def.ExStyles),
+            Sizing = def.Sizing,
+            Positioning = def.Positioning,
+            AspectRatio = ParseAspectRatio(def.AspectRatio)
+        };
+    }
+    
+    public BackgroundMode GetBackgroundMode() => _config.BackgroundMode;
+    public string GetBackgroundColor() => _config.BackgroundColor;
 
+    public void SetBackgroundMode(BackgroundMode mode)
+    {
+        if (_config.BackgroundMode == mode) return;
+        _config.BackgroundMode = mode;
+        SaveConfig();
+    }
+
+    public void SetBackgroundColor(string color)
+    {
+        if (string.Equals(_config.BackgroundColor, color, StringComparison.InvariantCultureIgnoreCase)) return;
+        _config.BackgroundColor = color;
+        SaveConfig();
+    }
+
+    public bool IsBackgroundOverlayEnabled() => _config.EnableBackgroundOverlay;
+
+    public void SetEnableBackgroundOverlay(bool enabled)
+    {
+        if (_config.EnableBackgroundOverlay == enabled) return;
+        _config.EnableBackgroundOverlay = enabled;
+        SaveConfig();
+    }
+
+    public bool IsTaskbarAutoHideEnabled() => _config.EnableTaskbarAutoHide;
+
+    public void SetEnableTaskbarAutoHide(bool enabled)
+    {
+        if (_config.EnableTaskbarAutoHide == enabled) return;
+        _config.EnableTaskbarAutoHide = enabled;
+        SaveConfig();
+    }
+
+    private double? ParseAspectRatio(string? ratioString)
+    {
+        if (string.IsNullOrWhiteSpace(ratioString))
+        {
             return null;
         }
 
-        private T ParseEnum<T>(List<string> values) where T : struct
+        try
         {
-            if (values == null || !values.Any()) return default;
+            var parts = ratioString.Split('/');
+            if (parts.Length != 2) return null;
 
-            uint rawValue = values
-                .Select(s => Convert.ToUInt32(Enum.Parse(typeof(T), s, true)))
-                .Aggregate(0U, (current, next) => current | next);
-
-            return (T)(object)rawValue;
+            if (double.TryParse(parts[0].Trim(), out double numerator) &&
+                double.TryParse(parts[1].Trim(), out double denominator))
+            {
+                if (denominator == 0) return null;
+                return numerator / denominator;
+            }
         }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ConfigService] Failed to parse aspect ratio '{ratioString}': {ex.Message}");
+            return null;
+        }
+
+        return null;
+    }
+
+    private T ParseEnum<T>(List<string> values) where T : struct
+    {
+        if (values == null || !values.Any()) return default;
+
+        uint rawValue = values
+            .Select(s => Convert.ToUInt32(Enum.Parse(typeof(T), s, true)))
+            .Aggregate(0U, (current, next) => current | next);
+
+        return (T)(object)rawValue;
     }
 }

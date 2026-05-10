@@ -1,8 +1,7 @@
-namespace ResponsiveWindowTool.Services
+namespace ResponsiveWindowTool.Services;
+
+public interface IPrivilegeService
 {
-    public interface IPrivilegeService
-    {
-        bool IsAdministrator();
-        void RestartAsAdministrator();
-    }
+    bool IsAdministrator();
+    void RestartAsAdministrator();
 }

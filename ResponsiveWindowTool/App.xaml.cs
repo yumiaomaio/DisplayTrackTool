@@ -6,45 +6,44 @@ using ResponsiveWindowTool.ViewModels;
 using ResponsiveWindowTool.Views;
 using System.Windows;
 
-namespace ResponsiveWindowTool
+namespace ResponsiveWindowTool;
+
+public partial class App : Application
 {
-    public partial class App : Application
+    private readonly ServiceProvider _serviceProvider;
+
+    public App()
     {
-        private readonly ServiceProvider _serviceProvider;
+        var serviceCollection = new ServiceCollection();
+        ConfigureServices(serviceCollection);
+        _serviceProvider = serviceCollection.BuildServiceProvider();
+    }
 
-        public App()
-        {
-            var serviceCollection = new ServiceCollection();
-            ConfigureServices(serviceCollection);
-            _serviceProvider = serviceCollection.BuildServiceProvider();
-        }
+    private void ConfigureServices(IServiceCollection services)
+    {
+        // Register services as Singleton since this is a stateful desktop tool
+        services.AddSingleton<ITaskbarService, TaskbarService>();
+        services.AddSingleton<IPrivilegeService, PrivilegeService>();
+        services.AddSingleton<ILoggingService, LoggingService>();
+        services.AddSingleton<IWindowQueryService, WindowQueryService>();
+        services.AddSingleton<IOverlayService, OverlayService>();
+        services.AddSingleton<IWindowLayoutManager, WindowLayoutManager>();
+        services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
+        services.AddSingleton<ITargetStateManager, TargetStateManager>();
+        services.AddSingleton<IConfigService, ConfigService>();
+        services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
+        services.AddSingleton<IDialogService, DialogService>();
 
-        private void ConfigureServices(IServiceCollection services)
-        {
-            // Register services as Singleton since this is a stateful desktop tool
-            services.AddSingleton<ITaskbarService, TaskbarService>();
-            services.AddSingleton<IPrivilegeService, PrivilegeService>();
-            services.AddSingleton<ILoggingService, LoggingService>();
-            services.AddSingleton<IWindowQueryService, WindowQueryService>();
-            services.AddSingleton<IOverlayService, OverlayService>();
-            services.AddSingleton<IWindowLayoutManager, WindowLayoutManager>();
-            services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
-            services.AddSingleton<ITargetStateManager, TargetStateManager>();
-            services.AddSingleton<IConfigService, ConfigService>();
-            services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
-            services.AddSingleton<IDialogService, DialogService>();
+        // Register ViewModels
+        services.AddSingleton<MainViewModel>();
 
-            // Register ViewModels
-            services.AddSingleton<MainViewModel>();
+        // Register Views
+        services.AddSingleton<MainWindow>();
+    }
 
-            // Register Views
-            services.AddSingleton<MainWindow>();
-        }
-
-        protected override void OnStartup(StartupEventArgs e)
-        {
-            var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
-            mainWindow.Show();
-        }
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+        mainWindow.Show();
     }
 }

@@ -1,10 +1,9 @@
 using System.Collections.ObjectModel;
 
-namespace ResponsiveWindowTool.Services
+namespace ResponsiveWindowTool.Services;
+
+public interface ILoggingService
 {
-    public interface ILoggingService
-    {
-        ObservableCollection<string> Logs { get; }
-        void AddLog(string message);
-    }
+    ObservableCollection<string> Logs { get; }
+    void AddLog(string message);
 }

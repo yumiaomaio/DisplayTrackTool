@@ -1,10 +1,7 @@
 ﻿// File: Services/IWindowQueryService.cs
-using System;
+namespace ResponsiveWindowTool.Services;
 
-namespace ResponsiveWindowTool.Services
+public interface IWindowQueryService
 {
-    public interface IWindowQueryService
-    {
-        IntPtr? FindWindowByProcessName(string processName);
-    }
+    IntPtr? FindWindowByProcessName(string processName);
 }

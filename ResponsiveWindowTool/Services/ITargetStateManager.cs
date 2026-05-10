@@ -1,15 +1,9 @@
 // File: Services/ITargetStateManager.cs
-using System;
-using System.Collections.ObjectModel;
+namespace ResponsiveWindowTool.Services;
 
-using System.Threading.Tasks;
-
-namespace ResponsiveWindowTool.Services
+public interface ITargetStateManager
 {
-    public interface ITargetStateManager
-    {
-        event Action<bool> IsRunningChanged;
-        Task StartAsync(string processName);
-        Task StopAsync();
-    }
+    event Action<bool> IsRunningChanged;
+    Task StartAsync(string processName);
+    Task StopAsync();
 }

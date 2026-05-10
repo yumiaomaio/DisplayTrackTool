@@ -1,46 +1,43 @@
 ﻿// File: Views/OverlayWindow.xaml.cs (Modified)
-using System;
 using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace ResponsiveWindowTool.Views
+namespace ResponsiveWindowTool.Views;
+
+public partial class OverlayWindow : Window
 {
-    public partial class OverlayWindow : Window
+    public OverlayWindow(string? imagePath, string backgroundColor)
     {
-        public OverlayWindow(string? imagePath, string backgroundColor)
+        InitializeComponent();
+        
+        if (!string.IsNullOrEmpty(imagePath))
         {
-            InitializeComponent();
-            
-            if (!string.IsNullOrEmpty(imagePath))
+            // 图片优先
+            try
             {
-                // 图片优先
-                try
-                {
-                    var uri = new Uri(imagePath, UriKind.Absolute);
-                    BackgroundImage.Source = new BitmapImage(uri);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[OverlayWindow] Failed to load background image '{imagePath}': {ex.Message}");
-                }
+                var uri = new Uri(imagePath, UriKind.Absolute);
+                BackgroundImage.Source = new BitmapImage(uri);
             }
-            else
+            catch (Exception ex)
             {
-                // 如果没有图片，则设置背景色
-                try
-                {
-                    var color = (Color)ColorConverter.ConvertFromString(backgroundColor);
-                    this.Background = new SolidColorBrush(color);
-                    // 确保图片控件是透明的，以免遮挡颜色
-                    BackgroundImage.Source = null; 
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[OverlayWindow] Failed to parse background color '{backgroundColor}': {ex.Message}. Falling back to black.");
-                }
+                Debug.WriteLine($"[OverlayWindow] Failed to load background image '{imagePath}': {ex.Message}");
+            }
+        }
+        else
+        {
+            // 如果没有图片，则设置背景色
+            try
+            {
+                var color = (Color)ColorConverter.ConvertFromString(backgroundColor);
+                this.Background = new SolidColorBrush(color);
+                // 确保图片控件是透明的，以免遮挡颜色
+                BackgroundImage.Source = null; 
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[OverlayWindow] Failed to parse background color '{backgroundColor}': {ex.Message}. Falling back to black.");
             }
         }
     }
