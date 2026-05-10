@@ -9,15 +9,8 @@ using ResponsiveWindowTool.Models;
 
 namespace ResponsiveWindowTool.Services.Implementations;
 
-public class WindowLayoutManager : IWindowLayoutManager
+public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayoutManager
 {
-    private readonly IOverlayService _overlayService;
-
-    public WindowLayoutManager(IOverlayService overlayService)
-    {
-        _overlayService = overlayService;
-    }
-
     public void ApplyLayout(IntPtr hwnd, LayoutProfile profile)
     {
         if (hwnd == IntPtr.Zero || profile == null) return;
@@ -30,7 +23,7 @@ public class WindowLayoutManager : IWindowLayoutManager
 
         // 2. Calculate size and position
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
-        var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
         if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo)) return;
 
         var monitorRect = monitorInfo.rcMonitor;
@@ -41,11 +34,11 @@ public class WindowLayoutManager : IWindowLayoutManager
 
         switch (profile.Sizing)
         {
-            case SizingMode.Fullscreen:
+            case SizingMode.FULLSCREEN:
                 finalWidth = screenWidth;
                 finalHeight = screenHeight;
                 break;
-            case SizingMode.RelativeToScreenHeight:
+            case SizingMode.RELATIVE_TO_SCREEN_HEIGHT:
                 finalHeight = screenHeight;
                 finalWidth = profile.AspectRatio.HasValue
                     ? (int)(finalHeight * profile.AspectRatio.Value)
@@ -56,11 +49,11 @@ public class WindowLayoutManager : IWindowLayoutManager
 
         switch (profile.Positioning)
         {
-            case PositioningMode.CenterScreen:
+            case PositioningMode.CENTER_SCREEN:
                 finalX = monitorRect.Left + (screenWidth - finalWidth) / 2;
                 finalY = monitorRect.Top + (screenHeight - finalHeight) / 2;
                 break;
-            case PositioningMode.TopLeft:
+            case PositioningMode.TOP_LEFT:
                 finalX = monitorRect.Left;
                 finalY = monitorRect.Top;
                 break;
@@ -73,7 +66,7 @@ public class WindowLayoutManager : IWindowLayoutManager
         // 3. Apply Z-Order, position and size
 
         // a. 将背景窗口置于非置顶窗口的最上层
-        var overlayHwnd = _overlayService.WindowHandle;
+        var overlayHwnd = overlayService.WindowHandle;
         if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
         {
             NativeMethods.SetWindowPos(overlayHwnd.Value, (IntPtr)0 /*HWND_TOP*/, 0, 0, 0, 0, 

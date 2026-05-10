@@ -15,14 +15,14 @@ public class LayoutProfile
 
 public enum SizingMode
 {
-    Fullscreen,
-    RelativeToScreenHeight,
+    FULLSCREEN,
+    RELATIVE_TO_SCREEN_HEIGHT,
     // Potentially more modes later
 }
 
 public enum PositioningMode
 {
-    CenterScreen,
-    TopLeft
+    CENTER_SCREEN,
+    TOP_LEFT
     // Potentially more modes later
 }

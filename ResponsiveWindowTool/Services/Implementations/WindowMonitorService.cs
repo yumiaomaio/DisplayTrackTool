@@ -33,8 +33,7 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
             StopMonitoring();
         }
 
-        uint processId;
-        uint threadId = NativeMethods.GetWindowThreadProcessId(hwnd, out processId);
+        uint threadId = NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
         if (processId == 0)
         {
             Debug.WriteLine("[WindowMonitorService] Failed to get process ID. Cannot start monitoring.");

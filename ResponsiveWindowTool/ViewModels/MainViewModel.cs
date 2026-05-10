@@ -19,7 +19,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
     private readonly IConfigService _configService;
     private readonly ILoggingService _loggingService;
     private readonly IPrivilegeService _privilegeService;
-    private readonly ITaskbarService _taskbarService;
 
     private string? _targetProcessName;
     public string? TargetProcessName
@@ -154,7 +153,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
         bool isValid = false;
         if (parts.Length == 2)
         {
-            if (double.TryParse(parts[0].Trim(), out double n) && 
+            if (double.TryParse(parts[0].Trim(), out _) && 
                 double.TryParse(parts[1].Trim(), out double d) && d != 0)
             {
                 isValid = true;
@@ -198,14 +197,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
         ITargetStateManager stateManager, 
         IConfigService configService, 
         ILoggingService loggingService,
-        IPrivilegeService privilegeService,
-        ITaskbarService taskbarService)
+        IPrivilegeService privilegeService)
     {
         _stateManager = stateManager;
         _configService = configService;
         _loggingService = loggingService;
         _privilegeService = privilegeService;
-        _taskbarService = taskbarService;
 
         _stateManager.IsRunningChanged += OnIsRunningChanged;
 
@@ -219,8 +216,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
 
         EnableBackgroundOverlay = _configService.IsBackgroundOverlayEnabled();
 
-        StartCommand = new RelayCommand(async () => await OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName) && !HasErrors);
-        StopCommand = new RelayCommand(async () => await OnStopAsync(), () => IsRunning);
+        StartCommand = new RelayCommand(() => _ = OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName) && !HasErrors);
+        StopCommand = new RelayCommand(() => _ = OnStopAsync(), () => IsRunning);
         SelectImageCommand = new RelayCommand(SelectImage);
         ClearImageCommand = new RelayCommand(ClearImage, CanClearImage);
         RestartAsAdminCommand = new RelayCommand(OnRestartAsAdmin);
@@ -296,7 +293,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
             try
             {
                 File.Copy(sourcePath, destPath, true);
-                _configService.SetBackgroundMode(BackgroundMode.Image);
+                _configService.SetBackgroundMode(BackgroundMode.IMAGE);
                 _configService.SetBackgroundImageFileName(fileName);
                 CurrentImageFileName = fileName;
             }
@@ -309,7 +306,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
 
     private void ClearImage()
     {
-        _configService.SetBackgroundMode(BackgroundMode.SolidColor);
+        _configService.SetBackgroundMode(BackgroundMode.SOLID_COLOR);
         _configService.SetBackgroundImageFileName(null);
         CurrentImageFileName = null;
     }

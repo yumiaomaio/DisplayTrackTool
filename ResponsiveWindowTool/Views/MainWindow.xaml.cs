@@ -6,7 +6,7 @@ using ResponsiveWindowTool.ViewModels;
 
 namespace ResponsiveWindowTool.Views;
 
-public partial class MainWindow : Window
+public partial class MainWindow
 {
     private readonly MainViewModel _viewModel;
     private AppBridge? _bridge;
@@ -28,15 +28,15 @@ public partial class MainWindow : Window
     {
         try
         {
-            await webView.EnsureCoreWebView2Async();
+            await WebView.EnsureCoreWebView2Async();
             
             _bridge = new AppBridge(_viewModel);
-            webView.CoreWebView2.AddHostObjectToScript("bridge", _bridge);
+            WebView.CoreWebView2.AddHostObjectToScript("bridge", _bridge);
             
             string htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebUI", "index.html");
             if (File.Exists(htmlPath))
             {
-                webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
+                WebView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
             }
             else
             {
@@ -51,29 +51,28 @@ public partial class MainWindow : Window
 
     private async void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (_bridge == null || webView.CoreWebView2 == null) return;
+        if (_bridge == null || WebView.CoreWebView2 == null) return;
 
         // Push specific changes to JS
-        var state = new { };
         if (e.PropertyName == nameof(_viewModel.IsRunning))
         {
-            await UpdateJsState(new { IsRunning = _viewModel.IsRunning });
+            await UpdateJsState(new { _viewModel.IsRunning });
         }
         else if (e.PropertyName == nameof(_viewModel.CurrentImageFileName))
         {
-            await UpdateJsState(new { CurrentImageFileName = _viewModel.CurrentImageFileName });
+            await UpdateJsState(new { _viewModel.CurrentImageFileName });
         }
     }
 
     private async void Logs_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        await UpdateJsState(new { Logs = _viewModel.Logs });
+        await UpdateJsState(new { _viewModel.Logs });
     }
 
     private async Task UpdateJsState(object state)
     {
-        if (webView.CoreWebView2 == null) return;
+        if (WebView.CoreWebView2 == null) return;
         string json = JsonSerializer.Serialize(state);
-        await webView.CoreWebView2.ExecuteScriptAsync($"window.onStateChanged('{json}')");
+        await WebView.CoreWebView2.ExecuteScriptAsync($"window.onStateChanged('{json}')");
     }
 }

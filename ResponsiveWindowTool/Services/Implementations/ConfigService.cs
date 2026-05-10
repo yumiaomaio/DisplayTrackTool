@@ -94,7 +94,7 @@ public class ConfigService : IConfigService
         {
             TargetProcessName = "notepad",
             EnableBackgroundOverlay = true,
-            BackgroundMode = BackgroundMode.SolidColor,
+            BackgroundMode = BackgroundMode.SOLID_COLOR,
             BackgroundColor = "#FF000000",
             BackgroundImageFileName = null,
             Profiles = new ProfileCollection
@@ -102,19 +102,19 @@ public class ConfigService : IConfigService
                 Portrait = new ProfileDefinition
                 {
                     Name = "Portrait Mode",
-                    Styles = new List<string> { "WS_POPUP", "WS_VISIBLE" },
-                    ExStyles = new List<string> { "WS_EX_TOPMOST" },
-                    Sizing = SizingMode.RelativeToScreenHeight,
-                    Positioning = PositioningMode.CenterScreen,
+                    Styles = ["WS_POPUP", "WS_VISIBLE"],
+                    ExStyles = ["WS_EX_TOPMOST"],
+                    Sizing = SizingMode.RELATIVE_TO_SCREEN_HEIGHT,
+                    Positioning = PositioningMode.CENTER_SCREEN,
                     AspectRatio = "9/16"
                 },
                 Landscape = new ProfileDefinition
                 {
                     Name = "Landscape Fullscreen",
-                    Styles = new List<string> { "WS_POPUP", "WS_VISIBLE" },
-                    ExStyles = new List<string> { "WS_EX_TOPMOST" },
-                    Sizing = SizingMode.Fullscreen,
-                    Positioning = PositioningMode.TopLeft
+                    Styles = ["WS_POPUP", "WS_VISIBLE"],
+                    ExStyles = ["WS_EX_TOPMOST"],
+                    Sizing = SizingMode.FULLSCREEN,
+                    Positioning = PositioningMode.TOP_LEFT
                 }
             }
         };
@@ -198,7 +198,7 @@ public class ConfigService : IConfigService
 
     private T ParseEnum<T>(List<string> values) where T : struct
     {
-        if (values == null || !values.Any()) return default;
+        if (!values.Any()) return default;
 
         uint rawValue = values
             .Select(s => Convert.ToUInt32(Enum.Parse(typeof(T), s, true)))

@@ -11,5 +11,5 @@ internal static partial class NativeMethods
     public static extern IntPtr MonitorFromWindow(IntPtr hwnd, MonitorOptions dwFlags);
 
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref Monitorinfo lpmi);
 }

@@ -8,7 +8,7 @@ using System.Windows;
 
 namespace ResponsiveWindowTool;
 
-public partial class App : Application
+public partial class App
 {
     private readonly ServiceProvider _serviceProvider;
 

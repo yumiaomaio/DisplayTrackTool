@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace ResponsiveWindowTool.Interop.Structs;
 
 [StructLayout(LayoutKind.Sequential)]
-public struct RECT
+public struct Rect
 {
     public int Left, Top, Right, Bottom;
 }

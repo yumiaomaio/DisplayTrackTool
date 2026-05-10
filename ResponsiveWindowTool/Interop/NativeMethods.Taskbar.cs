@@ -7,18 +7,18 @@ namespace ResponsiveWindowTool.Interop;
 internal static partial class NativeMethods
 {
     [StructLayout(LayoutKind.Sequential)]
-    public struct APPBARDATA
+    public struct Appbardata
     {
         public int cbSize;
         public IntPtr hWnd;
         public uint uCallbackMessage;
         public uint uEdge;
-        public RECT rc;
+        public Rect rc;
         public IntPtr lParam;
     }
 
     [DllImport("shell32.dll", CallingConvention = CallingConvention.StdCall)]
-    public static extern uint SHAppBarMessage(uint dwMessage, ref APPBARDATA pData);
+    public static extern uint SHAppBarMessage(uint dwMessage, ref Appbardata pData);
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     public static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);

@@ -9,65 +9,58 @@ namespace ResponsiveWindowTool.Bridge;
 
 [ComVisible(true)]
 [ClassInterface(ClassInterfaceType.AutoDual)]
-public class AppBridge
+public class AppBridge(MainViewModel viewModel)
 {
-    private readonly MainViewModel _viewModel;
-
-    public AppBridge(MainViewModel viewModel)
-    {
-        _viewModel = viewModel;
-    }
-
     // --- Properties to JS ---
-    public string TargetProcessName => _viewModel.TargetProcessName ?? "";
-    public string PortraitAspectRatio => _viewModel.PortraitAspectRatio ?? "";
-    public bool IsRunning => _viewModel.IsRunning;
-    public bool IsAdmin => _viewModel.IsAdmin;
-    public bool EnableTaskbarAutoHide => _viewModel.EnableTaskbarAutoHide;
-    public bool EnableBackgroundOverlay => _viewModel.EnableBackgroundOverlay;
-    public string CurrentImageFileName => _viewModel.CurrentImageFileName ?? "";
-    public string BackgroundColor => _viewModel.BackgroundColor;
+    public string TargetProcessName => viewModel.TargetProcessName ?? "";
+    public string PortraitAspectRatio => viewModel.PortraitAspectRatio ?? "";
+    public bool IsRunning => viewModel.IsRunning;
+    public bool IsAdmin => viewModel.IsAdmin;
+    public bool EnableTaskbarAutoHide => viewModel.EnableTaskbarAutoHide;
+    public bool EnableBackgroundOverlay => viewModel.EnableBackgroundOverlay;
+    public string CurrentImageFileName => viewModel.CurrentImageFileName ?? "";
+    public string BackgroundColor => viewModel.BackgroundColor;
 
     // --- Methods from JS ---
     public void StartMonitoring(string processName)
     {
-        _viewModel.TargetProcessName = processName;
-        _viewModel.StartCommand.Execute(null);
+        viewModel.TargetProcessName = processName;
+        viewModel.StartCommand.Execute(null);
     }
 
     public void StopMonitoring()
     {
-        _viewModel.StopCommand.Execute(null);
+        viewModel.StopCommand.Execute(null);
     }
 
     public void SetPortraitAspectRatio(string ratio)
     {
-        _viewModel.PortraitAspectRatio = ratio;
+        viewModel.PortraitAspectRatio = ratio;
     }
 
     public void SetBackgroundColor(string color)
     {
-        _viewModel.BackgroundColor = color;
+        viewModel.BackgroundColor = color;
     }
 
     public void SetEnableTaskbarAutoHide(bool enable)
     {
-        _viewModel.EnableTaskbarAutoHide = enable;
+        viewModel.EnableTaskbarAutoHide = enable;
     }
 
     public void SetEnableBackgroundOverlay(bool enable)
     {
-        _viewModel.EnableBackgroundOverlay = enable;
+        viewModel.EnableBackgroundOverlay = enable;
     }
 
     public void SelectImage()
     {
-        _viewModel.SelectImageCommand.Execute(null);
+        viewModel.SelectImageCommand.Execute(null);
     }
 
     public void ClearImage()
     {
-        _viewModel.ClearImageCommand.Execute(null);
+        viewModel.ClearImageCommand.Execute(null);
     }
 
     public string GetImageBase64(string fileName)
@@ -109,12 +102,20 @@ public class AppBridge
             
             if (process == null) return "";
 
-            string? filePath = null;
-            try { filePath = process.MainModule?.FileName; } catch { }
+            string? filePath;
+            try 
+            { 
+                filePath = process.MainModule?.FileName; 
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[AppBridge] Error accessing process module: {ex.Message}");
+                return "";
+            }
 
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return "";
 
-            using (Icon icon = Icon.ExtractAssociatedIcon(filePath)!)
+            using (Icon? icon = Icon.ExtractAssociatedIcon(filePath))
             {
                 if (icon == null) return "";
                 using (Bitmap bitmap = icon.ToBitmap())
@@ -135,22 +136,22 @@ public class AppBridge
 
     public void RestartAsAdmin()
     {
-        _viewModel.RestartAsAdminCommand.Execute(null);
+        viewModel.RestartAsAdminCommand.Execute(null);
     }
 
     public void ExitApp()
     {
-        _viewModel.ExitCommand.Execute(null);
+        viewModel.ExitCommand.Execute(null);
     }
 
     public void ShowAbout()
     {
-        _viewModel.AboutCommand.Execute(null);
+        viewModel.AboutCommand.Execute(null);
     }
     
     // Helper to get logs as a single string (can be optimized later)
     public string[] GetLogs()
     {
-        return _viewModel.Logs.ToArray();
+        return viewModel.Logs.ToArray();
     }
 }

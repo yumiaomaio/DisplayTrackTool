@@ -1,4 +1,4 @@
-﻿// File: Services/Implementations/OverlayService.cs
+// File: Services/Implementations/OverlayService.cs
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -12,17 +12,11 @@ using ResponsiveWindowTool.Views;
 
 namespace ResponsiveWindowTool.Services.Implementations;
 
-public class OverlayService : IOverlayService
+public class OverlayService(IConfigService configService) : IOverlayService
 {
     private OverlayWindow? _overlayWindow;
-    private readonly IConfigService _configService;
     public IntPtr? WindowHandle { get; private set; }
 
-    public OverlayService(IConfigService configService)
-    {
-        _configService = configService;
-    }
-    
     public void Show(IntPtr targetHwnd)
     {
         if (_overlayWindow != null)
@@ -30,14 +24,14 @@ public class OverlayService : IOverlayService
             _overlayWindow.Close();
         }
 
-        var backgroundMode = _configService.GetBackgroundMode();
+        var backgroundMode = configService.GetBackgroundMode();
         string? imagePath = null;
         string backgroundColor = "#FF000000"; // 默认黑色
 
-        if (backgroundMode == BackgroundMode.Image)
+        if (backgroundMode == BackgroundMode.IMAGE)
         {
             // 图片模式逻辑
-            string? imageName = _configService.GetBackgroundImageFileName();
+            string? imageName = configService.GetBackgroundImageFileName();
             if (!string.IsNullOrEmpty(imageName))
             {
                 string backgroundsDir = Path.Combine(AppContext.BaseDirectory, "Backgrounds");
@@ -51,19 +45,19 @@ public class OverlayService : IOverlayService
         else
         {
             // 纯色模式逻辑
-            backgroundColor = _configService.GetBackgroundColor();
+            backgroundColor = configService.GetBackgroundColor();
         }
 
         // 将两种可能的值都传递给 OverlayWindow
         _overlayWindow = new OverlayWindow(imagePath, backgroundColor);
 
-        _overlayWindow.SourceInitialized += (s, e) =>
+        _overlayWindow.SourceInitialized += (_, _) =>
         {
             WindowHandle = new WindowInteropHelper(_overlayWindow).Handle;
         };
 
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(targetHwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
-        var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
 
         if (NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
         {

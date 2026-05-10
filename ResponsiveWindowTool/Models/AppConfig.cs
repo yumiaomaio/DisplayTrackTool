@@ -5,8 +5,8 @@ namespace ResponsiveWindowTool.Models;
 
 public enum BackgroundMode
 {
-    SolidColor,
-    Image
+    SOLID_COLOR,
+    IMAGE
 }
 
 public class AppConfig
@@ -21,7 +21,7 @@ public class AppConfig
     public bool EnableTaskbarAutoHide { get; set; } = true;
 
     [JsonPropertyName("backgroundMode")]
-    public BackgroundMode BackgroundMode { get; set; } = BackgroundMode.SolidColor;
+    public BackgroundMode BackgroundMode { get; set; } = BackgroundMode.SOLID_COLOR;
 
     [JsonPropertyName("backgroundColor")]
     public string BackgroundColor { get; set; } = "#FF000000";

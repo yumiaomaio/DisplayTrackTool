@@ -3,7 +3,7 @@ namespace ResponsiveWindowTool.Models;
 
 public enum WindowOrientation
 {
-    Unknown,
-    Portrait,
-    Landscape
+    UNKNOWN,
+    PORTRAIT,
+    LANDSCAPE
 }

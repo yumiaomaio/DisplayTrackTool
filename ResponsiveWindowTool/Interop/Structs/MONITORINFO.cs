@@ -4,10 +4,10 @@ using System.Runtime.InteropServices;
 namespace ResponsiveWindowTool.Interop.Structs;
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-public struct MONITORINFO
+public struct Monitorinfo
 {
     public int cbSize;
-    public RECT rcMonitor;
-    public RECT rcWork;
+    public Rect rcMonitor;
+    public Rect rcWork;
     public uint dwFlags;
 }

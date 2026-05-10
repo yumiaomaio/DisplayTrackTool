@@ -1,12 +1,11 @@
 ﻿// File: Views/OverlayWindow.xaml.cs (Modified)
 using System.Diagnostics;
-using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace ResponsiveWindowTool.Views;
 
-public partial class OverlayWindow : Window
+public partial class OverlayWindow
 {
     public OverlayWindow(string? imagePath, string backgroundColor)
     {

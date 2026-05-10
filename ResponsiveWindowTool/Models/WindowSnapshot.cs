@@ -7,5 +7,5 @@ public class WindowSnapshot
 {
     public WindowStyles Style { get; set; }
     public WindowExStyles ExStyle { get; set; }
-    public RECT Rect { get; set; }
+    public Rect Rect { get; set; }
 }

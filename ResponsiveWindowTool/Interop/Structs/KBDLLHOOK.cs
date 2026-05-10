@@ -3,7 +3,7 @@
 namespace ResponsiveWindowTool.Interop.Structs;
 
 [StructLayout(LayoutKind.Sequential)]
-public struct KBDLLHOOKSTRUCT
+public struct Kbdllhookstruct
 {
     public uint vkCode;
     public uint scanCode;

@@ -9,11 +9,9 @@ public class PrivilegeService : IPrivilegeService
 {
     public bool IsAdministrator()
     {
-        using (var identity = WindowsIdentity.GetCurrent())
-        {
-            var principal = new WindowsPrincipal(identity);
-            return principal.IsInRole(WindowsBuiltInRole.Administrator);
-        }
+        using var identity = WindowsIdentity.GetCurrent();
+        var principal = new WindowsPrincipal(identity);
+        return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 
     public void RestartAsAdministrator()
