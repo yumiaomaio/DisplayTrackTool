@@ -1,5 +1,9 @@
 using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using ResponsiveWindowTool.ViewModels;
@@ -86,6 +90,45 @@ namespace ResponsiveWindowTool.Bridge
                 return $"data:{mimeType};base64,{base64String}";
             }
             catch (Exception ex)
+            {
+                return "";
+            }
+        }
+
+        public string GetProcessIconBase64(string processName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(processName)) return "";
+                
+                // Remove .exe if present for searching
+                string searchName = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) 
+                    ? processName.Substring(0, processName.Length - 4) 
+                    : processName;
+
+                var processes = Process.GetProcessesByName(searchName);
+                var process = processes.FirstOrDefault();
+                
+                if (process == null) return "";
+
+                string? filePath = null;
+                try { filePath = process.MainModule?.FileName; } catch { }
+
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return "";
+
+                using (Icon icon = Icon.ExtractAssociatedIcon(filePath)!)
+                {
+                    if (icon == null) return "";
+                    using (Bitmap bitmap = icon.ToBitmap())
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        bitmap.Save(ms, ImageFormat.Png);
+                        byte[] iconBytes = ms.ToArray();
+                        return "data:image/png;base64," + Convert.ToBase64String(iconBytes);
+                    }
+                }
+            }
+            catch
             {
                 return "";
             }
