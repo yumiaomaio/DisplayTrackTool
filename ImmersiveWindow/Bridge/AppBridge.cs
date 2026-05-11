@@ -1,15 +1,14 @@
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using ImmersiveWindow.Services;
 using ImmersiveWindow.ViewModels;
 
 namespace ImmersiveWindow.Bridge;
 
 [ComVisible(true)]
 [ClassInterface(ClassInterfaceType.AutoDual)]
-public class AppBridge(MainViewModel viewModel)
+public class AppBridge(MainViewModel viewModel, IProcessService processService)
 {
     // --- Properties to JS ---
     public string TargetProcessName => viewModel.TargetProcessName ?? "";
@@ -88,50 +87,7 @@ public class AppBridge(MainViewModel viewModel)
 
     public string GetProcessIconBase64(string processName)
     {
-        try
-        {
-            if (string.IsNullOrEmpty(processName)) return "";
-            
-            // Remove .exe if present for searching
-            string searchName = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) 
-                ? processName.Substring(0, processName.Length - 4) 
-                : processName;
-
-            var processes = Process.GetProcessesByName(searchName);
-            var process = processes.FirstOrDefault();
-            
-            if (process == null) return "";
-
-            string? filePath;
-            try 
-            { 
-                filePath = process.MainModule?.FileName; 
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[AppBridge] Error accessing process module: {ex.Message}");
-                return "";
-            }
-
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return "";
-
-            using (Icon? icon = Icon.ExtractAssociatedIcon(filePath))
-            {
-                if (icon == null) return "";
-                using (Bitmap bitmap = icon.ToBitmap())
-                using (MemoryStream ms = new MemoryStream())
-                {
-                    bitmap.Save(ms, ImageFormat.Png);
-                    byte[] iconBytes = ms.ToArray();
-                    return "data:image/png;base64," + Convert.ToBase64String(iconBytes);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[AppBridge] Error extracting process icon: {ex.Message}");
-            return "";
-        }
+        return processService.GetProcessIconBase64(processName);
     }
 
     public void RestartAsAdmin()

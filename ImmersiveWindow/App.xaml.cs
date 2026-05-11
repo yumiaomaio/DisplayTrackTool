@@ -31,6 +31,7 @@ public partial class App : Application
 
         // Register services as Singleton since this is a stateful desktop tool
         services.AddSingleton<ITaskbarService, TaskbarService>();
+        services.AddSingleton<IProcessService, ProcessService>();
         services.AddSingleton<IPrivilegeService, PrivilegeService>();
         services.AddSingleton<ILoggingService, LoggingService>();
         services.AddSingleton<IWindowQueryService, WindowQueryService>();
