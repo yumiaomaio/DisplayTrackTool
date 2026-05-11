@@ -17,6 +17,7 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
     public bool IsAdmin => viewModel.IsAdmin;
     public bool EnableTaskbarAutoHide => viewModel.EnableTaskbarAutoHide;
     public bool EnableBackgroundOverlay => viewModel.EnableBackgroundOverlay;
+    public string BackgroundMode => viewModel.BackgroundMode.ToString().ToLower();
     public string CurrentImageFileName => viewModel.CurrentImageFileName ?? "";
     public string BackgroundColor => viewModel.BackgroundColor;
 

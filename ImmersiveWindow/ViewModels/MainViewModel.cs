@@ -63,6 +63,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
         }
     }
 
+    private BackgroundMode _backgroundMode;
+    public BackgroundMode BackgroundMode
+    {
+        get => _backgroundMode;
+        set => SetProperty(ref _backgroundMode, value);
+    }
+
     public ObservableCollection<string> Logs => _loggingService.Logs;
 
     public ICommand StartCommand { get; }
@@ -215,6 +222,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
         BackgroundColor = _configService.GetBackgroundColor();
 
         EnableBackgroundOverlay = _configService.IsBackgroundOverlayEnabled();
+        BackgroundMode = _configService.GetBackgroundMode();
 
         StartCommand = new RelayCommand(() => _ = OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName) && !HasErrors);
         StopCommand = new RelayCommand(() => _ = OnStopAsync(), () => IsRunning);
@@ -295,6 +303,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
                 File.Copy(sourcePath, destPath, true);
                 _configService.SetBackgroundMode(BackgroundMode.IMAGE);
                 _configService.SetBackgroundImageFileName(fileName);
+                BackgroundMode = BackgroundMode.IMAGE;
                 CurrentImageFileName = fileName;
             }
             catch (Exception ex)
@@ -308,6 +317,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
     {
         _configService.SetBackgroundMode(BackgroundMode.SOLID_COLOR);
         _configService.SetBackgroundImageFileName(null);
+        BackgroundMode = BackgroundMode.SOLID_COLOR;
         CurrentImageFileName = null;
     }
 

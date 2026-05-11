@@ -28,6 +28,15 @@ public partial class MainWindow : Window
         // Subscribe to state changes to push to JS
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
         _viewModel.Logs.CollectionChanged += Logs_CollectionChanged;
+        _viewModel.ErrorsChanged += ViewModel_ErrorsChanged;
+    }
+
+    private void ViewModel_ErrorsChanged(object? sender, System.ComponentModel.DataErrorsChangedEventArgs e)
+    {
+        if (_bridge == null || WebView.CoreWebView2 == null) return;
+        
+        var errors = _viewModel.GetErrors(e.PropertyName).Cast<string>().ToList();
+        _ = UpdateJsState(new { PropertyErrors = new Dictionary<string, List<string>> { { e.PropertyName ?? "", errors } } });
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -73,6 +82,14 @@ public partial class MainWindow : Window
         else if (e.PropertyName == nameof(_viewModel.CurrentImageFileName))
         {
             await UpdateJsState(new { CurrentImageFileName = _viewModel.CurrentImageFileName });
+        }
+        else if (e.PropertyName == nameof(_viewModel.BackgroundMode))
+        {
+            await UpdateJsState(new { BackgroundMode = _viewModel.BackgroundMode.ToString().ToLower() });
+        }
+        else if (e.PropertyName == nameof(_viewModel.PortraitAspectRatio))
+        {
+            await UpdateJsState(new { PortraitAspectRatio = _viewModel.PortraitAspectRatio });
         }
     }
 
