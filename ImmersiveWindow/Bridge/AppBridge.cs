@@ -20,6 +20,7 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
     public string BackgroundMode => viewModel.BackgroundMode.ToString().ToLower();
     public string CurrentImageFileName => viewModel.CurrentImageFileName ?? "";
     public string BackgroundColor => viewModel.BackgroundColor;
+    public bool ShouldShowExitTip => viewModel.ShouldShowExitTip;
 
     // --- Methods from JS ---
     public void StartMonitoring(string processName)
@@ -51,6 +52,11 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
     public void SetEnableBackgroundOverlay(bool enable)
     {
         viewModel.EnableBackgroundOverlay = enable;
+    }
+
+    public void SetShowExitTip(bool show)
+    {
+        viewModel.ShouldShowExitTip = show;
     }
 
     public void SelectImage()

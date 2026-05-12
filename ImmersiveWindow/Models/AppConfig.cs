@@ -29,6 +29,9 @@ public class AppConfig
     [JsonPropertyName("backgroundImageFileName")]
     public string? BackgroundImageFileName { get; set; }
 
+    [JsonPropertyName("showExitTip")]
+    public bool ShowExitTip { get; set; } = true;
+
     [JsonPropertyName("profiles")]
     public ProfileCollection Profiles { get; set; } = new();
 }

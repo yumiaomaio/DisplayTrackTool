@@ -168,6 +168,15 @@ public class ConfigService : IConfigService
         SaveConfig();
     }
 
+    public bool ShouldShowExitTip() => _config.ShowExitTip;
+
+    public void SetShowExitTip(bool show)
+    {
+        if (_config.ShowExitTip == show) return;
+        _config.ShowExitTip = show;
+        SaveConfig();
+    }
+
     private double? ParseAspectRatio(string? ratioString)
     {
         if (string.IsNullOrWhiteSpace(ratioString))

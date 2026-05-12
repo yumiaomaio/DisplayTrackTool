@@ -20,4 +20,6 @@ public interface IConfigService
     void SetEnableBackgroundOverlay(bool enabled);
     bool IsTaskbarAutoHideEnabled();
     void SetEnableTaskbarAutoHide(bool enabled);
+    bool ShouldShowExitTip();
+    void SetShowExitTip(bool show);
 }

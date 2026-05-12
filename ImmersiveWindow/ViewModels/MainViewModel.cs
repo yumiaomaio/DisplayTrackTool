@@ -133,6 +133,19 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
             }
         }
     }
+
+    private bool _shouldShowExitTip;
+    public bool ShouldShowExitTip
+    {
+        get => _shouldShowExitTip;
+        set
+        {
+            if (SetProperty(ref _shouldShowExitTip, value))
+            {
+                _configService.SetShowExitTip(value);
+            }
+        }
+    }
     #endregion
 
     #region Validation
@@ -223,6 +236,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
 
         EnableBackgroundOverlay = _configService.IsBackgroundOverlayEnabled();
         BackgroundMode = _configService.GetBackgroundMode();
+        ShouldShowExitTip = _configService.ShouldShowExitTip();
 
         StartCommand = new RelayCommand(() => _ = OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName) && !HasErrors);
         StopCommand = new RelayCommand(() => _ = OnStopAsync(), () => IsRunning);
