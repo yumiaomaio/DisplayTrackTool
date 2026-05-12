@@ -250,7 +250,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
     private void OnAbout()
     {
         MessageBox.Show(
-            "Responsive Window Tool\nVersion 1.2.0\n\nA modern UI powered by WebView2.", 
+            "Responsive Window Tool\nVersion 1.2.0\n\nA modern UI powered by WebView2.\n\nGitHub: https://github.com/yumiaomaio/GameWindowTool", 
             "About", 
             MessageBoxButton.OK, 
             MessageBoxImage.Information);
