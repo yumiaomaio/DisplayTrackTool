@@ -1,0 +1,65 @@
+/* =========================================
+   Global Variables & Dual Theme Configuration
+   ========================================= */
+:root {
+    /* Theme Gold - Used for Header and Accents */
+    --theme-gold: #EBA832;
+    --theme-gold-light: #FFDD9D;
+    --header-gradient: linear-gradient(135deg, #ffcc33 0%, #ffc107 74.5%, #ffd54f 75%, #ffb347 100%);
+
+    /* Primary Orange - Used for Main Buttons and Highlights */
+    --primary-color: #ff8c00;
+    --primary-gradient: linear-gradient(135deg, #ff8c00 0%, #ffa500 50%, #ffcc00 100%);
+    
+    --danger-color: #ff4d4f;
+    --success-color: #52c41a;
+
+    /* Hardcore shapes: Right - Round - Right - Round */
+    --shape-radius: 0 16px 0 16px;
+    --shape-radius-sm: 0 10px 0 10px;
+
+    /* Default: Dark Mode */
+    --bg-page: #0a0a0c;
+    --bg-modal: #161618;
+    --text-main: #f0f0f0;
+    --text-muted: #888;
+    --input-bg: #1c1c1f;
+    --input-stroke: #444; 
+    --divider-color: #2a2a2d;
+    --btn-bg: #2b2b30;
+
+    /* Animation Debug Parameters (Global Defaults) */
+    --debug-duration: 4.5s;
+    --debug-min-scale: 1.0;
+    --debug-max-scale: 1.2;
+    --debug-ripple-scale: 4.0;
+    --debug-glow-opacity: 0.4;
+}
+
+/* Light Mode */
+body.light {
+    --bg-page: #e0e2e5;
+    --bg-modal: #ffffff;
+    --text-main: #222222;
+    --text-muted: #777;
+    --input-bg: #f4f5f7;
+    --input-stroke: #b0b0b0; 
+    --divider-color: #e5e5e5;
+    --btn-bg: #e8e8e8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background-color: var(--bg-page); color: var(--text-main);
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; transition: background-color 0.3s ease;
+}
+
+#app {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
