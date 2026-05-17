@@ -1,10 +1,5 @@
-// File: Services/Implementations/TargetStateManager.cs
-
-using System.Runtime.InteropServices;
-using System.Windows;
 using ImmersiveWindow.Interop;
 using ImmersiveWindow.Interop.Enums;
-using ImmersiveWindow.Interop.Structs;
 using ImmersiveWindow.Models;
 
 namespace ImmersiveWindow.Services.Implementations;

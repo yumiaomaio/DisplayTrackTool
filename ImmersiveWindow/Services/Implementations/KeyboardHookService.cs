@@ -12,9 +12,11 @@ public class KeyboardHookService : IKeyboardHookService, IDisposable
 
     private IntPtr _hookId = IntPtr.Zero;
     private readonly NativeMethods.LowLevelKeyboardProc _proc; // Keep a reference to prevent garbage collection
+    private readonly ILoggingService _loggingService;
 
-    public KeyboardHookService()
+    public KeyboardHookService(ILoggingService loggingService)
     {
+        _loggingService = loggingService;
         _proc = HookCallback;
     }
 
@@ -28,7 +30,7 @@ public class KeyboardHookService : IKeyboardHookService, IDisposable
             _hookId = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL, _proc,
                 NativeMethods.GetModuleHandle(curModule.ModuleName), 0);
         }
-        Debug.WriteLine("[KeyboardHookService] Started.");
+        _loggingService.AddLog("[KeyboardHookService] Started.");
     }
 
     public void Stop()
@@ -36,7 +38,7 @@ public class KeyboardHookService : IKeyboardHookService, IDisposable
         if (_hookId == IntPtr.Zero) return;
         NativeMethods.UnhookWindowsHookEx(_hookId);
         _hookId = IntPtr.Zero;
-        Debug.WriteLine("[KeyboardHookService] Stopped.");
+        _loggingService.AddLog("[KeyboardHookService] Stopped.");
     }
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)

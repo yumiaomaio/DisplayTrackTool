@@ -1,6 +1,5 @@
 // File: Services/Implementations/WindowMonitorService.cs
 
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Threading;
 using ImmersiveWindow.Interop;
@@ -21,9 +20,11 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
     private readonly NativeMethods.WinEventDelegate _eventDelegate;
     private readonly DispatcherTimer _debounceTimer;
     private IntPtr _targetHwnd;
+    private readonly ILoggingService _loggingService;
 
-    public WindowMonitorService()
+    public WindowMonitorService(ILoggingService loggingService)
     {
+        _loggingService = loggingService;
         _eventDelegate = WinEventProc;
         _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _debounceTimer.Tick += DebounceTimer_Tick;
@@ -42,7 +43,7 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
         uint threadId = NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
         if (processId == 0)
         {
-            Debug.WriteLine("[WindowMonitorService] Failed to get process ID. Cannot start monitoring.");
+            _loggingService.AddLog("[WindowMonitorService] Failed to get process ID. Cannot start monitoring.");
             return;
         }
 
@@ -60,7 +61,7 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
 
         if (_locationHookHandle != IntPtr.Zero && _lifecycleHookHandle != IntPtr.Zero)
         {
-            Debug.WriteLine($"[WindowMonitorService] Started monitoring HWND {hwnd}.");
+            _loggingService.AddLog($"[WindowMonitorService] Started monitoring HWND {hwnd}.");
         }
         else
         {
@@ -85,7 +86,7 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
         _targetHwnd = IntPtr.Zero;
         _currentMonitor = IntPtr.Zero;
         _debounceTimer.Stop();
-        Debug.WriteLine("[WindowMonitorService] Stopped monitoring.");
+        _loggingService.AddLog("[WindowMonitorService] Stopped monitoring.");
     }
 
     private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild,
@@ -111,7 +112,7 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
         // 这是对 Hook 2 的去抖验证。如果 150ms 后窗口已经没了或隐藏了，触发销毁事件。
         if (!NativeMethods.IsWindow(hwnd) || !NativeMethods.IsWindowVisible(hwnd))
         {
-            Debug.WriteLine($"[WindowMonitorService] Window terminal state confirmed for HWND {hwnd}.");
+            _loggingService.AddLog($"[WindowMonitorService] Window terminal state confirmed for HWND {hwnd}.");
             WindowDestroyed?.Invoke(hwnd);
             return; // 窗口都没了，不需要后续位置检测了
         }
@@ -120,7 +121,7 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
         if (hMonitor != _currentMonitor && hMonitor != IntPtr.Zero)
         {
-            Debug.WriteLine($"[WindowMonitorService] Monitor change confirmed: {_currentMonitor} -> {hMonitor}");
+            _loggingService.AddLog($"[WindowMonitorService] Monitor change confirmed: {_currentMonitor} -> {hMonitor}");
             _currentMonitor = hMonitor;
             MonitorChanged?.Invoke(hwnd, hMonitor);
         }
@@ -129,7 +130,7 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
         if (NativeMethods.GetWindowRect(hwnd, out var rect))
         {
             var windowsRect = new Rect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
-            Debug.WriteLine($"[WindowMonitorService] Window state update confirmed for HWND {hwnd}. New Rect: {windowsRect}");
+            _loggingService.AddLog($"[WindowMonitorService] Window state update confirmed for HWND {hwnd}. New Rect: {windowsRect}");
             WindowStateChanged?.Invoke(hwnd, windowsRect);
         }
     }

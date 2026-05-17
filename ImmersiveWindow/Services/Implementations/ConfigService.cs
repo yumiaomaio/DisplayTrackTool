@@ -1,6 +1,5 @@
 // File: Services/Implementations/ConfigService.cs
 
-using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -13,9 +12,11 @@ public class ConfigService : IConfigService
 {
     private const string ConfigFileName = "profiles.json";
     private readonly AppConfig _config;
+    private readonly ILoggingService _loggingService;
 
-    public ConfigService()
+    public ConfigService(ILoggingService loggingService)
     {
+        _loggingService = loggingService;
         _config = LoadOrCreateConfig();
     }
 
@@ -45,11 +46,11 @@ public class ConfigService : IConfigService
         {
             var options = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
             File.WriteAllText(configPath, JsonSerializer.Serialize(_config, options));
-            Debug.WriteLine($"[ConfigService] Config saved to '{configPath}'.");
+            _loggingService.AddLog($"[ConfigService] Config saved to '{configPath}'.");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ConfigService] Error saving config: {ex.Message}");
+            _loggingService.AddLog($"[ConfigService] Error saving config: {ex.Message}");
         }
     }
     
@@ -58,7 +59,7 @@ public class ConfigService : IConfigService
         string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
         if (!File.Exists(configPath))
         {
-            Debug.WriteLine($"[ConfigService] Config file not found. Creating default at '{configPath}'.");
+            _loggingService.AddLog($"[ConfigService] Config file not found. Creating default at '{configPath}'.");
             var defaultConfig = CreateDefaultConfig();
             var options = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
             File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig, options));
@@ -67,7 +68,7 @@ public class ConfigService : IConfigService
 
         try
         {
-            Debug.WriteLine($"[ConfigService] Loading config from '{configPath}'.");
+            _loggingService.AddLog($"[ConfigService] Loading config from '{configPath}'.");
             string json = File.ReadAllText(configPath);
             var config = JsonSerializer.Deserialize<AppConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } }) 
                    ?? CreateDefaultConfig();
@@ -87,14 +88,14 @@ public class ConfigService : IConfigService
 
             if (updated)
             {
-                Debug.WriteLine("[ConfigService] Migrated old config to include display profiles.");
+                _loggingService.AddLog("[ConfigService] Migrated old config to include display profiles.");
             }
 
             return config;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ConfigService] Error loading config: {ex.Message}. Using default.");
+            _loggingService.AddLog($"[ConfigService] Error loading config: {ex.Message}. Using default.");
             return CreateDefaultConfig();
         }
     }

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using ImmersiveWindow.Interop;
 using ImmersiveWindow.Interop.Enums;
@@ -35,7 +34,7 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DisplayService] Error capturing original profile: {ex.Message}");
+            loggingService.AddLog($"[DisplayService] Error capturing original profile: {ex.Message}");
         }
     }
 

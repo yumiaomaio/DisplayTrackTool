@@ -1,3 +1,5 @@
+using System;
+
 namespace ImmersiveWindow.Interop.Enums;
 
 public enum QueryDisplayConfigFlags : uint
@@ -7,6 +9,7 @@ public enum QueryDisplayConfigFlags : uint
     QDC_DATABASE_CURRENT = 0x00000004
 }
 
+[Flags]
 public enum SetDisplayConfigFlags : uint
 {
     SDC_TOPOLOGY_INTERNAL = 0x00000001,

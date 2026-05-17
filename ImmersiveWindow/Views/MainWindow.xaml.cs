@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly MainViewModel _viewModel;
     private readonly IProcessService _processService;
     private readonly IConfigService _configService;
+    private readonly ILoggingService _loggingService;
     private readonly Task<CoreWebView2Environment> _envTask;
     private AppBridge? _bridge;
 
@@ -21,12 +22,14 @@ public partial class MainWindow : Window
         MainViewModel viewModel, 
         IProcessService processService, 
         IConfigService configService,
+        ILoggingService loggingService,
         Task<CoreWebView2Environment> envTask)
     {
         InitializeComponent();
         _viewModel = viewModel;
         _processService = processService;
         _configService = configService;
+        _loggingService = loggingService;
         _envTask = envTask;
         DataContext = _viewModel;
 
@@ -44,7 +47,7 @@ public partial class MainWindow : Window
             WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
 
-            _bridge = new AppBridge(_viewModel, _processService);
+            _bridge = new AppBridge(_viewModel, _processService, _loggingService);
             _bridge.Initialize(WebView.CoreWebView2); // Start auto-sync
             
             WebView.CoreWebView2.AddHostObjectToScript("bridge", _bridge);

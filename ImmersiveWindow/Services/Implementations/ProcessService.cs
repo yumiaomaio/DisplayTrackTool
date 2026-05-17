@@ -9,7 +9,7 @@ using ImmersiveWindow.Interop;
 
 namespace ImmersiveWindow.Services.Implementations;
 
-public class ProcessService : IProcessService
+public class ProcessService(ILoggingService loggingService) : IProcessService
 {
     public string GetProcessIconBase64(string processName)
     {
@@ -22,15 +22,15 @@ public class ProcessService : IProcessService
             IntPtr[] phicon = [IntPtr.Zero];
             uint[] piconid = [0];
             uint extractedCount = NativeMethods.PrivateExtractIcons(filePath, 0, 256, 256, phicon, piconid, 1, 0);
-
-            IntPtr hIcon = IntPtr.Zero;
+            
+            IntPtr hIcon;
             if (extractedCount > 0 && phicon[0] != IntPtr.Zero)
             {
                 hIcon = phicon[0];
             }
             else
             {
-                // 2. 兜底：使用 ShellInfo (通常为 32x32)
+                // 2. 兜底:使用 ShellInfo (通常为 32x32)
                 var shinfo = new NativeMethods.Shfileinfo();
                 NativeMethods.SHGetFileInfo(filePath, 0, ref shinfo, (uint)Marshal.SizeOf(shinfo), NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_LARGEICON);
                 hIcon = shinfo.hIcon;
@@ -61,7 +61,7 @@ public class ProcessService : IProcessService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[ProcessService] Error extracting icon for '{processName}': {ex.Message}");
+            loggingService.AddLog($"[ProcessService] Error extracting icon for '{processName}': {ex.Message}");
             return "";
         }
     }

@@ -162,7 +162,6 @@ onMounted(() => {
   init();
 
   onStateChanged((state) => {
-    console.log("[App.vue] State received from C#:", state);
     if (state.isRunning !== undefined) {
       isRunning.value = state.isRunning;
       if (state.isRunning && processName.value) {

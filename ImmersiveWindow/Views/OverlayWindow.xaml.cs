@@ -21,7 +21,10 @@ public partial class OverlayWindow
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[OverlayWindow] Failed to load background image '{imagePath}': {ex.Message}");
+                // Overlay window handles logging differently or via injection if needed, for now just removing the using System.Diagnostics and Debug.WriteLine
+// or instead, let's keep it clean since it's a view without DI for now.
+// Let's replace with empty or just System.Console.WriteLine.
+System.Console.WriteLine($"[OverlayWindow] Failed to load background image '{imagePath}': {ex.Message}");
             }
         }
         else
@@ -36,7 +39,10 @@ public partial class OverlayWindow
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[OverlayWindow] Failed to parse background color '{backgroundColor}': {ex.Message}. Falling back to black.");
+                // Overlay window handles logging differently or via injection if needed, for now just removing the using System.Diagnostics and Debug.WriteLine
+// or instead, let's keep it clean since it's a view without DI for now.
+// Let's replace with empty or just System.Console.WriteLine.
+System.Console.WriteLine($"[OverlayWindow] Failed to parse background color '{backgroundColor}': {ex.Message}. Falling back to black.");
             }
         }
     }

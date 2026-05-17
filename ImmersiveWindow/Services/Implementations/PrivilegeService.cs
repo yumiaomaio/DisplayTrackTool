@@ -5,7 +5,7 @@ using System.Windows;
 
 namespace ImmersiveWindow.Services.Implementations;
 
-public class PrivilegeService : IPrivilegeService
+public class PrivilegeService(ILoggingService loggingService) : IPrivilegeService
 {
     public bool IsAdministrator()
     {
@@ -32,11 +32,11 @@ public class PrivilegeService : IPrivilegeService
         catch (Win32Exception ex)
         {
             // User cancelled the UAC prompt
-            Debug.WriteLine($"[PrivilegeService] User cancelled UAC elevation: {ex.Message}");
+            loggingService.AddLog($"[PrivilegeService] User cancelled UAC elevation: {ex.Message}");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[PrivilegeService] Error during elevation: {ex.Message}");
+            loggingService.AddLog($"[PrivilegeService] Error during elevation: {ex.Message}");
             MessageBox.Show($"Failed to restart as administrator: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

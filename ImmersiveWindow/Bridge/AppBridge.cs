@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -10,7 +9,7 @@ namespace ImmersiveWindow.Bridge;
 
 [ComVisible(true)]
 [ClassInterface(ClassInterfaceType.AutoDual)]
-public class AppBridge(MainViewModel viewModel, IProcessService processService)
+public class AppBridge(MainViewModel viewModel, IProcessService processService, ILoggingService loggingService)
 {
     private CoreWebView2? _webView;
 
@@ -35,17 +34,17 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
             if (value is Enum) value = value.ToString()?.ToLower();
 
             // Ensure WebView2 is accessed on the UI thread
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(async () => {
+            _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(async () => {
                 await PushToFrontend(new Dictionary<string, object?> { { e.PropertyName, value } });
-            });
+            }));
         };
 
         // --- Automatic Sync: Log Collection ---
         viewModel.Logs.CollectionChanged += (s, e) =>
         {
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(async () => {
+            _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(async () => {
                 await PushToFrontend(new { Logs = viewModel.Logs });
-            });
+            }));
         };
     }
 
@@ -64,7 +63,7 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AppBridge] State push failed: {ex.Message}");
+            loggingService.AddLog($"[AppBridge] State push failed: {ex.Message}");
         }
     }
 
@@ -168,7 +167,7 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AppBridge] Error encoding image to base64: {ex.Message}");
+            loggingService.AddLog($"[AppBridge] Error encoding image to base64: {ex.Message}");
             return "";
         }
     }

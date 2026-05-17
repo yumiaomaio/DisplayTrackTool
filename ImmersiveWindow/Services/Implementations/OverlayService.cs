@@ -1,5 +1,5 @@
 // File: Services/Implementations/OverlayService.cs
-using System.Diagnostics;
+
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -12,7 +12,7 @@ using ImmersiveWindow.Views;
 
 namespace ImmersiveWindow.Services.Implementations;
 
-public class OverlayService(IConfigService configService) : IOverlayService
+public class OverlayService(IConfigService configService, ILoggingService loggingService) : IOverlayService
 {
     private OverlayWindow? _overlayWindow;
     public IntPtr? WindowHandle { get; private set; }
@@ -75,7 +75,7 @@ public class OverlayService(IConfigService configService) : IOverlayService
         }
 
         _overlayWindow.Show();
-        Debug.WriteLine("[OverlayService] Overlay shown.");
+        loggingService.AddLog("[OverlayService] Overlay shown.");
     }
 
     public void Hide()
@@ -83,6 +83,6 @@ public class OverlayService(IConfigService configService) : IOverlayService
         _overlayWindow?.Close();
         _overlayWindow = null;
         WindowHandle = null; // 清理句柄
-        Debug.WriteLine("[OverlayService] Overlay hidden.");
+        loggingService.AddLog("[OverlayService] Overlay hidden.");
     }
 }

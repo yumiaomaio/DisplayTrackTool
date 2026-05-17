@@ -1,6 +1,5 @@
 // File: Services/Implementations/WindowLayoutManager.cs
 
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using ImmersiveWindow.Interop;
 using ImmersiveWindow.Interop.Enums;
@@ -9,7 +8,8 @@ using ImmersiveWindow.Models;
 
 namespace ImmersiveWindow.Services.Implementations;
 
-public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayoutManager
+public class WindowLayoutManager(IOverlayService overlayService, ILoggingService loggingService)
+    : IWindowLayoutManager
 {
     private WindowSnapshot? _originalSnapshot;
 
@@ -28,14 +28,14 @@ public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayout
             Rect = rect
         };
         
-        Debug.WriteLine($"[WindowLayoutManager] Original state captured for HWND {hwnd}.");
+        loggingService.AddLog($"[WindowLayoutManager] Original state captured for HWND {hwnd}.");
     }
 
     public void ApplyLayout(IntPtr hwnd, LayoutProfile profile)
     {
-        if (hwnd == IntPtr.Zero || profile == null) return;
+        if (hwnd == IntPtr.Zero) return;
 
-        Debug.WriteLine($"[WindowLayoutManager] Applying profile '{profile.Name}' to HWND {hwnd}.");
+        loggingService.AddLog($"[WindowLayoutManager] Applying profile '{profile.Name}' to HWND {hwnd}.");
 
         // 1. Apply styles
         NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
@@ -55,7 +55,7 @@ public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayout
         int finalX = monitorRect.Left;
         int finalY = monitorRect.Top;
 
-        Debug.WriteLine(
+        loggingService.AddLog(
             $"[WindowLayoutManager] Layout: X={finalX}, Y={finalY}, W={finalWidth}, H={finalHeight}");
 
         // 3. Apply Z-Order, position and size
@@ -64,7 +64,7 @@ public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayout
         var overlayHwnd = overlayService.WindowHandle;
         if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
         {
-            NativeMethods.SetWindowPos(overlayHwnd.Value, (IntPtr)0 /*HWND_TOP*/, 0, 0, 0, 0, 
+            NativeMethods.SetWindowPos(overlayHwnd.Value, 0 /*HWND_TOP*/, 0, 0, 0, 0, 
                 SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
         }
 
@@ -90,7 +90,7 @@ public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayout
             return;
         }
 
-        Debug.WriteLine($"[WindowLayoutManager] Patching HWND {hwnd} to add WS_EX_TOPMOST.");
+        loggingService.AddLog($"[WindowLayoutManager] Patching HWND {hwnd} to add WS_EX_TOPMOST.");
         var newExStyle = currentExStyle | WindowExStyles.WS_EX_TOPMOST;
         NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)newExStyle);
         
@@ -103,7 +103,7 @@ public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayout
     {
         if (hwnd == IntPtr.Zero || _originalSnapshot == null) return;
 
-        Debug.WriteLine($"[WindowLayoutManager] Restoring HWND {hwnd} to original styles and position.");
+        loggingService.AddLog($"[WindowLayoutManager] Restoring HWND {hwnd} to original styles and position.");
 
         NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)_originalSnapshot.Style);
         NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)_originalSnapshot.ExStyle);
