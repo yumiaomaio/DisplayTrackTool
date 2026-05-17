@@ -23,9 +23,8 @@ const debugParams = ref({
 
 const processName = ref('')
 const processIcon = ref('')
-const ratioW = ref(9)
-const ratioH = ref(16)
 const autoHideTaskbar = ref(false)
+const enableDisplaySync = ref(true)
 const enableOverlay = ref(true)
 const bgMode = ref('color') 
 const selectedColor = ref('#ff8c00')
@@ -120,14 +119,8 @@ async function init() {
     processIcon.value = await bridge.GetProcessIconBase64(processName.value);
   }
   
-  const ratioStr = await bridge.PortraitAspectRatio;
-  if (ratioStr && ratioStr.includes('/')) {
-      const parts = ratioStr.split('/');
-      ratioW.value = parseInt(parts[0]);
-      ratioH.value = parseInt(parts[1]);
-  }
-
   autoHideTaskbar.value = await bridge.EnableTaskbarAutoHide;
+  enableDisplaySync.value = await bridge.EnableDisplaySync;
   enableOverlay.value = await bridge.EnableBackgroundOverlay;
   isRunning.value = await bridge.IsRunning;
   shouldShowExitTip.value = await bridge.ShouldShowExitTip;
@@ -184,13 +177,6 @@ onMounted(() => {
     if (state.PropertyErrors !== undefined) {
       propertyErrors.value = { ...propertyErrors.value, ...state.PropertyErrors };
     }
-    if (state.PortraitAspectRatio !== undefined) {
-      const parts = state.PortraitAspectRatio.split('/');
-      if (parts.length === 2) {
-        ratioW.value = parseInt(parts[0]);
-        ratioH.value = parseInt(parts[1]);
-      }
-    }
     if (state.CurrentImageFileName !== undefined) {
       if (state.CurrentImageFileName) {
         bridge.GetImageBase64(state.CurrentImageFileName).then(b64 => {
@@ -226,9 +212,8 @@ onMounted(() => {
         <SetupView 
           v-if="!isRunning"
           v-model:processName="processName"
-          v-model:ratioW="ratioW"
-          v-model:ratioH="ratioH"
           v-model:autoHideTaskbar="autoHideTaskbar"
+          v-model:enableDisplaySync="enableDisplaySync"
           v-model:enableOverlay="enableOverlay"
           v-model:bgMode="bgMode"
           v-model:selectedColor="selectedColor"
@@ -240,8 +225,6 @@ onMounted(() => {
           v-else
           :processName="processName"
           :processIcon="processIcon"
-          :ratioW="ratioW"
-          :ratioH="ratioH"
         />
 
         <LogsView :logs="logs" :isRunning="isRunning" />

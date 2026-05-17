@@ -13,7 +13,7 @@ using System.Collections;
 
 namespace ImmersiveWindow.ViewModels;
 
-public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErrorInfo
+public class MainViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ITargetStateManager _stateManager;
     private readonly IConfigService _configService;
@@ -63,6 +63,19 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
         }
     }
 
+    private bool _enableDisplaySync;
+    public bool EnableDisplaySync
+    {
+        get => _enableDisplaySync;
+        set
+        {
+            if (SetProperty(ref _enableDisplaySync, value))
+            {
+                _configService.SetEnableDisplaySync(value);
+            }
+        }
+    }
+
     private BackgroundMode _backgroundMode;
     public BackgroundMode BackgroundMode
     {
@@ -89,20 +102,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
             if (SetProperty(ref _currentImageFileName, value))
             {
                 (ClearImageCommand as RelayCommand)?.RaiseCanExecuteChanged();
-            }
-        }
-    }
-
-    private string? _portraitAspectRatio;
-    public string? PortraitAspectRatio
-    {
-        get => _portraitAspectRatio;
-        set
-        {
-            if (SetProperty(ref _portraitAspectRatio, value))
-            {
-                ValidateAspectRatio(value);
-                _configService.SetPortraitAspectRatio(value);
             }
         }
     }
@@ -148,71 +147,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
     }
     #endregion
 
-    #region Validation
-    private readonly Dictionary<string, List<string>> _errors = new();
-    public bool HasErrors => _errors.Count > 0;
-    public event EventHandler<DataErrorsChangedEventArgs>? ErrorsChanged;
-
-    public IEnumerable GetErrors(string? propertyName)
-    {
-        if (string.IsNullOrEmpty(propertyName) || !_errors.TryGetValue(propertyName, out var errors))
-            return Enumerable.Empty<string>();
-        return errors;
-    }
-
-    private void ValidateAspectRatio(string? value)
-    {
-        const string propertyName = nameof(PortraitAspectRatio);
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            ClearErrors(propertyName);
-            return;
-        }
-
-        var parts = value.Split('/');
-        bool isValid = false;
-        if (parts.Length == 2)
-        {
-            if (double.TryParse(parts[0].Trim(), out _) && 
-                double.TryParse(parts[1].Trim(), out double d) && d != 0)
-            {
-                isValid = true;
-            }
-        }
-
-        if (!isValid)
-        {
-            AddError(propertyName, "Invalid aspect ratio. Use format 'Width/Height' (e.g., 9/16).");
-        }
-        else
-        {
-            ClearErrors(propertyName);
-        }
-    }
-
-    private void AddError(string propertyName, string error)
-    {
-        if (!_errors.ContainsKey(propertyName))
-            _errors[propertyName] = new List<string>();
-
-        if (!_errors[propertyName].Contains(error))
-        {
-            _errors[propertyName].Add(error);
-            ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
-            OnPropertyChanged(nameof(HasErrors));
-        }
-    }
-
-    private void ClearErrors(string propertyName)
-    {
-        if (_errors.Remove(propertyName))
-        {
-            ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(propertyName));
-            OnPropertyChanged(nameof(HasErrors));
-        }
-    }
-    #endregion
-
     public MainViewModel(
         ITargetStateManager stateManager, 
         IConfigService configService, 
@@ -228,17 +162,17 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, INotifyDataErr
 
         IsAdmin = _privilegeService.IsAdministrator();
         EnableTaskbarAutoHide = _configService.IsTaskbarAutoHideEnabled();
+        EnableDisplaySync = _configService.IsDisplaySyncEnabled();
 
         TargetProcessName = _configService.GetDefaultProcessName();
         CurrentImageFileName = _configService.GetBackgroundImageFileName();
-        PortraitAspectRatio = _configService.GetPortraitAspectRatio();
         BackgroundColor = _configService.GetBackgroundColor();
 
         EnableBackgroundOverlay = _configService.IsBackgroundOverlayEnabled();
         BackgroundMode = _configService.GetBackgroundMode();
         ShouldShowExitTip = _configService.ShouldShowExitTip();
 
-        StartCommand = new RelayCommand(() => _ = OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName) && !HasErrors);
+        StartCommand = new RelayCommand(() => _ = OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
         StopCommand = new RelayCommand(() => _ = OnStopAsync(), () => IsRunning);
         SelectImageCommand = new RelayCommand(SelectImage);
         ClearImageCommand = new RelayCommand(ClearImage, CanClearImage);

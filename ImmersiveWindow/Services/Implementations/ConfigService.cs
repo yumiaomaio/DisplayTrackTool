@@ -31,15 +31,6 @@ public class ConfigService : IConfigService
     public LayoutProfile GetPortraitProfile() => ConvertToLayoutProfile(_config.Profiles.Portrait);
     public LayoutProfile GetLandscapeProfile() => ConvertToLayoutProfile(_config.Profiles.Landscape);
 
-    public string? GetPortraitAspectRatio() => _config.Profiles.Portrait.AspectRatio;
-
-    public void SetPortraitAspectRatio(string? aspectRatio)
-    {
-        if (_config.Profiles.Portrait.AspectRatio == aspectRatio) return;
-        _config.Profiles.Portrait.AspectRatio = aspectRatio;
-        SaveConfig();
-    }
-
     public void SetBackgroundImageFileName(string? fileName)
     {
         if (_config.BackgroundImageFileName == fileName) return;
@@ -78,8 +69,28 @@ public class ConfigService : IConfigService
         {
             Debug.WriteLine($"[ConfigService] Loading config from '{configPath}'.");
             string json = File.ReadAllText(configPath);
-            return JsonSerializer.Deserialize<AppConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } }) 
+            var config = JsonSerializer.Deserialize<AppConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } }) 
                    ?? CreateDefaultConfig();
+
+            // Migration: If display profiles are missing, add defaults
+            bool updated = false;
+            if (config.Profiles.Portrait.Display == null)
+            {
+                config.Profiles.Portrait.Display = new DisplayProfile { Orientation = 1 };
+                updated = true;
+            }
+            if (config.Profiles.Landscape.Display == null)
+            {
+                config.Profiles.Landscape.Display = new DisplayProfile { Orientation = 0 };
+                updated = true;
+            }
+
+            if (updated)
+            {
+                Debug.WriteLine("[ConfigService] Migrated old config to include display profiles.");
+            }
+
+            return config;
         }
         catch (Exception ex)
         {
@@ -104,9 +115,9 @@ public class ConfigService : IConfigService
                     Name = "Portrait Mode",
                     Styles = ["WS_POPUP", "WS_VISIBLE"],
                     ExStyles = ["WS_EX_TOPMOST"],
-                    Sizing = SizingMode.RELATIVE_TO_SCREEN_HEIGHT,
-                    Positioning = PositioningMode.CENTER_SCREEN,
-                    AspectRatio = "9/16"
+                    Sizing = SizingMode.FULLSCREEN,
+                    Positioning = PositioningMode.TOP_LEFT,
+                    Display = new DisplayProfile { Orientation = 1 } // 90 Degrees
                 },
                 Landscape = new ProfileDefinition
                 {
@@ -114,7 +125,8 @@ public class ConfigService : IConfigService
                     Styles = ["WS_POPUP", "WS_VISIBLE"],
                     ExStyles = ["WS_EX_TOPMOST"],
                     Sizing = SizingMode.FULLSCREEN,
-                    Positioning = PositioningMode.TOP_LEFT
+                    Positioning = PositioningMode.TOP_LEFT,
+                    Display = new DisplayProfile { Orientation = 0 } // Default
                 }
             }
         };
@@ -129,7 +141,7 @@ public class ConfigService : IConfigService
             ExStyles = ParseEnum<WindowExStyles>(def.ExStyles),
             Sizing = def.Sizing,
             Positioning = def.Positioning,
-            AspectRatio = ParseAspectRatio(def.AspectRatio)
+            Display = def.Display
         };
     }
     
@@ -168,6 +180,15 @@ public class ConfigService : IConfigService
         SaveConfig();
     }
 
+    public bool IsDisplaySyncEnabled() => _config.EnableDisplaySync;
+
+    public void SetEnableDisplaySync(bool enabled)
+    {
+        if (_config.EnableDisplaySync == enabled) return;
+        _config.EnableDisplaySync = enabled;
+        SaveConfig();
+    }
+
     public bool ShouldShowExitTip() => _config.ShowExitTip;
 
     public void SetShowExitTip(bool show)
@@ -175,34 +196,6 @@ public class ConfigService : IConfigService
         if (_config.ShowExitTip == show) return;
         _config.ShowExitTip = show;
         SaveConfig();
-    }
-
-    private double? ParseAspectRatio(string? ratioString)
-    {
-        if (string.IsNullOrWhiteSpace(ratioString))
-        {
-            return null;
-        }
-
-        try
-        {
-            var parts = ratioString.Split('/');
-            if (parts.Length != 2) return null;
-
-            if (double.TryParse(parts[0].Trim(), out double numerator) &&
-                double.TryParse(parts[1].Trim(), out double denominator))
-            {
-                if (denominator == 0) return null;
-                return numerator / denominator;
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[ConfigService] Failed to parse aspect ratio '{ratioString}': {ex.Message}");
-            return null;
-        }
-
-        return null;
     }
 
     private T ParseEnum<T>(List<string> values) where T : struct

@@ -20,6 +20,9 @@ public class AppConfig
     [JsonPropertyName("enableTaskbarAutoHide")]
     public bool EnableTaskbarAutoHide { get; set; } = true;
 
+    [JsonPropertyName("enableDisplaySync")]
+    public bool EnableDisplaySync { get; set; } = true;
+
     [JsonPropertyName("backgroundMode")]
     public BackgroundMode BackgroundMode { get; set; } = BackgroundMode.SOLID_COLOR;
 
@@ -45,6 +48,18 @@ public class ProfileCollection
     public ProfileDefinition Landscape { get; set; } = new();
 }
 
+public class DisplayProfile
+{
+    [JsonPropertyName("width")]
+    public int? Width { get; set; }
+
+    [JsonPropertyName("height")]
+    public int? Height { get; set; }
+
+    [JsonPropertyName("orientation")]
+    public int? Orientation { get; set; } // 0=Default, 1=90, 2=180, 3=270
+}
+
 public class ProfileDefinition
 {
     [JsonPropertyName("name")]
@@ -62,6 +77,6 @@ public class ProfileDefinition
     [JsonPropertyName("positioning")]
     public PositioningMode Positioning { get; set; }
 
-    [JsonPropertyName("aspectRatio")]
-    public string? AspectRatio { get; set; }
+    [JsonPropertyName("display")]
+    public DisplayProfile? Display { get; set; }
 }

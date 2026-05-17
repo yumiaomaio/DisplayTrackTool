@@ -10,8 +10,6 @@ public interface IConfigService
     LayoutProfile GetLandscapeProfile();
     string? GetBackgroundImageFileName();
     void SetBackgroundImageFileName(string? fileName);
-    string? GetPortraitAspectRatio();
-    void SetPortraitAspectRatio(string? aspectRatio);
     BackgroundMode GetBackgroundMode();
     string GetBackgroundColor();
     void SetBackgroundMode(BackgroundMode mode);
@@ -20,6 +18,8 @@ public interface IConfigService
     void SetEnableBackgroundOverlay(bool enabled);
     bool IsTaskbarAutoHideEnabled();
     void SetEnableTaskbarAutoHide(bool enabled);
+    bool IsDisplaySyncEnabled();
+    void SetEnableDisplaySync(bool enabled);
     bool ShouldShowExitTip();
     void SetShowExitTip(bool show);
 }

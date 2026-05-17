@@ -1,4 +1,4 @@
-﻿// File: Models/LayoutProfile.cs
+// File: Models/LayoutProfile.cs
 
 using ImmersiveWindow.Interop.Enums;
 
@@ -11,13 +11,12 @@ public class LayoutProfile
     public WindowExStyles ExStyles { get; set; }
     public SizingMode Sizing { get; set; }
     public PositioningMode Positioning { get; set; }
-    public double? AspectRatio { get; set; } // e.g., 9.0 / 16.0 for portrait
+    public DisplayProfile? Display { get; set; }
 }
 
 public enum SizingMode
 {
     FULLSCREEN,
-    RELATIVE_TO_SCREEN_HEIGHT,
     // Potentially more modes later
 }
 

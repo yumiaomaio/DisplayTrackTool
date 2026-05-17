@@ -5,9 +5,8 @@ import { bridge } from '../services/bridge'
 
 const props = defineProps({
   processName: String,
-  ratioW: Number,
-  ratioH: Number,
   autoHideTaskbar: Boolean,
+  enableDisplaySync: Boolean,
   enableOverlay: Boolean,
   bgMode: String,
   selectedColor: String,
@@ -20,25 +19,13 @@ const props = defineProps({
 
 const emit = defineEmits([
   'update:processName', 
-  'update:ratioW', 
-  'update:ratioH', 
   'update:autoHideTaskbar', 
+  'update:enableDisplaySync',
   'update:enableOverlay', 
   'update:bgMode', 
   'update:selectedColor',
   'update:bgImage'
 ])
-
-const isPreset1 = computed(() => props.ratioW === 9 && props.ratioH === 16)
-const isPreset2 = computed(() => props.ratioW === 3 && props.ratioH === 4)
-
-const hasRatioError = computed(() => props.propertyErrors.PortraitAspectRatio?.length > 0)
-
-const onRatioChange = (w, h) => {
-    emit('update:ratioW', parseInt(w) || 0);
-    emit('update:ratioH', parseInt(h) || 0);
-    bridge.SetPortraitAspectRatio(`${w}/${h}`);
-}
 
 const onAutoHideChange = (e) => {
     const val = e.target.checked;
@@ -50,6 +37,12 @@ const onOverlayChange = (e) => {
     const val = e.target.checked;
     emit('update:enableOverlay', val);
     bridge.SetEnableBackgroundOverlay(val);
+}
+
+const onDisplaySyncChange = (e) => {
+    const val = e.target.checked;
+    emit('update:enableDisplaySync', val);
+    bridge.SetEnableDisplaySync(val);
 }
 
 const onColorChange = (hex) => {
@@ -83,35 +76,6 @@ const clearImage = () => {
     </div>
     <p class="section-desc" style="margin-top: 8px;">{{ i18n.t.processNameDesc }}</p>
 
-    <div class="thick-divider"></div>
-
-    <div class="section-title">{{ i18n.t.windowMatrix }}</div>
-    <p class="section-desc">{{ i18n.t.windowMatrixDesc }}</p>
-    <label class="input-label">{{ i18n.t.aspectRatio }}</label>
-    <div class="ratio-grid">
-      <input 
-        type="number" 
-        :value="ratioW" 
-        @input="e => onRatioChange(e.target.value, ratioH)" 
-        placeholder="W"
-        :class="{ error: hasRatioError }"
-      >
-      <span>:</span>
-      <input 
-        type="number" 
-        :value="ratioH" 
-        @input="e => onRatioChange(ratioW, e.target.value)" 
-        placeholder="H"
-        :class="{ error: hasRatioError }"
-      >
-      
-      <div class="vertical-divider"></div>
-      
-      <button :class="['btn-preset', { active: isPreset1 }]" @click="onRatioChange(9, 16)">9:16</button>
-      <button :class="['btn-preset', { active: isPreset2 }]" @click="onRatioChange(3, 4)">3:4</button>
-    </div>
-    <p v-if="hasRatioError" class="error-text">{{ propertyErrors.PortraitAspectRatio[0] }}</p>
-    
     <div class="row-setting">
       <span>{{ i18n.t.autoHideTaskbar }}</span>
       <label class="switch-label">
@@ -120,6 +84,15 @@ const clearImage = () => {
       </label>
     </div>
     <p class="section-desc" style="margin-top: 8px; margin-bottom: 0;">{{ i18n.t.autoHideTaskbarDesc }}</p>
+
+    <div class="row-setting">
+      <span>{{ i18n.t.displaySync }}</span>
+      <label class="switch-label">
+        <input type="checkbox" :checked="enableDisplaySync" @change="onDisplaySyncChange">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <p class="section-desc" style="margin-top: 8px; margin-bottom: 0;">{{ i18n.t.displaySyncDesc }}</p>
 
     <div class="thick-divider"></div>
 

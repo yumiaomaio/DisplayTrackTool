@@ -11,6 +11,26 @@ namespace ImmersiveWindow.Services.Implementations;
 
 public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayoutManager
 {
+    private WindowSnapshot? _originalSnapshot;
+
+    public void CaptureOriginalState(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return;
+        
+        var style = (WindowStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_STYLE);
+        var exStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+        NativeMethods.GetWindowRect(hwnd, out var rect);
+
+        _originalSnapshot = new WindowSnapshot
+        {
+            Style = style,
+            ExStyle = exStyle,
+            Rect = rect
+        };
+        
+        Debug.WriteLine($"[WindowLayoutManager] Original state captured for HWND {hwnd}.");
+    }
+
     public void ApplyLayout(IntPtr hwnd, LayoutProfile profile)
     {
         if (hwnd == IntPtr.Zero || profile == null) return;
@@ -21,7 +41,7 @@ public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayout
         NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
         NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
 
-        // 2. Calculate size and position
+        // 2. Calculate size and position (Always Fullscreen in current logic)
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
         var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
         if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo)) return;
@@ -30,38 +50,13 @@ public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayout
         int screenWidth = monitorRect.Right - monitorRect.Left;
         int screenHeight = monitorRect.Bottom - monitorRect.Top;
 
-        int finalWidth, finalHeight, finalX, finalY;
-
-        switch (profile.Sizing)
-        {
-            case SizingMode.FULLSCREEN:
-                finalWidth = screenWidth;
-                finalHeight = screenHeight;
-                break;
-            case SizingMode.RELATIVE_TO_SCREEN_HEIGHT:
-                finalHeight = screenHeight;
-                finalWidth = profile.AspectRatio.HasValue
-                    ? (int)(finalHeight * profile.AspectRatio.Value)
-                    : screenHeight / 2;
-                break;
-            default: throw new ArgumentOutOfRangeException();
-        }
-
-        switch (profile.Positioning)
-        {
-            case PositioningMode.CENTER_SCREEN:
-                finalX = monitorRect.Left + (screenWidth - finalWidth) / 2;
-                finalY = monitorRect.Top + (screenHeight - finalHeight) / 2;
-                break;
-            case PositioningMode.TOP_LEFT:
-                finalX = monitorRect.Left;
-                finalY = monitorRect.Top;
-                break;
-            default: throw new ArgumentOutOfRangeException();
-        }
+        int finalWidth = screenWidth;
+        int finalHeight = screenHeight;
+        int finalX = monitorRect.Left;
+        int finalY = monitorRect.Top;
 
         Debug.WriteLine(
-            $"[WindowLayoutManager] Calculated Layout: X={finalX}, Y={finalY}, W={finalWidth}, H={finalHeight}");
+            $"[WindowLayoutManager] Layout: X={finalX}, Y={finalY}, W={finalWidth}, H={finalHeight}");
 
         // 3. Apply Z-Order, position and size
 
@@ -104,41 +99,27 @@ public class WindowLayoutManager(IOverlayService overlayService) : IWindowLayout
             SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
     }
 
-    public WindowSnapshot TakeSnapshot(IntPtr hwnd)
+    public void RestoreOriginalState(IntPtr hwnd)
     {
-        if (hwnd == IntPtr.Zero) throw new ArgumentException("Invalid HWND", nameof(hwnd));
-
-        var style = (WindowStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_STYLE);
-        var exStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
-        NativeMethods.GetWindowRect(hwnd, out var rect);
-
-        return new WindowSnapshot
-        {
-            Style = style,
-            ExStyle = exStyle,
-            Rect = rect
-        };
-    }
-
-    public void Restore(IntPtr hwnd, WindowSnapshot snapshot)
-    {
-        if (hwnd == IntPtr.Zero || snapshot == null) return;
+        if (hwnd == IntPtr.Zero || _originalSnapshot == null) return;
 
         Debug.WriteLine($"[WindowLayoutManager] Restoring HWND {hwnd} to original styles and position.");
 
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)snapshot.Style);
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)snapshot.ExStyle);
+        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)_originalSnapshot.Style);
+        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)_originalSnapshot.ExStyle);
 
-        int width = snapshot.Rect.Right - snapshot.Rect.Left;
-        int height = snapshot.Rect.Bottom - snapshot.Rect.Top;
+        int width = _originalSnapshot.Rect.Right - _originalSnapshot.Rect.Left;
+        int height = _originalSnapshot.Rect.Bottom - _originalSnapshot.Rect.Top;
 
-        IntPtr hwndInsertAfter = snapshot.ExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST) 
+        IntPtr hwndInsertAfter = _originalSnapshot.ExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST) 
             ? new IntPtr(-1) 
             : new IntPtr(-2); // HWND_NOTOPMOST
 
         NativeMethods.SetWindowPos(hwnd, 
             hwndInsertAfter,
-            snapshot.Rect.Left, snapshot.Rect.Top, width, height,
+            _originalSnapshot.Rect.Left, _originalSnapshot.Rect.Top, width, height,
             SetWindowPosFlags.SWP_FRAMECHANGED);
+            
+        _originalSnapshot = null;
     }
 }

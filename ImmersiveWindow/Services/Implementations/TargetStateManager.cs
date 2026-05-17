@@ -1,8 +1,10 @@
 // File: Services/Implementations/TargetStateManager.cs
 
+using System.Runtime.InteropServices;
 using System.Windows;
 using ImmersiveWindow.Interop;
 using ImmersiveWindow.Interop.Enums;
+using ImmersiveWindow.Interop.Structs;
 using ImmersiveWindow.Models;
 
 namespace ImmersiveWindow.Services.Implementations;
@@ -15,17 +17,14 @@ public class TargetStateManager(
     IConfigService configService,
     IKeyboardHookService keyboardHookService,
     ILoggingService loggingService,
-    ITaskbarService taskbarService)
+    ITaskbarService taskbarService,
+    IDisplayService displayService)
     : ITargetStateManager, IDisposable
 {
-    // Injected Services
-
     // State
     private IntPtr _targetHwnd = IntPtr.Zero;
     private WindowOrientation _lastOrientation = WindowOrientation.UNKNOWN;
     private bool _isRunning = false;
-    private WindowSnapshot? _originalSnapshot;
-    private bool _originalTaskbarAutoHide;
 
     public event Action<bool>? IsRunningChanged;
 
@@ -56,40 +55,46 @@ public class TargetStateManager(
 
         AddLog($"Target window found: HWND {_targetHwnd}.");
 
-        // 备份原始状态
-        _originalSnapshot = layoutManager.TakeSnapshot(_targetHwnd);
-        AddLog("Original window styles and position backed up.");
+        // --- 核心解耦：让服务自行备份状态 ---
+        layoutManager.CaptureOriginalState(_targetHwnd);
+        displayService.CaptureOriginalState(_targetHwnd);
 
         _isRunning = true;
         _lastOrientation = WindowOrientation.UNKNOWN;
 
-        // --- 背景遮罩开关 ---
+        // --- 背景遮罩 ---
         if (configService.IsBackgroundOverlayEnabled())
         {
             AddLog("Background overlay is ENABLED. Showing overlay.");
             overlayService.Show(_targetHwnd);
         }
 
-        // --- 任务栏自动隐藏集成 ---
+        // --- 任务栏控制 ---
         if (configService.IsTaskbarAutoHideEnabled())
         {
-            _originalTaskbarAutoHide = taskbarService.IsAutoHideEnabled();
-            if (!_originalTaskbarAutoHide)
-            {
-                AddLog("Enabling Taskbar auto-hide...");
-                taskbarService.SetAutoHide(true);
-            }
+            taskbarService.CaptureOriginalState();
+            taskbarService.SetAutoHide(true);
+            AddLog("Taskbar auto-hide enabled.");
         }
 
+        // --- 监控启动 ---
         monitorService.WindowStateChanged += OnWindowStateChanged;
+        monitorService.MonitorChanged += OnMonitorChanged;
         monitorService.WindowDestroyed += OnWindowDestroyed;
         monitorService.StartMonitoring(_targetHwnd);
 
-        keyboardHookService.KeyPressed += OnKeyPressed;
         keyboardHookService.Start();
+        keyboardHookService.KeyPressed += OnKeyPressed;
 
-        AddLog("Applying initial portrait layout for the window.");
-        layoutManager.ApplyLayout(_targetHwnd, configService.GetPortraitProfile());
+        // --- 初始布局应用 ---
+        AddLog("Applying initial portrait layout and monitor settings.");
+        var profile = configService.GetPortraitProfile();
+        if (configService.IsDisplaySyncEnabled())
+        {
+            displayService.ApplyDisplayProfile(_targetHwnd, profile.Display);
+            await Task.Delay(500); 
+        }
+        layoutManager.ApplyLayout(_targetHwnd, profile);
         _lastOrientation = WindowOrientation.PORTRAIT;
 
         IsRunningChanged?.Invoke(_isRunning);
@@ -100,28 +105,33 @@ public class TargetStateManager(
     {
         if (!_isRunning) return;
 
-        AddLog("Stopping service...");
+        AddLog("Stopping service and restoring original states...");
 
+        // 1. 停止监控和钩子
         keyboardHookService.Stop();
         keyboardHookService.KeyPressed -= OnKeyPressed;
         monitorService.StopMonitoring();
         monitorService.WindowStateChanged -= OnWindowStateChanged;
+        monitorService.MonitorChanged -= OnMonitorChanged;
         monitorService.WindowDestroyed -= OnWindowDestroyed;
 
-        if (_targetHwnd != IntPtr.Zero && NativeMethods.IsWindow(_targetHwnd))
+        var lastHwnd = _targetHwnd;
+
+        // 2. 依次还原各模块状态
+        if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
         {
-            if (_originalSnapshot != null)
+            layoutManager.RestoreOriginalState(lastHwnd);
+            
+            if (configService.IsDisplaySyncEnabled())
             {
-                AddLog("Restoring target window to original styles and position.");
-                await Task.Run(() => layoutManager.Restore(_targetHwnd, _originalSnapshot));
+                displayService.RestoreOriginalState(lastHwnd);
+                await Task.Delay(500);
             }
         }
 
-        // 还原任务栏状态
-        if (configService.IsTaskbarAutoHideEnabled() && !_originalTaskbarAutoHide)
+        if (configService.IsTaskbarAutoHideEnabled())
         {
-            AddLog("Restoring Taskbar auto-hide state...");
-            taskbarService.SetAutoHide(false);
+            taskbarService.RestoreOriginalState();
         }
 
         if (configService.IsBackgroundOverlayEnabled())
@@ -129,12 +139,11 @@ public class TargetStateManager(
             overlayService.Hide();
         }
 
+        // 3. 清理状态
         _targetHwnd = IntPtr.Zero;
-        _originalSnapshot = null;
         _isRunning = false;
 
         IsRunningChanged?.Invoke(_isRunning);
-
         AddLog("Service stopped.");
     }
 
@@ -142,7 +151,7 @@ public class TargetStateManager(
     {
         try
         {
-            const int vkF12 = 0x7B; // F12的虚拟键码
+            const int vkF12 = 0x7B; 
 
             if (vkCode == vkF12)
             {
@@ -172,11 +181,18 @@ public class TargetStateManager(
         }
     }
 
-    private void OnWindowStateChanged(IntPtr hwnd, Rect newRect)
+    private async void OnMonitorChanged(IntPtr hwnd, IntPtr hMonitor)
     {
         if (hwnd != _targetHwnd || !_isRunning) return;
 
-        // --- 1. 方向改变检测 ---
+        AddLog($"Window moved to a different monitor ({hMonitor}). Triggering automatic shutdown...");
+        await StopAsync();
+    }
+
+    private async void OnWindowStateChanged(IntPtr hwnd, System.Windows.Rect newRect)
+    {
+        if (hwnd != _targetHwnd || !_isRunning) return;
+
         var currentOrientation = newRect.Width > newRect.Height
             ? WindowOrientation.LANDSCAPE
             : WindowOrientation.PORTRAIT;
@@ -189,19 +205,31 @@ public class TargetStateManager(
             switch (currentOrientation)
             {
                 case WindowOrientation.PORTRAIT:
-                    AddLog("Applying Portrait layout...");
-                    layoutManager.ApplyLayout(_targetHwnd, configService.GetPortraitProfile());
+                    AddLog("Applying Portrait layout and monitor settings...");
+                    var portraitProfile = configService.GetPortraitProfile();
+                    if (configService.IsDisplaySyncEnabled())
+                    {
+                        displayService.ApplyDisplayProfile(_targetHwnd, portraitProfile.Display);
+                        await Task.Delay(500);
+                    }
+                    layoutManager.ApplyLayout(_targetHwnd, portraitProfile);
                     break;
                 case WindowOrientation.LANDSCAPE:
-                    AddLog("Applying Landscape layout...");
-                    layoutManager.ApplyLayout(_targetHwnd, configService.GetLandscapeProfile());
+                    AddLog("Applying Landscape layout and monitor settings...");
+                    var landscapeProfile = configService.GetLandscapeProfile();
+                    if (configService.IsDisplaySyncEnabled())
+                    {
+                        displayService.ApplyDisplayProfile(_targetHwnd, landscapeProfile.Display);
+                        await Task.Delay(500);
+                    }
+                    layoutManager.ApplyLayout(_targetHwnd, landscapeProfile);
                     break;
             }
 
             return;
         }
 
-        // --- 2. Topmost 状态维持 (如果方向没有改变) ---
+        // --- Topmost 状态维持 ---
         var currentExStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
         if (!currentExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST))
         {
@@ -209,12 +237,10 @@ public class TargetStateManager(
 
             if (_lastOrientation == WindowOrientation.PORTRAIT)
             {
-                AddLog("Re-applying full Portrait layout to ensure consistency.");
                 layoutManager.ApplyLayout(_targetHwnd, configService.GetPortraitProfile());
             }
             else if (_lastOrientation == WindowOrientation.LANDSCAPE)
             {
-                AddLog("Patching Topmost style for Landscape mode.");
                 layoutManager.EnsureTopmost(_targetHwnd);
             }
         }

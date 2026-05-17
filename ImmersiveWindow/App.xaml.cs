@@ -39,6 +39,7 @@ public partial class App : Application
         services.AddSingleton<IWindowLayoutManager, WindowLayoutManager>();
         services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
         services.AddSingleton<ITargetStateManager, TargetStateManager>();
+        services.AddSingleton<IDisplayService, DisplayService>();
         services.AddSingleton<IConfigService, ConfigService>();
         services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
 

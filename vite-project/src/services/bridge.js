@@ -11,8 +11,8 @@ const getBridge = () => {
     console.warn("WebView2 Bridge not found. Using mock implementation.");
     return {
         TargetProcessName: Promise.resolve("notepad.exe"),
-        PortraitAspectRatio: Promise.resolve("9/16"),
         EnableTaskbarAutoHide: Promise.resolve(false),
+        EnableDisplaySync: Promise.resolve(true),
         EnableBackgroundOverlay: Promise.resolve(true),
         BackgroundColor: Promise.resolve("#FF2D2D30"),
         IsAdmin: Promise.resolve(false),
@@ -22,19 +22,19 @@ const getBridge = () => {
         GetLogs: () => Promise.resolve(["> Mock: System initialized."]),
         GetImageBase64: () => Promise.resolve(""),
         SetEnableTaskbarAutoHide: (val) => console.log("Mock: SetAutoHide", val),
+        SetEnableDisplaySync: (val) => console.log("Mock: SetDisplaySync", val),
         SetEnableBackgroundOverlay: (val) => console.log("Mock: SetOverlay", val),
-        SetPortraitAspectRatio: (val) => console.log("Mock: SetRatio", val),
         SetBackgroundColor: (val) => console.log("Mock: SetColor", val),
         SetShowExitTip: (val) => console.log("Mock: SetShowExitTip", val),
         RestartAsAdmin: () => alert("Mock: Restart as Admin"),
         ShowAbout: () => alert("Mock: Show About"),
         StartMonitoring: (p) => { 
             console.log("Mock: Start Monitoring", p);
-            // Simulate state change if needed for testing
         },
         StopMonitoring: () => console.log("Mock: Stop Monitoring"),
         SelectImage: () => console.log("Mock: Select Image"),
-        ClearImage: () => console.log("Mock: Clear Image")
+        ClearImage: () => console.log("Mock: Clear Image"),
+        GetProcessIconBase64: () => Promise.resolve("")
     };
 };
 

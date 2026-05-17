@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using Microsoft.Web.WebView2.Core;
 using ImmersiveWindow.Services;
 using ImmersiveWindow.ViewModels;
 
@@ -10,12 +12,59 @@ namespace ImmersiveWindow.Bridge;
 [ClassInterface(ClassInterfaceType.AutoDual)]
 public class AppBridge(MainViewModel viewModel, IProcessService processService)
 {
+    private CoreWebView2? _webView;
+
+    /// <summary>
+    /// Binds the bridge to the WebView and starts automatic state synchronization.
+    /// </summary>
+    public void Initialize(CoreWebView2 webView)
+    {
+        _webView = webView;
+        
+        // --- Automatic Sync: Property Changes ---
+        viewModel.PropertyChanged += async (s, e) =>
+        {
+            if (string.IsNullOrEmpty(e.PropertyName)) return;
+            
+            // Extract the value using reflection
+            var prop = viewModel.GetType().GetProperty(e.PropertyName);
+            if (prop == null) return;
+            
+            var value = prop.GetValue(viewModel);
+            
+            // Format specific values if needed
+            if (value is Enum) value = value.ToString()?.ToLower();
+
+            await PushToFrontend(new Dictionary<string, object?> { { e.PropertyName, value } });
+        };
+
+        // --- Automatic Sync: Log Collection ---
+        viewModel.Logs.CollectionChanged += async (s, e) =>
+        {
+            await PushToFrontend(new { Logs = viewModel.Logs });
+        };
+    }
+
+    private async Task PushToFrontend(object state)
+    {
+        if (_webView == null) return;
+        try
+        {
+            string json = JsonSerializer.Serialize(state);
+            await _webView.ExecuteScriptAsync($"window.onStateChanged('{json}')");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AppBridge] State push failed: {ex.Message}");
+        }
+    }
+
     // --- Properties to JS ---
     public string TargetProcessName => viewModel.TargetProcessName ?? "";
-    public string PortraitAspectRatio => viewModel.PortraitAspectRatio ?? "";
     public bool IsRunning => viewModel.IsRunning;
     public bool IsAdmin => viewModel.IsAdmin;
     public bool EnableTaskbarAutoHide => viewModel.EnableTaskbarAutoHide;
+    public bool EnableDisplaySync => viewModel.EnableDisplaySync;
     public bool EnableBackgroundOverlay => viewModel.EnableBackgroundOverlay;
     public string BackgroundMode => viewModel.BackgroundMode.ToString().ToLower();
     public string CurrentImageFileName => viewModel.CurrentImageFileName ?? "";
@@ -34,11 +83,6 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
         viewModel.StopCommand.Execute(null);
     }
 
-    public void SetPortraitAspectRatio(string ratio)
-    {
-        viewModel.PortraitAspectRatio = ratio;
-    }
-
     public void SetBackgroundColor(string color)
     {
         viewModel.BackgroundColor = color;
@@ -47,6 +91,11 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
     public void SetEnableTaskbarAutoHide(bool enable)
     {
         viewModel.EnableTaskbarAutoHide = enable;
+    }
+
+    public void SetEnableDisplaySync(bool enable)
+    {
+        viewModel.EnableDisplaySync = enable;
     }
 
     public void SetEnableBackgroundOverlay(bool enable)

@@ -3,9 +3,7 @@ import { i18n } from '../i18n'
 
 defineProps({
   processName: String,
-  processIcon: String,
-  ratioW: Number,
-  ratioH: Number
+  processIcon: String
 })
 
 defineEmits(['stop'])
@@ -35,10 +33,6 @@ defineEmits(['stop'])
         <div class="info-item">
           <label>{{ i18n.t.targetProcess }}</label>
           <span>{{ processName || 'TargetApp.exe' }}</span>
-        </div>
-        <div class="info-item">
-          <label>{{ i18n.t.matrixRatio }}</label>
-          <span>{{ ratioW }} : {{ ratioH }}</span>
         </div>
       </div>
     </div>
@@ -172,7 +166,7 @@ defineEmits(['stop'])
 
 .info-grid { 
     display: grid; 
-    grid-template-columns: 1fr 1fr; 
+    grid-template-columns: 1fr; 
     gap: 20px; 
     width: 100%;
 }

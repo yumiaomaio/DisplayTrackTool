@@ -24,34 +24,21 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
 
         Loaded += MainWindow_Loaded;
-
-        // Subscribe to state changes to push to JS
-        _viewModel.PropertyChanged += ViewModel_PropertyChanged;
-        _viewModel.Logs.CollectionChanged += Logs_CollectionChanged;
-        _viewModel.ErrorsChanged += ViewModel_ErrorsChanged;
-    }
-
-    private void ViewModel_ErrorsChanged(object? sender, System.ComponentModel.DataErrorsChangedEventArgs e)
-    {
-        if (_bridge == null || WebView.CoreWebView2 == null) return;
-        
-        var errors = _viewModel.GetErrors(e.PropertyName).Cast<string>().ToList();
-        _ = UpdateJsState(new { PropertyErrors = new Dictionary<string, List<string>> { { e.PropertyName ?? "", errors } } });
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
-            // Use the pre-created environment task
             var env = await _envTask;
             await WebView.EnsureCoreWebView2Async(env);
 
-            // Disable F12 Developer Tools and Context Menus
             WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
 
             _bridge = new AppBridge(_viewModel, _processService);
+            _bridge.Initialize(WebView.CoreWebView2); // Start auto-sync
+            
             WebView.CoreWebView2.AddHostObjectToScript("bridge", _bridge);
             
             string htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebUI", "index.html");
@@ -68,40 +55,5 @@ public partial class MainWindow : Window
         {
             MessageBox.Show($"WebView2 Initialization failed: {ex.Message}");
         }
-    }
-
-    private async void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (_bridge == null || WebView.CoreWebView2 == null) return;
-
-        // Push specific changes to JS
-        if (e.PropertyName == nameof(_viewModel.IsRunning))
-        {
-            await UpdateJsState(new { IsRunning = _viewModel.IsRunning });
-        }
-        else if (e.PropertyName == nameof(_viewModel.CurrentImageFileName))
-        {
-            await UpdateJsState(new { CurrentImageFileName = _viewModel.CurrentImageFileName });
-        }
-        else if (e.PropertyName == nameof(_viewModel.BackgroundMode))
-        {
-            await UpdateJsState(new { BackgroundMode = _viewModel.BackgroundMode.ToString().ToLower() });
-        }
-        else if (e.PropertyName == nameof(_viewModel.PortraitAspectRatio))
-        {
-            await UpdateJsState(new { PortraitAspectRatio = _viewModel.PortraitAspectRatio });
-        }
-    }
-
-    private async void Logs_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-    {
-        await UpdateJsState(new { Logs = _viewModel.Logs });
-    }
-
-    private async Task UpdateJsState(object state)
-    {
-        if (WebView.CoreWebView2 == null) return;
-        string json = JsonSerializer.Serialize(state);
-        await WebView.CoreWebView2.ExecuteScriptAsync($"window.onStateChanged('{json}')");
     }
 }
