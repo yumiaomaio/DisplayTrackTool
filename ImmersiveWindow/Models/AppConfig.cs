@@ -35,6 +35,15 @@ public class AppConfig
     [JsonPropertyName("showExitTip")]
     public bool ShowExitTip { get; set; } = true;
 
+    [JsonPropertyName("associatedLaunchPath")]
+    public string? AssociatedLaunchPath { get; set; }
+
+    [JsonPropertyName("launchOnAppStartup")]
+    public bool LaunchOnAppStartup { get; set; }
+
+    [JsonPropertyName("launchOnTaskStart")]
+    public bool LaunchOnTaskStart { get; set; }
+
     [JsonPropertyName("profiles")]
     public ProfileCollection Profiles { get; set; } = new();
 }

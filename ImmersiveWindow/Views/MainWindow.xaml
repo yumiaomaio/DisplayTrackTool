@@ -4,8 +4,11 @@
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="Immersive Window Tool" Height="800" Width="430" MinWidth="400" MinHeight="600"
         WindowStartupLocation="CenterScreen"
-        Background="White">
+        Background="White"
+        AllowDrop="True"
+        Drop="MainWindow_Drop"
+        DragOver="MainWindow_DragOver">
     <Grid>
-        <wv2:WebView2 x:Name="WebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <wv2:WebView2 x:Name="WebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AllowExternalDrop="False" />
     </Grid>
 </Window>

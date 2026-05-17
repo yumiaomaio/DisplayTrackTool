@@ -22,4 +22,10 @@ public interface IConfigService
     void SetEnableDisplaySync(bool enabled);
     bool ShouldShowExitTip();
     void SetShowExitTip(bool show);
+    string? GetAssociatedLaunchPath();
+    void SetAssociatedLaunchPath(string? path);
+    bool IsLaunchOnAppStartupEnabled();
+    void SetLaunchOnAppStartup(bool enabled);
+    bool IsLaunchOnTaskStartEnabled();
+    void SetLaunchOnTaskStart(bool enabled);
 }

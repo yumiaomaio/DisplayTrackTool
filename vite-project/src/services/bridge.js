@@ -19,6 +19,9 @@ const getBridge = () => {
         IsRunning: Promise.resolve(false),
         CurrentImageFileName: Promise.resolve(""),
         ShouldShowExitTip: Promise.resolve(true),
+        AssociatedLaunchPath: Promise.resolve(""),
+        LaunchOnAppStartup: Promise.resolve(false),
+        LaunchOnTaskStart: Promise.resolve(false),
         GetLogs: () => Promise.resolve(["> Mock: System initialized."]),
         GetImageBase64: () => Promise.resolve(""),
         SetEnableTaskbarAutoHide: (val) => console.log("Mock: SetAutoHide", val),
@@ -26,6 +29,10 @@ const getBridge = () => {
         SetEnableBackgroundOverlay: (val) => console.log("Mock: SetOverlay", val),
         SetBackgroundColor: (val) => console.log("Mock: SetColor", val),
         SetShowExitTip: (val) => console.log("Mock: SetShowExitTip", val),
+        SetAssociatedLaunchPath: (val) => console.log("Mock: SetLaunchPath", val),
+        SetLaunchOnAppStartup: (val) => console.log("Mock: SetLaunchOnAppStartup", val),
+        SetLaunchOnTaskStart: (val) => console.log("Mock: SetLaunchOnTaskStart", val),
+        SelectAssociatedProgram: () => console.log("Mock: SelectAssociatedProgram"),
         RestartAsAdmin: () => alert("Mock: Restart as Admin"),
         ShowAbout: () => alert("Mock: Show About"),
         StartMonitoring: (p) => { 
@@ -34,7 +41,8 @@ const getBridge = () => {
         StopMonitoring: () => console.log("Mock: Stop Monitoring"),
         SelectImage: () => console.log("Mock: Select Image"),
         ClearImage: () => console.log("Mock: Clear Image"),
-        GetProcessIconBase64: () => Promise.resolve("")
+        GetProcessIconBase64: () => Promise.resolve(""),
+        CheckProcessExists: () => Promise.resolve(false)
     };
 };
 
@@ -45,9 +53,9 @@ export const bridge = getBridge();
  * @param {Function} callback 
  */
 export let onStateChanged = (callback) => {
-    window.onStateChanged = (stateJson) => {
+    window.onStateChanged = (stateOrJson) => {
         try {
-            const state = JSON.parse(stateJson);
+            const state = typeof stateOrJson === 'string' ? JSON.parse(stateOrJson) : stateOrJson;
             callback(state);
         } catch (e) {
             console.error("Failed to parse state update from C#", e);

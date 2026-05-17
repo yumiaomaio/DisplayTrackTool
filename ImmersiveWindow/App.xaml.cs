@@ -41,6 +41,7 @@ public partial class App : Application
         services.AddSingleton<ITargetStateManager, TargetStateManager>();
         services.AddSingleton<IDisplayService, DisplayService>();
         services.AddSingleton<IConfigService, ConfigService>();
+        services.AddSingleton<ILaunchService, LaunchService>();
         services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
 
         // Register ViewModels

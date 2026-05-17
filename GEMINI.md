@@ -1,64 +1,66 @@
-# Immersive Window Control - Project Instructions
+# DisplayTrackTool (ImmersiveWindow)
+
+A sophisticated Windows display and window management utility designed for immersive setups and multi-monitor control. It leverages low-level Win32 APIs for reliable display mapping and window manipulation.
 
 ## Project Overview
-Immersive Window Control is a precision window management tool designed to force specific aspect ratios and immersive display settings for target applications. It features a hybrid architecture:
-- **Backend**: A .NET 10 WPF application providing high-level window control, Win32 interop, and system monitoring.
-- **Frontend**: A Vue 3 (Vite) application hosted within a WPF `WebView2` control, providing a modern and responsive user interface.
 
-## Architecture & Communication
-- **Hybrid Bridge**: Communication between the Vue frontend and WPF backend is handled via the `AppBridge.cs` class. This class is exposed to the `WebView2` environment as `chrome.webview.hostObjects.bridge`.
-- **Dependency Injection**: The backend uses `Microsoft.Extensions.DependencyInjection`. All services and ViewModels are registered in `App.xaml.cs`.
-- **Win32 Interop**: Native methods for window styles, positioning, and taskbar manipulation are centralized in `ImmersiveWindow/Interop`.
-- **State Management**: `MainViewModel.cs` acts as the central state hub, synchronized with the frontend via the Bridge.
+DisplayTrackTool provides a modern interface to control Windows desktop environment features that are typically hard to manage, such as:
+- Taskbar visibility and positioning.
+- Advanced window layout management across multiple monitors.
+- Reliable GDI to CCD (Connecting and Configuring Displays) mapping.
+- Global keyboard hooks for hotkey control.
+- "Immersive" mode for applications.
+
+### Architecture
+- **Backend**: C# / WPF application targeting .NET 10.0.
+- **Frontend**: Vue 3 application built with Vite, embedded via **WebView2**.
+- **Communication**: A bi-directional bridge (`AppBridge.cs`) connects the JavaScript frontend with the C# backend.
+- **Interop**: Extensive use of P/Invoke to access `User32.dll`, `Shell32.dll`, `Gdi32.dll`, and other Windows system APIs.
 
 ## Building and Running
 
 ### Prerequisites
-- **Node.js** (v18+)
-- **.NET 10 SDK**
-- **Visual Studio 2022** or **JetBrains Rider**
+- .NET 10.0 SDK
+- Node.js & npm (for frontend development)
 
-### 1. Build the Frontend
-The frontend must be built first because the backend expects the output in the `WebUI` directory.
-```bash
+### Frontend Development
+The UI is located in the `vite-project` directory.
+```powershell
 cd vite-project
 npm install
+# For development (with HMR, requires backend to point to dev server)
+npm run dev
+# For production build (outputs to ImmersiveWindow/WebUI)
 npm run build
 ```
-*Note: `vite-plugin-singlefile` is used to bundle the UI into a single HTML file.*
+*Note: `vite-plugin-singlefile` is used to bundle the entire UI into a single `index.html` for easy embedding.*
 
-### 2. Build the Backend
-```bash
-# From the root directory
+### Backend Development
+The main solution is `ImmersiveWindow.sln`.
+```powershell
+# Restore dependencies
+dotnet restore
+# Build the project
 dotnet build
+# Run the application
+dotnet run --project ImmersiveWindow/ImmersiveWindow.csproj
 ```
 
-### 3. Running
-The application requires administrative privileges for certain Win32 operations (like hiding the taskbar).
-```bash
-# Release path example
-./ImmersiveWindow/bin/Debug/net10.0-windows/ImmersiveWindow.exe
-```
+## Project Structure
+
+- `ImmersiveWindow/`: Main WPF application.
+  - `Bridge/`: Contains `AppBridge.cs`, the JS-C# bridge.
+  - `Interop/`: Win32 API declarations (P/Invoke) and related structs/enums.
+  - `Services/`: Core business logic (Taskbar, Display, Window management).
+  - `ViewModels/`: MVVM pattern implementation.
+  - `WebUI/`: Target directory for the built frontend.
+- `vite-project/`: Vue 3 source code for the user interface.
+- `DOC/`: Technical documentation and research notes (e.g., GDI to CCD mapping strategies).
 
 ## Development Conventions
 
-### Backend (C#)
-- **C# 12 Features**: Primary constructors are used for dependency injection.
-- **Naming**: standard .NET PascalCase for public members, camelCase for private fields (often prefixed with `_`).
-- **Interop**: Use the definitions in `ImmersiveWindow/Interop` for any Win32 API calls. Do not define P/Invokes inline.
-- **Services**: Business logic should reside in services (e.g., `WindowLayoutManager.cs`). ViewModels should delegate to these services.
-
-### Frontend (Vue 3)
-- **Vite**: The build system.
-- **Single File Bundle**: The `vite.config.js` is configured to output to `../ImmersiveWindow/WebUI`. Do not change this unless updating the backend's lookup path.
-- **Bridge Access**: Use the `bridge.js` service to interact with the backend.
-
-## Key Directory Structure
-- `ImmersiveWindow/`: Main WPF project.
-  - `Bridge/`: C# classes exposed to JavaScript.
-  - `Interop/`: Win32 API declarations (Enums, Structs, NativeMethods).
-  - `Services/`: Business logic implementations.
-  - `ViewModels/`: UI state and command handling.
-  - `WebUI/`: Built frontend files (auto-generated by Vite).
-- `vite-project/`: Vue 3 frontend source.
-- `MS-DOC/`: Reference documentation for Win32 window styles.
+- **Service-Oriented**: Business logic should be encapsulated in services with interfaces defined in `ImmersiveWindow/Services`.
+- **Interop Safety**: Keep Win32 API signatures organized in `ImmersiveWindow/Interop` using partial classes (e.g., `NativeMethods.Window.cs`).
+- **UI Bridge**: New backend features intended for the UI must be exposed through `AppBridge.cs`.
+- **Async Priority**: Use asynchronous patterns for UI-bound operations to keep the interface responsive, especially during WebView2 initialization.
+- **DPI Awareness**: Always consider per-monitor DPI scaling when performing window or display calculations.

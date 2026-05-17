@@ -7,8 +7,10 @@ using System.Windows;
 using ImmersiveWindow.Services;
 using Microsoft.Win32;
 using System.IO;
+using System.Diagnostics;
 using ImmersiveWindow.Models;
 using ImmersiveWindow.Helpers;
+using ImmersiveWindow.Interop;
 using System.Collections;
 
 namespace ImmersiveWindow.ViewModels;
@@ -19,6 +21,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly IConfigService _configService;
     private readonly ILoggingService _loggingService;
     private readonly IPrivilegeService _privilegeService;
+    private readonly ILaunchService _launchService;
 
     private string? _targetProcessName;
     public string? TargetProcessName
@@ -145,20 +148,64 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             }
         }
     }
+
+    private string? _associatedLaunchPath;
+    public string? AssociatedLaunchPath
+    {
+        get => _associatedLaunchPath;
+        set
+        {
+            if (SetProperty(ref _associatedLaunchPath, value))
+            {
+                _configService.SetAssociatedLaunchPath(value);
+            }
+        }
+    }
+
+    private bool _launchOnAppStartup;
+    public bool LaunchOnAppStartup
+    {
+        get => _launchOnAppStartup;
+        set
+        {
+            if (SetProperty(ref _launchOnAppStartup, value))
+            {
+                _configService.SetLaunchOnAppStartup(value);
+            }
+        }
+    }
+
+    private bool _launchOnTaskStart;
+    public bool LaunchOnTaskStart
+    {
+        get => _launchOnTaskStart;
+        set
+        {
+            if (SetProperty(ref _launchOnTaskStart, value))
+            {
+                _configService.SetLaunchOnTaskStart(value);
+            }
+        }
+    }
     #endregion
 
     public MainViewModel(
         ITargetStateManager stateManager, 
         IConfigService configService, 
         ILoggingService loggingService,
-        IPrivilegeService privilegeService)
+        IPrivilegeService privilegeService,
+        ILaunchService launchService)
     {
         _stateManager = stateManager;
         _configService = configService;
         _loggingService = loggingService;
         _privilegeService = privilegeService;
+        _launchService = launchService;
 
         _stateManager.IsRunningChanged += OnIsRunningChanged;
+
+        // --- Connect ShortcutResolver to our logs ---
+        ShortcutResolver.LogAction = (msg) => _loggingService.AddLog(msg);
 
         IsAdmin = _privilegeService.IsAdministrator();
         EnableTaskbarAutoHide = _configService.IsTaskbarAutoHideEnabled();
@@ -172,6 +219,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         BackgroundMode = _configService.GetBackgroundMode();
         ShouldShowExitTip = _configService.ShouldShowExitTip();
 
+        AssociatedLaunchPath = _configService.GetAssociatedLaunchPath();
+        LaunchOnAppStartup = _configService.IsLaunchOnAppStartupEnabled();
+        LaunchOnTaskStart = _configService.IsLaunchOnTaskStartEnabled();
+
         StartCommand = new RelayCommand(() => _ = OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
         StopCommand = new RelayCommand(() => _ = OnStopAsync(), () => IsRunning);
         SelectImageCommand = new RelayCommand(SelectImage);
@@ -179,6 +230,38 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         RestartAsAdminCommand = new RelayCommand(OnRestartAsAdmin);
         AboutCommand = new RelayCommand(OnAbout);
         ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
+
+        SelectAssociatedProgramCommand = new RelayCommand(OnSelectAssociatedProgram);
+    }
+
+    public ICommand SelectAssociatedProgramCommand { get; }
+
+    public void LaunchAssociatedProgram()
+    {
+        _launchService.Launch(AssociatedLaunchPath ?? "");
+    }
+
+    private void OnSelectAssociatedProgram()
+    {
+        var openFileDialog = new OpenFileDialog
+        {
+            Title = "Select Application or Shortcut",
+            Filter = "Applications & Shortcuts|*.exe;*.lnk;*.url|All files (*.*)|*.*"
+        };
+
+        if (openFileDialog.ShowDialog() == true)
+        {
+            string path = openFileDialog.FileName;
+            if (path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            {
+                AssociatedLaunchPath = ShortcutResolver.Resolve(path);
+            }
+            else
+            {
+                // Quote path if it contains spaces
+                AssociatedLaunchPath = path.Contains(' ') ? $"\"{path}\"" : path;
+            }
+        }
     }
 
     private void OnAbout()

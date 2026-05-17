@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { i18n } from './i18n'
 import { bridge, onStateChanged } from './services/bridge'
 import AppHeader from './components/AppHeader.vue'
@@ -23,6 +23,9 @@ const debugParams = ref({
 
 const processName = ref('')
 const processIcon = ref('')
+const associatedLaunchPath = ref('')
+const launchOnAppStartup = ref(false)
+const launchOnTaskStart = ref(false)
 const autoHideTaskbar = ref(false)
 const enableDisplaySync = ref(true)
 const enableOverlay = ref(true)
@@ -122,6 +125,9 @@ async function init() {
   autoHideTaskbar.value = await bridge.EnableTaskbarAutoHide;
   enableDisplaySync.value = await bridge.EnableDisplaySync;
   enableOverlay.value = await bridge.EnableBackgroundOverlay;
+  associatedLaunchPath.value = await bridge.AssociatedLaunchPath;
+  launchOnAppStartup.value = await bridge.LaunchOnAppStartup;
+  launchOnTaskStart.value = await bridge.LaunchOnTaskStart;
   isRunning.value = await bridge.IsRunning;
   shouldShowExitTip.value = await bridge.ShouldShowExitTip;
 
@@ -156,35 +162,45 @@ onMounted(() => {
   init();
 
   onStateChanged((state) => {
-    if (state.IsRunning !== undefined) {
-      isRunning.value = state.IsRunning;
-      if (state.IsRunning && processName.value) {
+    console.log("[App.vue] State received from C#:", state);
+    if (state.isRunning !== undefined) {
+      isRunning.value = state.isRunning;
+      if (state.isRunning && processName.value) {
         bridge.GetProcessIconBase64(processName.value).then(icon => {
            if (icon) processIcon.value = icon;
         });
       }
     }
-    if (state.Logs !== undefined) logs.value = state.Logs;
-    if (state.TargetProcessName !== undefined) {
-      processName.value = state.TargetProcessName;
-      bridge.GetProcessIconBase64(state.TargetProcessName).then(icon => {
+    if (state.logs !== undefined) logs.value = state.logs;
+    if (state.targetProcessName !== undefined) {
+      processName.value = state.targetProcessName;
+      bridge.GetProcessIconBase64(state.targetProcessName).then(icon => {
         processIcon.value = icon;
       });
     }
-    if (state.BackgroundMode !== undefined) {
-      bgMode.value = state.BackgroundMode;
+    if (state.backgroundMode !== undefined) {
+      bgMode.value = state.backgroundMode;
     }
-    if (state.PropertyErrors !== undefined) {
-      propertyErrors.value = { ...propertyErrors.value, ...state.PropertyErrors };
+    if (state.propertyErrors !== undefined) {
+      propertyErrors.value = { ...propertyErrors.value, ...state.propertyErrors };
     }
-    if (state.CurrentImageFileName !== undefined) {
-      if (state.CurrentImageFileName) {
-        bridge.GetImageBase64(state.CurrentImageFileName).then(b64 => {
+    if (state.currentImageFileName !== undefined) {
+      if (state.currentImageFileName) {
+        bridge.GetImageBase64(state.currentImageFileName).then(b64 => {
           bgImage.value = b64;
         });
       } else {
         bgImage.value = '';
       }
+    }
+    if (state.associatedLaunchPath !== undefined) {
+        associatedLaunchPath.value = state.associatedLaunchPath;
+    }
+    if (state.launchOnAppStartup !== undefined) {
+        launchOnAppStartup.value = state.launchOnAppStartup;
+    }
+    if (state.launchOnTaskStart !== undefined) {
+        launchOnTaskStart.value = state.launchOnTaskStart;
     }
   });
 })
@@ -215,6 +231,9 @@ onMounted(() => {
           v-model:autoHideTaskbar="autoHideTaskbar"
           v-model:enableDisplaySync="enableDisplaySync"
           v-model:enableOverlay="enableOverlay"
+          v-model:associatedLaunchPath="associatedLaunchPath"
+          v-model:launchOnAppStartup="launchOnAppStartup"
+          v-model:launchOnTaskStart="launchOnTaskStart"
           v-model:bgMode="bgMode"
           v-model:selectedColor="selectedColor"
           v-model:bgImage="bgImage"

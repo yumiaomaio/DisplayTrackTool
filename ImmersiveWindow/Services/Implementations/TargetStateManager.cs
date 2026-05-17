@@ -18,7 +18,8 @@ public class TargetStateManager(
     IKeyboardHookService keyboardHookService,
     ILoggingService loggingService,
     ITaskbarService taskbarService,
-    IDisplayService displayService)
+    IDisplayService displayService,
+    ILaunchService launchService)
     : ITargetStateManager, IDisposable
 {
     // State
@@ -61,6 +62,16 @@ public class TargetStateManager(
 
         _isRunning = true;
         _lastOrientation = WindowOrientation.UNKNOWN;
+
+        // --- 关联启动 (任务启动时) ---
+        if (configService.IsLaunchOnTaskStartEnabled())
+        {
+            var path = configService.GetAssociatedLaunchPath();
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                launchService.Launch(path);
+            }
+        }
 
         // --- 背景遮罩 ---
         if (configService.IsBackgroundOverlayEnabled())

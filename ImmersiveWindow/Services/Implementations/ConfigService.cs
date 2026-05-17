@@ -198,6 +198,30 @@ public class ConfigService : IConfigService
         SaveConfig();
     }
 
+    public string? GetAssociatedLaunchPath() => _config.AssociatedLaunchPath;
+    public void SetAssociatedLaunchPath(string? path)
+    {
+        if (_config.AssociatedLaunchPath == path) return;
+        _config.AssociatedLaunchPath = path;
+        SaveConfig();
+    }
+
+    public bool IsLaunchOnAppStartupEnabled() => _config.LaunchOnAppStartup;
+    public void SetLaunchOnAppStartup(bool enabled)
+    {
+        if (_config.LaunchOnAppStartup == enabled) return;
+        _config.LaunchOnAppStartup = enabled;
+        SaveConfig();
+    }
+
+    public bool IsLaunchOnTaskStartEnabled() => _config.LaunchOnTaskStart;
+    public void SetLaunchOnTaskStart(bool enabled)
+    {
+        if (_config.LaunchOnTaskStart == enabled) return;
+        _config.LaunchOnTaskStart = enabled;
+        SaveConfig();
+    }
+
     private T ParseEnum<T>(List<string> values) where T : struct
     {
         if (!values.Any()) return default;

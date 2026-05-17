@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { i18n } from '../i18n'
 import { bridge } from '../services/bridge'
 
@@ -8,6 +8,9 @@ const props = defineProps({
   autoHideTaskbar: Boolean,
   enableDisplaySync: Boolean,
   enableOverlay: Boolean,
+  associatedLaunchPath: String,
+  launchOnAppStartup: Boolean,
+  launchOnTaskStart: Boolean,
   bgMode: String,
   selectedColor: String,
   bgImage: String,
@@ -22,10 +25,37 @@ const emit = defineEmits([
   'update:autoHideTaskbar', 
   'update:enableDisplaySync',
   'update:enableOverlay', 
+  'update:associatedLaunchPath',
+  'update:launchOnAppStartup',
+  'update:launchOnTaskStart',
   'update:bgMode', 
   'update:selectedColor',
   'update:bgImage'
 ])
+
+const isProcessFound = ref(null);
+let checkTimeout = null;
+
+const checkProcess = async (name) => {
+  if (!name) {
+    isProcessFound.value = null;
+    return;
+  }
+  isProcessFound.value = await bridge.CheckProcessExists(name);
+};
+
+watch(() => props.processName, (newVal) => {
+  clearTimeout(checkTimeout);
+  checkTimeout = setTimeout(() => {
+    checkProcess(newVal);
+  }, 500);
+});
+
+onMounted(() => {
+  if (props.processName) {
+    checkProcess(props.processName);
+  }
+});
 
 const onAutoHideChange = (e) => {
     const val = e.target.checked;
@@ -45,6 +75,18 @@ const onDisplaySyncChange = (e) => {
     bridge.SetEnableDisplaySync(val);
 }
 
+const onLaunchOnAppStartupChange = (e) => {
+    const val = e.target.checked;
+    emit('update:launchOnAppStartup', val);
+    bridge.SetLaunchOnAppStartup(val);
+}
+
+const onLaunchOnTaskStartChange = (e) => {
+    const val = e.target.checked;
+    emit('update:launchOnTaskStart', val);
+    bridge.SetLaunchOnTaskStart(val);
+}
+
 const onColorChange = (hex) => {
     emit('update:selectedColor', hex);
     const fullHex = "#FF" + hex.substring(1).toUpperCase();
@@ -53,6 +95,10 @@ const onColorChange = (hex) => {
 
 const selectImage = () => {
   bridge.SelectImage();
+}
+
+const selectAssociatedProgram = () => {
+  bridge.SelectAssociatedProgram();
 }
 
 const clearImage = () => {
@@ -71,10 +117,59 @@ const clearImage = () => {
         :value="processName" 
         @input="e => emit('update:processName', e.target.value)" 
         placeholder="TargetApp.exe"
+        :class="{ 'error': processName && isProcessFound === false, 'success': processName && isProcessFound === true }"
+        style="padding-right: 40px;"
       >
-      <span class="status-icon" :style="{ opacity: processName ? 1 : 0, transform: processName ? 'scale(1)' : 'scale(0.5)' }">✓</span>
+      <span class="status-icon" :style="{ 
+          opacity: 1, 
+          transform: 'scale(1)',
+          color: !processName ? 'var(--input-stroke)' : (isProcessFound === true ? 'var(--success-color, #00ff41)' : (isProcessFound === false ? 'var(--danger-color)' : 'var(--input-stroke)')),
+          right: '14px'
+        }">✓</span>
     </div>
-    <p class="section-desc" style="margin-top: 8px;">{{ i18n.t.processNameDesc }}</p>
+    <div v-if="processName && isProcessFound === false" class="error-text" style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 20px;" @click="checkProcess(processName)">
+      {{ i18n.t.processNotFound }}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: -1px;"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.6-6.4L21 8"></path></svg>
+    </div>
+    <p v-else class="section-desc" style="margin-top: 8px;">{{ i18n.t.processNameDesc }}</p>
+
+    <div class="thick-divider"></div>
+
+    <div class="section-title">{{ i18n.t.associatedLaunch }}</div>
+    <label class="input-label">{{ i18n.t.launchPath }}</label>
+    <div class="input-wrapper" style="margin-bottom: 12px;">
+      <input 
+        type="text" 
+        :value="associatedLaunchPath" 
+        @input="e => emit('update:associatedLaunchPath', e.target.value)"
+        @change="e => bridge.SetAssociatedLaunchPath(e.target.value)"
+        placeholder="steam://... or C:\Path\To\Game.exe"
+        class="path-input"
+      >
+      <button class="browse-btn" @click="selectAssociatedProgram" :title="i18n.t.browse">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </button>
+    </div>
+    <p class="section-desc">{{ i18n.t.associatedLaunchDesc }}</p>
+
+    <div class="row-setting">
+      <span>{{ i18n.t.launchOnAppStartup }}</span>
+      <label class="switch-label">
+        <input type="checkbox" :checked="launchOnAppStartup" @change="onLaunchOnAppStartupChange">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="row-setting" style="margin-top: 10px;">
+      <span>{{ i18n.t.launchOnTaskStart }}</span>
+      <label class="switch-label">
+        <input type="checkbox" :checked="launchOnTaskStart" @change="onLaunchOnTaskStartChange">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="thick-divider"></div>
 
     <div class="row-setting">
       <span>{{ i18n.t.autoHideTaskbar }}</span>
@@ -182,7 +277,16 @@ input[type="text"], input[type="number"] {
     color: var(--text-main); padding: 12px 14px; border-radius: var(--shape-radius);
     font-size: 14px; font-weight: 600; outline: none; transition: all 0.2s;
 }
-.input-wrapper input[type="text"] { padding-right: 42px; }
+.input-wrapper input[type="text"] { padding-right: 70px; }
+.input-wrapper .browse-btn {
+    position: absolute; right: 6px; top: 6px; bottom: 6px;
+    background: transparent; color: var(--text-muted);
+    border: none; border-radius: calc(var(--shape-radius) - 4px);
+    width: 32px; padding: 0; display: flex; justify-content: center; align-items: center; cursor: pointer;
+    transition: all 0.2s;
+}
+.input-wrapper .browse-btn:hover { background: var(--input-stroke); color: var(--primary-color); }
+
 input[type="text"]:focus, input[type="number"]:focus {
     border-color: var(--primary-color); box-shadow: 0 0 12px rgba(255, 140, 0, 0.15);
 }
@@ -199,10 +303,19 @@ input.error {
 }
 
 .status-icon {
-    position: absolute; right: 14px;
+    position: absolute; right: 80px;
     color: var(--primary-color); font-weight: 900; font-size: 16px;
     transition: opacity 0.3s, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     pointer-events: none;
+}
+
+.path-input {
+    direction: rtl;
+    text-align: left;
+    text-overflow: ellipsis;
+}
+.path-input:focus {
+    direction: ltr;
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -210,15 +323,6 @@ input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none; margin: 0;
 }
 input[type="number"] { -moz-appearance: textfield; }
-
-.ratio-grid { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.ratio-grid input { text-align: center; padding: 10px; }
-.ratio-grid span { font-weight: bold; color: var(--text-muted); padding: 0 2px; }
-
-.vertical-divider {
-    width: 2px; height: 22px; background: var(--input-stroke);
-    margin: 0 4px; border-radius: 1px;
-}
 
 .btn-preset {
     border: 2px solid transparent; background: var(--btn-bg); color: var(--text-main);

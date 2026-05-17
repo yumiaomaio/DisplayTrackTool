@@ -32,16 +32,20 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
             
             var value = prop.GetValue(viewModel);
             
-            // Format specific values if needed
             if (value is Enum) value = value.ToString()?.ToLower();
 
-            await PushToFrontend(new Dictionary<string, object?> { { e.PropertyName, value } });
+            // Ensure WebView2 is accessed on the UI thread
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(async () => {
+                await PushToFrontend(new Dictionary<string, object?> { { e.PropertyName, value } });
+            });
         };
 
         // --- Automatic Sync: Log Collection ---
-        viewModel.Logs.CollectionChanged += async (s, e) =>
+        viewModel.Logs.CollectionChanged += (s, e) =>
         {
-            await PushToFrontend(new { Logs = viewModel.Logs });
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(async () => {
+                await PushToFrontend(new { Logs = viewModel.Logs });
+            });
         };
     }
 
@@ -50,8 +54,13 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
         if (_webView == null) return;
         try
         {
-            string json = JsonSerializer.Serialize(state);
-            await _webView.ExecuteScriptAsync($"window.onStateChanged('{json}')");
+            var options = new JsonSerializerOptions 
+            { 
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DictionaryKeyPolicy = JsonNamingPolicy.CamelCase 
+            };
+            string json = JsonSerializer.Serialize(state, options);
+            await _webView.ExecuteScriptAsync($"window.onStateChanged({json})");
         }
         catch (Exception ex)
         {
@@ -70,17 +79,20 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
     public string CurrentImageFileName => viewModel.CurrentImageFileName ?? "";
     public string BackgroundColor => viewModel.BackgroundColor;
     public bool ShouldShowExitTip => viewModel.ShouldShowExitTip;
+    public string AssociatedLaunchPath => viewModel.AssociatedLaunchPath ?? "";
+    public bool LaunchOnAppStartup => viewModel.LaunchOnAppStartup;
+    public bool LaunchOnTaskStart => viewModel.LaunchOnTaskStart;
 
     // --- Methods from JS ---
     public void StartMonitoring(string processName)
     {
         viewModel.TargetProcessName = processName;
-        viewModel.StartCommand.Execute(null);
+        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => viewModel.StartCommand.Execute(null)));
     }
 
     public void StopMonitoring()
     {
-        viewModel.StopCommand.Execute(null);
+        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => viewModel.StopCommand.Execute(null)));
     }
 
     public void SetBackgroundColor(string color)
@@ -108,9 +120,29 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
         viewModel.ShouldShowExitTip = show;
     }
 
+    public void SetAssociatedLaunchPath(string path)
+    {
+        viewModel.AssociatedLaunchPath = path;
+    }
+
+    public void SetLaunchOnAppStartup(bool enable)
+    {
+        viewModel.LaunchOnAppStartup = enable;
+    }
+
+    public void SetLaunchOnTaskStart(bool enable)
+    {
+        viewModel.LaunchOnTaskStart = enable;
+    }
+
+    public void SelectAssociatedProgram()
+    {
+        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => viewModel.SelectAssociatedProgramCommand.Execute(null)));
+    }
+
     public void SelectImage()
     {
-        viewModel.SelectImageCommand.Execute(null);
+        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => viewModel.SelectImageCommand.Execute(null)));
     }
 
     public void ClearImage()
@@ -146,6 +178,11 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
         return processService.GetProcessIconBase64(processName);
     }
 
+    public bool CheckProcessExists(string processName)
+    {
+        return processService.GetProcessExecutablePath(processName) != null;
+    }
+
     public void RestartAsAdmin()
     {
         viewModel.RestartAsAdminCommand.Execute(null);
@@ -158,7 +195,7 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService)
 
     public void ShowAbout()
     {
-        viewModel.AboutCommand.Execute(null);
+        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => viewModel.AboutCommand.Execute(null)));
     }
     
     // Helper to get logs as a single string (can be optimized later)
