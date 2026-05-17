@@ -62,8 +62,37 @@ public partial class MainWindow : Window
                 MessageBox.Show($"Web UI file not found at: {htmlPath}");
             }
 
+            // --- Auto Start From Third Party ---
+            bool autoStartedByThirdParty = false;
+            if (_configService.IsAutoStartFromThirdPartyEnabled())
+            {
+                string? parentProcessName = _processService.GetParentProcessName()?.ToLowerInvariant();
+                _loggingService.AddLog($"[Startup] Parent process: {parentProcessName ?? "Unknown"}");
+
+                // List of common shell/dev launchers to ignore (treat as normal startup)
+                var ignoredParents = new[] { "explorer", "cmd", "powershell", "pwsh", "rider64", "devenv", "bash", "mintty" };
+                
+                if (!string.IsNullOrEmpty(parentProcessName) && !ignoredParents.Contains(parentProcessName))
+                {
+                    _loggingService.AddLog($"[Startup] Third-party launcher detected. Auto-launching and starting monitoring.");
+                    autoStartedByThirdParty = true;
+                    
+                    // 1. Launch associated program
+                    _viewModel.LaunchAssociatedProgram();
+                    
+                    // 2. Start monitoring task
+                    _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => 
+                    {
+                        if (!_viewModel.IsRunning && !string.IsNullOrWhiteSpace(_viewModel.TargetProcessName))
+                        {
+                            _viewModel.StartCommand.Execute(null);
+                        }
+                    }));
+                }
+            }
+
             // --- Associated Launch (App Startup) ---
-            if (_configService.IsLaunchOnAppStartupEnabled())
+            if (!autoStartedByThirdParty && _configService.IsLaunchOnAppStartupEnabled())
             {
                 _viewModel.LaunchAssociatedProgram();
             }

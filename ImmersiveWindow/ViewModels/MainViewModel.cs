@@ -187,6 +187,19 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             }
         }
     }
+
+    private bool _autoStartFromThirdParty;
+    public bool AutoStartFromThirdParty
+    {
+        get => _autoStartFromThirdParty;
+        set
+        {
+            if (SetProperty(ref _autoStartFromThirdParty, value))
+            {
+                _configService.SetAutoStartFromThirdParty(value);
+            }
+        }
+    }
     #endregion
 
     public MainViewModel(
@@ -248,6 +261,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         AssociatedLaunchPath = _configService.GetAssociatedLaunchPath();
         LaunchOnAppStartup = _configService.IsLaunchOnAppStartupEnabled();
         LaunchOnTaskStart = _configService.IsLaunchOnTaskStartEnabled();
+        AutoStartFromThirdParty = _configService.IsAutoStartFromThirdPartyEnabled();
 
         StartCommand = new RelayCommand(() => _ = OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
         StopCommand = new RelayCommand(() => _ = OnStopAsync(), () => IsRunning);

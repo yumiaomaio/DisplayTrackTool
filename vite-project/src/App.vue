@@ -26,6 +26,7 @@ const processIcon = ref('')
 const associatedLaunchPath = ref('')
 const launchOnAppStartup = ref(false)
 const launchOnTaskStart = ref(false)
+const autoStartFromThirdParty = ref(false)
 const autoHideTaskbar = ref(false)
 const enableDisplaySync = ref(true)
 const enableOverlay = ref(true)
@@ -128,6 +129,7 @@ async function init() {
   associatedLaunchPath.value = await bridge.AssociatedLaunchPath;
   launchOnAppStartup.value = await bridge.LaunchOnAppStartup;
   launchOnTaskStart.value = await bridge.LaunchOnTaskStart;
+  autoStartFromThirdParty.value = await bridge.AutoStartFromThirdParty;
   isRunning.value = await bridge.IsRunning;
   shouldShowExitTip.value = await bridge.ShouldShowExitTip;
 
@@ -201,6 +203,9 @@ onMounted(() => {
     if (state.launchOnTaskStart !== undefined) {
         launchOnTaskStart.value = state.launchOnTaskStart;
     }
+    if (state.autoStartFromThirdParty !== undefined) {
+        autoStartFromThirdParty.value = state.autoStartFromThirdParty;
+    }
   });
 })
 </script>
@@ -233,6 +238,7 @@ onMounted(() => {
           v-model:associatedLaunchPath="associatedLaunchPath"
           v-model:launchOnAppStartup="launchOnAppStartup"
           v-model:launchOnTaskStart="launchOnTaskStart"
+          v-model:autoStartFromThirdParty="autoStartFromThirdParty"
           v-model:bgMode="bgMode"
           v-model:selectedColor="selectedColor"
           v-model:bgImage="bgImage"

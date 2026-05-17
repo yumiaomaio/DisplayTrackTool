@@ -28,4 +28,6 @@ public interface IConfigService
     void SetLaunchOnAppStartup(bool enabled);
     bool IsLaunchOnTaskStartEnabled();
     void SetLaunchOnTaskStart(bool enabled);
+    bool IsAutoStartFromThirdPartyEnabled();
+    void SetAutoStartFromThirdParty(bool enabled);
 }

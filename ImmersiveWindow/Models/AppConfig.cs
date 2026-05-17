@@ -44,6 +44,9 @@ public class AppConfig
     [JsonPropertyName("launchOnTaskStart")]
     public bool LaunchOnTaskStart { get; set; }
 
+    [JsonPropertyName("autoStartFromThirdParty")]
+    public bool AutoStartFromThirdParty { get; set; }
+
     [JsonPropertyName("profiles")]
     public ProfileCollection Profiles { get; set; } = new();
 }

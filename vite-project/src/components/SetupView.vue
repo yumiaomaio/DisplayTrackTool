@@ -11,6 +11,7 @@ const props = defineProps({
   associatedLaunchPath: String,
   launchOnAppStartup: Boolean,
   launchOnTaskStart: Boolean,
+  autoStartFromThirdParty: Boolean,
   bgMode: String,
   selectedColor: String,
   bgImage: String,
@@ -28,6 +29,7 @@ const emit = defineEmits([
   'update:associatedLaunchPath',
   'update:launchOnAppStartup',
   'update:launchOnTaskStart',
+  'update:autoStartFromThirdParty',
   'update:bgMode', 
   'update:selectedColor',
   'update:bgImage'
@@ -35,6 +37,8 @@ const emit = defineEmits([
 
 const isProcessFound = ref(null);
 let checkTimeout = null;
+
+const hoveredLaunchTab = ref(null); // The tab currently being hovered
 
 const checkProcess = async (name) => {
   if (!name) {
@@ -87,6 +91,12 @@ const onLaunchOnTaskStartChange = (e) => {
     bridge.SetLaunchOnTaskStart(val);
 }
 
+const onAutoStartFromThirdPartyChange = (e) => {
+    const val = e.target.checked;
+    emit('update:autoStartFromThirdParty', val);
+    bridge.SetAutoStartFromThirdParty(val);
+}
+
 const onColorChange = (hex) => {
     emit('update:selectedColor', hex);
     const fullHex = "#FF" + hex.substring(1).toUpperCase();
@@ -129,9 +139,29 @@ const clearImage = () => {
     </div>
     <div v-if="processName && isProcessFound === false" class="error-text" style="display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 20px;" @click="checkProcess(processName)">
       {{ i18n.t.processNotFound }}
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: -1px;"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.6-6.4L21 8"></path></svg>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: -1px;">
+        <path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+      </svg>
     </div>
     <p v-else class="section-desc" style="margin-top: 8px;">{{ i18n.t.processNameDesc }}</p>
+
+    <div class="row-setting">
+      <span>{{ i18n.t.autoHideTaskbar }}</span>
+      <label class="switch-label">
+        <input type="checkbox" :checked="autoHideTaskbar" @change="onAutoHideChange">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <p class="section-desc" style="margin-top: 8px; margin-bottom: 0;">{{ i18n.t.autoHideTaskbarDesc }}</p>
+
+    <div class="row-setting">
+      <span>{{ i18n.t.displaySync }}</span>
+      <label class="switch-label">
+        <input type="checkbox" :checked="enableDisplaySync" @change="onDisplaySyncChange">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <p class="section-desc" style="margin-top: 8px; margin-bottom: 0;">{{ i18n.t.displaySyncDesc }}</p>
 
     <div class="thick-divider"></div>
 
@@ -152,42 +182,54 @@ const clearImage = () => {
         </svg>
       </button>
     </div>
-    <p class="section-desc">{{ i18n.t.associatedLaunchDesc }}</p>
+    <p class="section-desc" style="margin-bottom: 20px;margin-top: 8px;">{{ i18n.t.associatedLaunchDesc }}</p>
 
-    <div class="row-setting">
-      <span>{{ i18n.t.launchOnAppStartup }}</span>
-      <label class="switch-label">
-        <input type="checkbox" :checked="launchOnAppStartup" @change="onLaunchOnAppStartupChange">
-        <span class="slider"></span>
-      </label>
-    </div>
-    <div class="row-setting" style="margin-top: 10px;">
-      <span>{{ i18n.t.launchOnTaskStart }}</span>
-      <label class="switch-label">
-        <input type="checkbox" :checked="launchOnTaskStart" @change="onLaunchOnTaskStartChange">
-        <span class="slider"></span>
-      </label>
+    <label class="input-label">{{ i18n.t.launchTiming }}</label>
+    <!-- Multi-Select Tab Grid -->
+    <div class="launch-tabs-grid">
+      <div class="tab-item" 
+             :class="{ 'checked': autoStartFromThirdParty }" 
+             @mouseenter="hoveredLaunchTab = 'invoked'"
+             @mouseleave="hoveredLaunchTab = null"
+             @click="emit('update:autoStartFromThirdParty', !autoStartFromThirdParty); bridge.SetAutoStartFromThirdParty(!autoStartFromThirdParty)">
+        <div class="checkbox-circle"></div>
+        {{ i18n.t.tabInvoked }}
+      </div>
+
+      <div class="tab-item" 
+             :class="{ 'checked': launchOnAppStartup }" 
+             @mouseenter="hoveredLaunchTab = 'startup'"
+             @mouseleave="hoveredLaunchTab = null"
+             @click="emit('update:launchOnAppStartup', !launchOnAppStartup); bridge.SetLaunchOnAppStartup(!launchOnAppStartup)">
+        <div class="checkbox-circle"></div>
+        {{ i18n.t.tabStartup }}
+      </div>
+
+      <div class="tab-item" 
+             :class="{ 'checked': launchOnTaskStart }" 
+             @mouseenter="hoveredLaunchTab = 'task'"
+             @mouseleave="hoveredLaunchTab = null"
+             @click="emit('update:launchOnTaskStart', !launchOnTaskStart); bridge.SetLaunchOnTaskStart(!launchOnTaskStart)">
+        <div class="checkbox-circle"></div>
+        {{ i18n.t.tabTask }}
+      </div>
     </div>
 
-    <div class="thick-divider"></div>
-
-    <div class="row-setting">
-      <span>{{ i18n.t.autoHideTaskbar }}</span>
-      <label class="switch-label">
-        <input type="checkbox" :checked="autoHideTaskbar" @change="onAutoHideChange">
-        <span class="slider"></span>
-      </label>
+    <!-- Description Area directly below the tabs -->
+    <div style="margin-top: 12px; display: flex; align-items: center;">
+      <p v-if="hoveredLaunchTab === 'invoked'" class="section-desc" style="margin: 0;">
+        {{ i18n.t.autoStartFromThirdPartyDesc }}
+      </p>
+      <p v-else-if="hoveredLaunchTab === 'startup'" class="section-desc" style="margin: 0;">
+        {{ i18n.t.launchOnAppStartupDesc }}
+      </p>
+      <p v-else-if="hoveredLaunchTab === 'task'" class="section-desc" style="margin: 0;">
+        {{ i18n.t.launchOnTaskStartDesc }}
+      </p>
+      <p v-else class="section-desc" style="margin: 0;">
+        {{ i18n.t.associatedLaunchDefaultDesc }}
+      </p>
     </div>
-    <p class="section-desc" style="margin-top: 8px; margin-bottom: 0;">{{ i18n.t.autoHideTaskbarDesc }}</p>
-
-    <div class="row-setting">
-      <span>{{ i18n.t.displaySync }}</span>
-      <label class="switch-label">
-        <input type="checkbox" :checked="enableDisplaySync" @change="onDisplaySyncChange">
-        <span class="slider"></span>
-      </label>
-    </div>
-    <p class="section-desc" style="margin-top: 8px; margin-bottom: 0;">{{ i18n.t.displaySyncDesc }}</p>
 
     <div class="thick-divider"></div>
 
@@ -219,7 +261,7 @@ const clearImage = () => {
         <div class="color-row">
           <div class="color-presets">
             <div 
-              v-for="color in ['#000000', '#1c1c1f', '#ff8c00', '#0077b6', '#00ff41']" 
+              v-for="color in ['#000000', '#808080', '#ff8c00', '#0077b6', '#00ff41']" 
               :key="color"
               class="color-dot" 
               :style="{ backgroundColor: color }"
@@ -269,7 +311,7 @@ const clearImage = () => {
     background: var(--primary-color); transform: skewX(-30deg);
 }
 
-.input-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; }
+.input-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-transform: uppercase; }
 .input-wrapper { position: relative; display: flex; align-items: center; }
 
 input[type="text"], input[type="number"] {
@@ -345,12 +387,50 @@ input[type="number"] { -moz-appearance: textfield; }
 .slider::after { content: 'OFF'; position: absolute; right: 6px; top: 8px; color: #fff; font-size: 10px; font-weight: bold; }
 .switch-label input:checked + .slider::after { content: 'ON'; left: 8px; right: auto; }
 
-.mode-tabs { display: flex; gap: 12px; margin-bottom: 20px; }
+.launch-tabs-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.tab-item {
+    display: flex; align-items: center; justify-content: center;
+    background: var(--input-bg); padding: 14px 10px;
+    border: none;
+    border-radius: 2px 12px 2px 12px;
+    cursor: pointer; transition: all 0.2s;
+    font-size: 12px; font-weight: 900; color: var(--text-muted);
+    position: relative;
+    user-select: none;
+}
+.tab-item input { display: none; }
+.checkbox-circle {
+    width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--input-stroke);
+    margin-right: 8px; background: var(--modal-bg);
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.tab-item.checked {
+    background: rgba(255, 140, 0, 0.15);
+    color: var(--primary-color);
+}
+.tab-item.checked .checkbox-circle::after {
+    content: ''; width: 6px; height: 6px; background: var(--primary-color); border-radius: 50%;
+}
+.tab-item.checked .checkbox-circle {
+    border-color: var(--input-stroke); /* Keep outer ring gray even when checked */
+}
+
+/* Hover States */
+.tab-item:hover {
+    background: rgba(255, 140, 0, 0.1); /* Light orange hover */
+}
+.tab-item.checked:hover {
+    background: rgba(255, 140, 0, 0.25);
+}
+
+.mode-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
 .tab-label { flex: 1; cursor: pointer; position: relative; }
 .tab-label input { display: none; }
 .tab-bg {
-    text-align: center; padding: 12px; background: var(--input-bg); border: 2px solid var(--input-stroke); 
-    border-radius: var(--shape-radius); font-size: 13px; font-weight: bold; color: var(--text-muted); transition: 0.2s;
+    text-align: center; padding: 8px 10px; background: var(--input-bg); border: 2px solid var(--input-stroke); 
+    border-radius: var(--shape-radius); font-size: 12px; font-weight: bold; color: var(--text-muted); transition: 0.2s;
 }
 .tab-label input:checked + .tab-bg { background: var(--primary-color); color: white; border-color: var(--primary-color); box-shadow: 0 4px 12px rgba(255, 140, 0, 0.2); }
 

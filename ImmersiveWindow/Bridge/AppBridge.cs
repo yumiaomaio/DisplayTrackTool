@@ -134,6 +134,11 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService, 
         viewModel.LaunchOnTaskStart = enable;
     }
 
+    public void SetAutoStartFromThirdParty(bool enable)
+    {
+        viewModel.AutoStartFromThirdParty = enable;
+    }
+
     public void SelectAssociatedProgram()
     {
         System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => viewModel.SelectAssociatedProgramCommand.Execute(null)));

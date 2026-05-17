@@ -223,6 +223,14 @@ public class ConfigService : IConfigService
         SaveConfig();
     }
 
+    public bool IsAutoStartFromThirdPartyEnabled() => _config.AutoStartFromThirdParty;
+    public void SetAutoStartFromThirdParty(bool enabled)
+    {
+        if (_config.AutoStartFromThirdParty == enabled) return;
+        _config.AutoStartFromThirdParty = enabled;
+        SaveConfig();
+    }
+
     private T ParseEnum<T>(List<string> values) where T : struct
     {
         if (!values.Any()) return default;
