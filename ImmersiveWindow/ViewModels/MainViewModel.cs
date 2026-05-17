@@ -194,13 +194,39 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         IConfigService configService, 
         ILoggingService loggingService,
         IPrivilegeService privilegeService,
-        ILaunchService launchService)
+        ILaunchService launchService,
+        IKeyboardHookService keyboardHookService)
     {
         _stateManager = stateManager;
         _configService = configService;
         _loggingService = loggingService;
         _privilegeService = privilegeService;
         _launchService = launchService;
+
+        // Start global keyboard hook for F9 (Start) and F12 (Stop)
+        keyboardHookService.Start();
+        keyboardHookService.KeyPressed += (vkCode) => 
+        {
+            const int vkF9 = 0x78;
+            const int vkF12 = 0x7B;
+
+            if (vkCode == vkF9)
+            {
+                if (!IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName))
+                {
+                    _loggingService.AddLog("F9 key pressed. Starting...");
+                    Application.Current?.Dispatcher?.BeginInvoke(new Action(() => StartCommand?.Execute(null)));
+                }
+            }
+            else if (vkCode == vkF12)
+            {
+                if (IsRunning)
+                {
+                    _loggingService.AddLog("F12 key pressed. Shutting down...");
+                    Application.Current?.Dispatcher?.BeginInvoke(new Action(() => StopCommand?.Execute(null)));
+                }
+            }
+        };
 
         _stateManager.IsRunningChanged += OnIsRunningChanged;
 

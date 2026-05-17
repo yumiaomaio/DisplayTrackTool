@@ -89,9 +89,6 @@ public class TargetStateManager(
         monitorService.WindowDestroyed += OnWindowDestroyed;
         monitorService.StartMonitoring(_targetHwnd);
 
-        keyboardHookService.Start();
-        keyboardHookService.KeyPressed += OnKeyPressed;
-
         // --- 初始布局应用 ---
         AddLog("Applying initial portrait layout and monitor settings.");
         var profile = configService.GetPortraitProfile();

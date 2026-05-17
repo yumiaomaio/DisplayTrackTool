@@ -33,7 +33,7 @@ export const translations = {
     stop: 'STOP',
     exitTip: {
       title: 'EXIT SHORTCUT',
-      message: 'Monitoring active. Press F12 to stop and exit immersive mode.',
+      message: 'Monitoring active. Press F12 to stop and exit immersive mode. You can also press F9 to start monitoring.',
       dontShowAgain: "Don't show this again",
       gotIt: 'GOT IT'
     },
@@ -95,7 +95,7 @@ export const translations = {
     stop: '停止',
     exitTip: {
       title: '退出快捷键',
-      message: '控制已激活。请按 F12 停止并退出沉浸模式。',
+      message: '控制已激活。请按 F12 停止并退出，或按 F9 启动监听。',
       dontShowAgain: '下次不再提示',
       gotIt: '知道了'
     },
