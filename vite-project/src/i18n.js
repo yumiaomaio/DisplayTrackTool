@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 
 export const translations = {
   en: {
-    appTitle: 'IMMERSIVE CONTROL',
+    appTitle: 'IMMERSIVE DISPLAY',
     processNameLabel: 'PROCESS NAME',
     processNameDesc: 'Right-click the process in Task Manager and check properties to find the exact executable name.',
     processNotFound: 'Target process not detected. Please ensure it is running.',
@@ -73,7 +73,7 @@ export const translations = {
     }
   },
   zh: {
-    appTitle: '沉浸式窗口控制',
+    appTitle: '沉浸显示',
     processNameLabel: '进程名称',
     processNameDesc: '请在任务管理器中右键目标进程，查看“属性”以获取准确的可执行文件名（如：Target.exe）。',
     processNotFound: '未检测到目标进程，请确认该程序已运行。',
