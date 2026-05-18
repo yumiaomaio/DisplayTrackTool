@@ -178,6 +178,11 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService, 
         }
     }
 
+    public string GetProcessCommandLine(string processName)
+    {
+        return processService.GetProcessCommandLine(processName) ?? "";
+    }
+
     public string GetProcessIconBase64(string processName)
     {
         return processService.GetProcessIconBase64(processName);

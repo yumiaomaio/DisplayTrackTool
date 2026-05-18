@@ -115,6 +115,15 @@ const clearImage = () => {
   bridge.ClearImage();
   emit('update:bgImage', '');
 }
+
+const detectCommandLine = async () => {
+  if (!props.processName) return;
+  const commandLine = await bridge.GetProcessCommandLine(props.processName);
+  if (commandLine) {
+    emit('update:associatedLaunchPath', commandLine);
+    bridge.SetAssociatedLaunchPath(commandLine);
+  }
+}
 </script>
 
 <template>
@@ -175,12 +184,21 @@ const clearImage = () => {
         @change="e => bridge.SetAssociatedLaunchPath(e.target.value)"
         placeholder="steam://... or C:\Path\To\Game.exe"
         class="path-input"
+        style="padding-right: 105px;"
       >
-      <button class="browse-btn" @click="selectAssociatedProgram" :title="i18n.t.browse">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-        </svg>
-      </button>
+      <div class="input-actions">
+        <button class="action-btn detect-btn" @click="detectCommandLine" :title="i18n.t.detectCommandLine">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+        <button class="action-btn browse-btn" @click="selectAssociatedProgram" :title="i18n.t.browse">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+      </div>
     </div>
     <p class="section-desc" style="margin-bottom: 20px;margin-top: 8px;">{{ i18n.t.associatedLaunchDesc }}</p>
 
@@ -319,15 +337,33 @@ input[type="text"], input[type="number"] {
     color: var(--text-main); padding: 12px 14px; border-radius: var(--shape-radius);
     font-size: 14px; font-weight: 600; outline: none; transition: all 0.2s;
 }
-.input-wrapper input[type="text"] { padding-right: 70px; }
-.input-wrapper .browse-btn {
+.input-actions {
     position: absolute; right: 6px; top: 6px; bottom: 6px;
-    background: transparent; color: var(--text-muted);
-    border: none; border-radius: calc(var(--shape-radius) - 4px);
-    width: 32px; padding: 0; display: flex; justify-content: center; align-items: center; cursor: pointer;
+    display: flex; gap: 2px;
+    background: rgba(128, 128, 128, 0.15);
+    padding: 2px;
+    border-radius: 999px; /* Capsule shape */
+}
+
+.action-btn {
+    background: transparent; color: var(--text-main);
+    border: none; border-radius: 999px;
+    width: 30px; height: 100%;
+    display: flex; justify-content: center; align-items: center; cursor: pointer;
     transition: all 0.2s;
 }
-.input-wrapper .browse-btn:hover { background: var(--input-stroke); color: var(--primary-color); }
+.action-btn:hover { background: var(--primary-color); color: white; }
+
+.detect-btn {
+    /* No additional background, transparent inherits from .action-btn */
+}
+.detect-btn svg { color: var(--text-main); }
+.detect-btn:hover svg { color: white; }
+
+.input-wrapper .browse-btn {
+    position: static;
+    width: 30px;
+}
 
 input[type="text"]:focus, input[type="number"]:focus {
     border-color: var(--primary-color); box-shadow: 0 0 12px rgba(255, 140, 0, 0.15);

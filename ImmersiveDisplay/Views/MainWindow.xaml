@@ -9,6 +9,6 @@
         Drop="MainWindow_Drop"
         DragOver="MainWindow_DragOver">
     <Grid>
-        <wv2:WebView2 x:Name="WebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AllowExternalDrop="False" />
+        <wv2:WebView2 x:Name="WebView" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AllowExternalDrop="True" />
     </Grid>
 </Window>

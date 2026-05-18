@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using ImmersiveDisplay.Bridge;
+using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Services;
 using ImmersiveDisplay.ViewModels;
@@ -43,8 +44,29 @@ public partial class MainWindow : Window
             await WebView.EnsureCoreWebView2Async(env);
 
             // Disable standard WebView2 drop to let WPF handle it
-            WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
-            WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            WebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+            WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
+
+            // --- Drag and Drop via Navigation Interception ---
+            // When a file or link is dropped into WebView2, it tries to navigate to it.
+            // We intercept anything that isn't part of our local WebUI.
+            WebView.CoreWebView2.NavigationStarting += (s, e) =>
+            {
+                if (!e.Uri.Contains("/WebUI/", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Cancel = true;
+                    HandleExternalNavigation(e.Uri);
+                }
+            };
+
+            WebView.CoreWebView2.NewWindowRequested += (s, e) =>
+            {
+                if (!e.Uri.Contains("/WebUI/", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Handled = true;
+                    HandleExternalNavigation(e.Uri);
+                }
+            };
 
             _bridge = new AppBridge(_viewModel, _processService, _loggingService);
             _bridge.Initialize(WebView.CoreWebView2); // Start auto-sync
@@ -115,27 +137,51 @@ public partial class MainWindow : Window
     {
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
         {
-            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            string[]? files = e.Data.GetData(DataFormats.FileDrop) as string[];
             if (files != null && files.Length > 0)
             {
-                string path = files[0];
-                string extension = Path.GetExtension(path).ToLower();
-
-                if (extension == ".lnk")
-                {
-                    _viewModel.AssociatedLaunchPath = ShortcutResolver.Resolve(path);
-                }
-                else if (extension == ".exe")
-                {
-                    // Quote if contains spaces
-                    _viewModel.AssociatedLaunchPath = path.Contains(' ') ? $"\"{path}\"" : path;
-                }
-                else
-                {
-                    // Generic files or URLs (if possible)
-                    _viewModel.AssociatedLaunchPath = path;
-                }
+                HandleFileDrop(files[0]);
             }
+        }
+    }
+
+    private void HandleExternalNavigation(string uri)
+    {
+        try
+        {
+            // Convert file:/// URIs back to C:\ local paths
+            // Keep other URIs (http, etc.) as they are
+            string target = uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
+                ? new Uri(uri).LocalPath
+                : uri;
+            
+            HandleFileDrop(target);
+        }
+        catch (Exception ex)
+        {
+            _loggingService.AddLog($"[DragDrop] Error handling navigation: {ex.Message}");
+        }
+    }
+
+    private void HandleFileDrop(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        
+        string extension = Path.GetExtension(path).ToLower();
+
+        if (extension == ".lnk")
+        {
+            _viewModel.AssociatedLaunchPath = ShortcutResolver.Resolve(path);
+        }
+        else if (extension == ".exe")
+        {
+            // Quote if contains spaces
+            _viewModel.AssociatedLaunchPath = path.Contains(' ') ? $"\"{path}\"" : path;
+        }
+        else
+        {
+            // Generic files or URLs (if possible)
+            _viewModel.AssociatedLaunchPath = path;
         }
     }
 }

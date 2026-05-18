@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [vue(), viteSingleFile()],
   base: './',
   build: {
-    outDir: '../ImmersiveWindow/WebUI',
+    outDir: '../ImmersiveDisplay/WebUI',
     emptyOutDir: true,
   },
 })

@@ -18,10 +18,13 @@ internal static partial class NativeMethods
     public static extern bool QueryFullProcessImageName(IntPtr hProcess, int dwFlags, [Out] StringBuilder lpExeName, ref int lpdwSize);
 
     [DllImport("ntdll.dll")]
-    public static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, ref PROCESS_BASIC_INFORMATION processInformation, int processInformationLength, out int returnLength);
+    public static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, ref ProcessBasicInformation processInformation, int processInformationLength, out int returnLength);
+
+    [DllImport("ntdll.dll")]
+    public static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, IntPtr processInformation, int processInformationLength, out int returnLength);
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct PROCESS_BASIC_INFORMATION
+    public struct ProcessBasicInformation
     {
         public IntPtr ExitStatus;
         public IntPtr PebBaseAddress;
@@ -31,5 +34,7 @@ internal static partial class NativeMethods
         public IntPtr InheritedFromUniqueProcessId;
     }
 
+    public const uint PROCESS_QUERY_INFORMATION = 0x0400;
     public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    public const int PROCESS_COMMAND_LINE_INFORMATION = 60;
 }

@@ -107,11 +107,85 @@ public class ProcessService(ILoggingService loggingService) : IProcessService
         return null;
     }
 
+    public string? GetProcessCommandLine(string processName)
+    {
+        if (string.IsNullOrEmpty(processName)) return null;
+
+        string searchName = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? processName.Substring(0, processName.Length - 4)
+            : processName;
+
+        var process = Process.GetProcessesByName(searchName).FirstOrDefault();
+        if (process == null) return null;
+
+        // --- Method 1: Kernel-level Query (Most robust) ---
+        string? commandLine = GetCommandLineViaKernelQuery(process);
+        if (!string.IsNullOrEmpty(commandLine))
+        {
+            loggingService.AddLog($"[ProcessService] Successfully detected command line for '{processName}'.");
+            return commandLine;
+        }
+
+        // --- Method 2: Absolute Fallback (Path Only) ---
+        string? path = GetProcessExecutablePath(processName);
+        if (path != null)
+        {
+            loggingService.AddLog($"[ProcessService] Command line detection failed, using executable path fallback for '{processName}'.");
+            return path.Contains(' ') ? $"\"{path}\"" : path;
+        }
+
+        return null;
+    }
+
+    private string? GetCommandLineViaKernelQuery(Process process)
+    {
+        IntPtr hProcess = NativeMethods.OpenProcess(NativeMethods.PROCESS_QUERY_INFORMATION, false, process.Id);
+        if (hProcess == IntPtr.Zero) return null;
+
+        try
+        {
+            // First call to get required buffer size
+            int status = NativeMethods.NtQueryInformationProcess(hProcess, NativeMethods.PROCESS_COMMAND_LINE_INFORMATION, IntPtr.Zero, 0, out int length);
+            
+            if (length == 0) return null;
+
+            IntPtr buffer = Marshal.AllocHGlobal(length);
+            try
+            {
+                status = NativeMethods.NtQueryInformationProcess(hProcess, NativeMethods.PROCESS_COMMAND_LINE_INFORMATION, buffer, length, out _);
+                if (status == 0)
+                {
+                    // The buffer contains a UNICODE_STRING structure
+                    short len = Marshal.ReadInt16(buffer);
+                    IntPtr strPtr = Marshal.ReadIntPtr(buffer, IntPtr.Size == 8 ? 8 : 4);
+                    
+                    if (strPtr != IntPtr.Zero && len > 0)
+                    {
+                        return Marshal.PtrToStringUni(strPtr, len / 2);
+                    }
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(buffer);
+            }
+        }
+        catch (Exception ex)
+        {
+            loggingService.AddLog($"[ProcessService] Kernel command line query failed: {ex.Message}");
+        }
+        finally
+        {
+            NativeMethods.CloseHandle(hProcess);
+        }
+        return null;
+    }
+
     public string? GetParentProcessName()
     {
         try
         {
-            var pbi = new NativeMethods.PROCESS_BASIC_INFORMATION();
+            var pbi = new NativeMethods.ProcessBasicInformation();
             int returnLength;
             int status = NativeMethods.NtQueryInformationProcess(
                 Process.GetCurrentProcess().Handle, 

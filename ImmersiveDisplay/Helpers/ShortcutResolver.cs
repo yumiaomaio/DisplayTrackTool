@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace ImmersiveDisplay.Interop;
+namespace ImmersiveDisplay.Helpers;
 
 public static class ShortcutResolver
 {
