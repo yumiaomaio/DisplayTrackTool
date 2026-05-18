@@ -48,6 +48,9 @@ public class AppConfig
     [JsonPropertyName("autoStartFromThirdParty")]
     public bool AutoStartFromThirdParty { get; set; }
 
+    [JsonPropertyName("enableFileLogging")]
+    public bool EnableFileLogging { get; set; }
+
     [JsonPropertyName("profiles")]
     public ProfileCollection Profiles { get; set; } = new();
 
@@ -69,6 +72,7 @@ public class AppConfig
             LaunchOnAppStartup = false,
             LaunchOnTaskStart = false,
             AutoStartFromThirdParty = false,
+            EnableFileLogging = false, // Default is OFF as requested
             Profiles = new ProfileCollection
             {
                 Portrait = new ProfileDefinition

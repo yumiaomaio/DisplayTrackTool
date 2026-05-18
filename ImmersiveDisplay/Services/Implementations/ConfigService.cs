@@ -18,6 +18,9 @@ public class ConfigService : IConfigService
     {
         _loggingService = loggingService;
         _config = LoadOrCreateConfig();
+        
+        // Initialize file logging based on config
+        _loggingService.EnableFileLogging(_config.EnableFileLogging);
     }
 
     public string GetDefaultProcessName() => _config.TargetProcessName;

@@ -195,6 +195,7 @@ public class TargetStateManager(
                         await Task.Delay(500);
                     }
                     layoutManager.ApplyLayout(_targetHwnd, portraitProfile);
+                    _ = VerifyAndRetryLayoutAsync(_targetHwnd, portraitProfile);
                     break;
                 case WindowOrientation.LANDSCAPE:
                     AddLog("Applying Landscape layout and monitor settings...");
@@ -205,6 +206,7 @@ public class TargetStateManager(
                         await Task.Delay(500);
                     }
                     layoutManager.ApplyLayout(_targetHwnd, landscapeProfile);
+                    _ = VerifyAndRetryLayoutAsync(_targetHwnd, landscapeProfile);
                     break;
             }
 
@@ -219,11 +221,76 @@ public class TargetStateManager(
 
             if (_lastOrientation == WindowOrientation.PORTRAIT)
             {
-                layoutManager.ApplyLayout(_targetHwnd, configService.GetPortraitProfile());
+                var profile = configService.GetPortraitProfile();
+                layoutManager.ApplyLayout(_targetHwnd, profile);
+                _ = VerifyAndRetryLayoutAsync(_targetHwnd, profile);
             }
             else if (_lastOrientation == WindowOrientation.LANDSCAPE)
             {
                 layoutManager.EnsureTopmost(_targetHwnd);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies if the window actually reached the expected size/position.
+    /// If not (common with virtual displays or DPI changes), retries after a delay.
+    /// </summary>
+    private async Task VerifyAndRetryLayoutAsync(IntPtr hwnd, LayoutProfile profile)
+    {
+        // Wait a bit for OS/drivers to settle
+        await Task.Delay(300);
+
+        if (hwnd == IntPtr.Zero || !NativeMethods.IsWindow(hwnd) || !_isRunning) return;
+
+        if (NativeMethods.GetWindowRect(hwnd, out var rect))
+        {
+            int currentW = rect.Right - rect.Left;
+            int currentH = rect.Bottom - rect.Top;
+
+            // Get target monitor info to see what the size should be
+            IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
+            var monitorInfo = new Interop.Structs.Monitorinfo { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<Interop.Structs.Monitorinfo>() };
+            if (NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
+            {
+                int targetW = monitorInfo.rcMonitor.Right - monitorInfo.rcMonitor.Left;
+                int targetH = monitorInfo.rcMonitor.Bottom - monitorInfo.rcMonitor.Top;
+
+                // If deviation is more than a few pixels, retry
+                if (Math.Abs(currentW - targetW) > 5 || Math.Abs(currentH - targetH) > 5)
+                {
+                    AddLog($"[TargetStateManager] Layout mismatch detected (Current: {currentW}x{currentH}, Target: {targetW}x{targetH}).");
+                    
+                    // --- Diagnostic Mode: Output detailed info ---
+                    try 
+                    {
+                        var style = (WindowStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_STYLE);
+                        var exStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+                        var dpi = NativeMethods.GetDpiForWindow(hwnd);
+                        
+                        var placement = new NativeMethods.WINDOWPLACEMENT();
+                        placement.length = System.Runtime.InteropServices.Marshal.SizeOf(placement);
+                        NativeMethods.GetWindowPlacement(hwnd, ref placement);
+
+                        var sb = new System.Text.StringBuilder();
+                        sb.AppendLine("--- DEBUG DIAGNOSTIC ---");
+                        sb.AppendLine($"HWND: {hwnd.ToInt64()} (0x{hwnd.ToInt64():X})");
+                        sb.AppendLine($"Style: {style} (0x{(uint)style:X})");
+                        sb.AppendLine($"ExStyle: {exStyle} (0x{(uint)exStyle:X})");
+                        sb.AppendLine($"DPI: {dpi}");
+                        sb.AppendLine($"ShowCmd: {placement.showCmd}");
+                        sb.AppendLine($"Monitor WorkArea: {monitorInfo.rcWork.Left},{monitorInfo.rcWork.Top} - {monitorInfo.rcWork.Right},{monitorInfo.rcWork.Bottom}");
+                        
+                        AddLog(sb.ToString());
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLog($"[Diagnostic] Failed to gather details: {ex.Message}");
+                    }
+
+                    AddLog("Retrying with AGGRESSIVE measures...");
+                    layoutManager.ApplyAggressiveLayout(hwnd, profile);
+                }
             }
         }
     }

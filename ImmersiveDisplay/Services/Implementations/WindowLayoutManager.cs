@@ -41,44 +41,83 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
         NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
         NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
 
-        // 2. Calculate size and position (Always Fullscreen in current logic)
+        // 2. Calculate size and position
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
         var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
         if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo)) return;
 
         var monitorRect = monitorInfo.rcMonitor;
-        int screenWidth = monitorRect.Right - monitorRect.Left;
-        int screenHeight = monitorRect.Bottom - monitorRect.Top;
-
-        int finalWidth = screenWidth;
-        int finalHeight = screenHeight;
+        int finalWidth = monitorRect.Right - monitorRect.Left;
+        int finalHeight = monitorRect.Bottom - monitorRect.Top;
         int finalX = monitorRect.Left;
         int finalY = monitorRect.Top;
 
-        loggingService.AddLog(
-            $"[WindowLayoutManager] Layout: X={finalX}, Y={finalY}, W={finalWidth}, H={finalHeight}");
+        loggingService.AddLog($"[WindowLayoutManager] Layout: X={finalX}, Y={finalY}, W={finalWidth}, H={finalHeight}");
 
-        // 3. Apply Z-Order, position and size
-
-        // a. 将背景窗口置于非置顶窗口的最上层
+        // 3. Apply position
         var overlayHwnd = overlayService.WindowHandle;
         if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
         {
-            NativeMethods.SetWindowPos(overlayHwnd.Value, 0 /*HWND_TOP*/, 0, 0, 0, 0, 
+            NativeMethods.SetWindowPos(overlayHwnd.Value, 0, 0, 0, 0, 0, 
                 SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
         }
 
-        // b. 根据Profile决定目标窗口是否置顶
-        IntPtr hwndInsertAfter = IntPtr.Zero; // 默认值 (HWND_TOP)
-        if (profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST))
-        {
-            hwndInsertAfter = new IntPtr(-1); // HWND_TOPMOST
-        }
-
+        IntPtr hwndInsertAfter = profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST) ? new IntPtr(-1) : IntPtr.Zero;
         NativeMethods.SetWindowPos(hwnd, hwndInsertAfter, finalX, finalY, finalWidth, finalHeight, 
             SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
     }
-    
+
+    public void ApplyAggressiveLayout(IntPtr hwnd, LayoutProfile profile)
+    {
+        if (hwnd == IntPtr.Zero) return;
+
+        loggingService.AddLog($"[WindowLayoutManager] Applying AGGRESSIVE layout profile '{profile.Name}' to HWND {hwnd}.");
+
+        // --- 1. Force Restore if Maximized ---
+        if (NativeMethods.IsZoomed(hwnd) || NativeMethods.IsIconic(hwnd))
+        {
+            loggingService.AddLog("[WindowLayoutManager] Target is maximized or iconic. Forcing Restore (SW_RESTORE).");
+            NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
+        }
+
+        // --- 2. Apply Styles ---
+        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
+        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
+
+        // --- 3. Get Monitor Info ---
+        IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
+        var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
+        if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo)) return;
+
+        var monitorRect = monitorInfo.rcMonitor;
+        int finalWidth = monitorRect.Right - monitorRect.Left;
+        int finalHeight = monitorRect.Bottom - monitorRect.Top;
+        int finalX = monitorRect.Left;
+        int finalY = monitorRect.Top;
+
+        // --- 4. Step-by-step repositioning ---
+        // --- 4. 分步骤强力应用位置 ---
+        var overlayHwnd = overlayService.WindowHandle;
+        if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
+        {
+            NativeMethods.SetWindowPos(overlayHwnd.Value, 0, 0, 0, 0, 0, 
+                SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
+        }
+
+        IntPtr hwndInsertAfter = profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST) ? new IntPtr(-1) : IntPtr.Zero;
+
+        // --- 4.1 执行最终拉伸 ---
+        // 使用 SWP_NOSENDCHANGING 防止应用拦截并修正尺寸
+        var flags = SetWindowPosFlags.SWP_FRAMECHANGED | 
+                    SetWindowPosFlags.SWP_NOACTIVATE | 
+                    SetWindowPosFlags.SWP_SHOWWINDOW |
+                    SetWindowPosFlags.SWP_NOSENDCHANGING;
+
+        NativeMethods.SetWindowPos(hwnd, hwndInsertAfter, finalX, finalY, finalWidth, finalHeight, flags);
+        
+        // Final kick
+        NativeMethods.ShowWindow(hwnd, NativeMethods.SW_SHOWNOACTIVATE);
+    }
     public void EnsureTopmost(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero) return;
