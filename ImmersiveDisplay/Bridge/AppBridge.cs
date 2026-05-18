@@ -81,6 +81,7 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService, 
     public string AssociatedLaunchPath => viewModel.AssociatedLaunchPath ?? "";
     public bool LaunchOnAppStartup => viewModel.LaunchOnAppStartup;
     public bool LaunchOnTaskStart => viewModel.LaunchOnTaskStart;
+    public bool AutoStartFromThirdParty => viewModel.AutoStartFromThirdParty;
 
     // --- Methods from JS ---
     public void StartMonitoring(string processName)

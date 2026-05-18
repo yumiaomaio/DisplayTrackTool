@@ -73,24 +73,6 @@ public class ConfigService : IConfigService
             var config = JsonSerializer.Deserialize<AppConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } }) 
                    ?? CreateDefaultConfig();
 
-            // Migration: If display profiles are missing, add defaults
-            bool updated = false;
-            if (config.Profiles.Portrait.Display == null)
-            {
-                config.Profiles.Portrait.Display = new DisplayProfile { Orientation = 1 };
-                updated = true;
-            }
-            if (config.Profiles.Landscape.Display == null)
-            {
-                config.Profiles.Landscape.Display = new DisplayProfile { Orientation = 0 };
-                updated = true;
-            }
-
-            if (updated)
-            {
-                _loggingService.AddLog("[ConfigService] Migrated old config to include display profiles.");
-            }
-
             return config;
         }
         catch (Exception ex)
@@ -102,35 +84,7 @@ public class ConfigService : IConfigService
 
     private AppConfig CreateDefaultConfig()
     {
-        return new AppConfig
-        {
-            TargetProcessName = "notepad",
-            EnableBackgroundOverlay = true,
-            BackgroundMode = BackgroundMode.SOLID_COLOR,
-            BackgroundColor = "#FF000000",
-            BackgroundImageFileName = null,
-            Profiles = new ProfileCollection
-            {
-                Portrait = new ProfileDefinition
-                {
-                    Name = "Portrait Mode",
-                    Styles = ["WS_POPUP", "WS_VISIBLE"],
-                    ExStyles = ["WS_EX_TOPMOST"],
-                    Sizing = SizingMode.FULLSCREEN,
-                    Positioning = PositioningMode.TOP_LEFT,
-                    Display = new DisplayProfile { Orientation = 1 } // 90 Degrees
-                },
-                Landscape = new ProfileDefinition
-                {
-                    Name = "Landscape Fullscreen",
-                    Styles = ["WS_POPUP", "WS_VISIBLE"],
-                    ExStyles = ["WS_EX_TOPMOST"],
-                    Sizing = SizingMode.FULLSCREEN,
-                    Positioning = PositioningMode.TOP_LEFT,
-                    Display = new DisplayProfile { Orientation = 0 } // Default
-                }
-            }
-        };
+        return AppConfig.CreateDefault();
     }
     
     private LayoutProfile ConvertToLayoutProfile(ProfileDefinition def)

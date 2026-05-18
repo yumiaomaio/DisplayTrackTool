@@ -13,28 +13,28 @@ public enum BackgroundMode
 public class AppConfig
 {
     [JsonPropertyName("targetProcessName")]
-    public string TargetProcessName { get; set; } = "notepad";
+    public string TargetProcessName { get; set; } = string.Empty;
     
     [JsonPropertyName("enableBackgroundOverlay")]
-    public bool EnableBackgroundOverlay { get; set; } = true;
+    public bool EnableBackgroundOverlay { get; set; }
 
     [JsonPropertyName("enableTaskbarAutoHide")]
-    public bool EnableTaskbarAutoHide { get; set; } = true;
+    public bool EnableTaskbarAutoHide { get; set; }
 
     [JsonPropertyName("enableDisplaySync")]
-    public bool EnableDisplaySync { get; set; } = true;
+    public bool EnableDisplaySync { get; set; }
 
     [JsonPropertyName("backgroundMode")]
-    public BackgroundMode BackgroundMode { get; set; } = BackgroundMode.SOLID_COLOR;
+    public BackgroundMode BackgroundMode { get; set; }
 
     [JsonPropertyName("backgroundColor")]
-    public string BackgroundColor { get; set; } = "#FF000000";
+    public string BackgroundColor { get; set; } = string.Empty;
 
     [JsonPropertyName("backgroundImageFileName")]
     public string? BackgroundImageFileName { get; set; }
 
     [JsonPropertyName("showExitTip")]
-    public bool ShowExitTip { get; set; } = true;
+    public bool ShowExitTip { get; set; }
 
     [JsonPropertyName("associatedLaunchPath")]
     public string? AssociatedLaunchPath { get; set; }
@@ -50,6 +50,48 @@ public class AppConfig
 
     [JsonPropertyName("profiles")]
     public ProfileCollection Profiles { get; set; } = new();
+
+    /// <summary>
+    /// Static factory to create a default configuration.
+    /// Acts as the single source of truth for all initial values.
+    /// </summary>
+    public static AppConfig CreateDefault()
+    {
+        return new AppConfig
+        {
+            TargetProcessName = "notepad",
+            EnableBackgroundOverlay = true,
+            EnableTaskbarAutoHide = true,
+            EnableDisplaySync = true,
+            BackgroundMode = BackgroundMode.SOLID_COLOR,
+            BackgroundColor = "#FF000000",
+            ShowExitTip = true,
+            LaunchOnAppStartup = false,
+            LaunchOnTaskStart = false,
+            AutoStartFromThirdParty = false,
+            Profiles = new ProfileCollection
+            {
+                Portrait = new ProfileDefinition
+                {
+                    Name = "Portrait Mode",
+                    Styles = ["WS_POPUP", "WS_VISIBLE"],
+                    ExStyles = ["WS_EX_TOPMOST"],
+                    Sizing = SizingMode.FULLSCREEN,
+                    Positioning = PositioningMode.TOP_LEFT,
+                    Display = new DisplayProfile { Orientation = 1 } // 90 Degrees
+                },
+                Landscape = new ProfileDefinition
+                {
+                    Name = "Landscape Fullscreen",
+                    Styles = ["WS_POPUP", "WS_VISIBLE"],
+                    ExStyles = ["WS_EX_TOPMOST"],
+                    Sizing = SizingMode.FULLSCREEN,
+                    Positioning = PositioningMode.TOP_LEFT,
+                    Display = new DisplayProfile { Orientation = 0 } // Default
+                }
+            }
+        };
+    }
 }
 
 public class ProfileCollection

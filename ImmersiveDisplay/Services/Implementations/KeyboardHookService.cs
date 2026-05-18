@@ -25,13 +25,28 @@ public class KeyboardHookService : IKeyboardHookService, IDisposable
     {
         if (_hookId != IntPtr.Zero) return;
 
-        using (Process curProcess = Process.GetCurrentProcess())
-        using (ProcessModule curModule = curProcess.MainModule!)
+        try
         {
-            _hookId = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL, _proc,
-                NativeMethods.GetModuleHandle(curModule.ModuleName), 0);
+            using (Process curProcess = Process.GetCurrentProcess())
+            using (ProcessModule curModule = curProcess.MainModule!)
+            {
+                _hookId = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL, _proc,
+                    NativeMethods.GetModuleHandle(curModule.ModuleName), 0);
+            }
+
+            if (_hookId == IntPtr.Zero)
+            {
+                _loggingService.AddLog("[KeyboardHookService] Failed to set hook. Win32 Error: " + Marshal.GetLastWin32Error());
+            }
+            else
+            {
+                _loggingService.AddLog("[KeyboardHookService] Started.");
+            }
         }
-        _loggingService.AddLog("[KeyboardHookService] Started.");
+        catch (Exception ex)
+        {
+            _loggingService.AddLog($"[KeyboardHookService] Exception during Start: {ex.Message}");
+        }
     }
 
     public void Stop()
@@ -46,9 +61,17 @@ public class KeyboardHookService : IKeyboardHookService, IDisposable
     {
         if (nCode >= 0 && (wParam == NativeMethods.WM_KEYDOWN || wParam == NativeMethods.WM_SYSKEYDOWN))
         {
-            var kbdStruct = Marshal.PtrToStructure<Kbdllhookstruct>(lParam);
-            int vkCode = (int)kbdStruct.vkCode;
-            KeyPressed?.Invoke(vkCode);
+            try
+            {
+                var kbdStruct = Marshal.PtrToStructure<Kbdllhookstruct>(lParam);
+                int vkCode = (int)kbdStruct.vkCode;
+                KeyPressed?.Invoke(vkCode);
+            }
+            catch (Exception ex)
+            {
+                // Critical: Catching all exceptions here to prevent the hook from being detached by the OS
+                _loggingService.AddLog($"[KeyboardHookService] Error in callback: {ex.Message}");
+            }
         }
         return NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
     }

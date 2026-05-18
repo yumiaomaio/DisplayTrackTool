@@ -10,7 +10,6 @@ public class TargetStateManager(
     IWindowLayoutManager layoutManager,
     IOverlayService overlayService,
     IConfigService configService,
-    IKeyboardHookService keyboardHookService,
     ILoggingService loggingService,
     ITaskbarService taskbarService,
     IDisplayService displayService,
@@ -20,7 +19,7 @@ public class TargetStateManager(
     // State
     private IntPtr _targetHwnd = IntPtr.Zero;
     private WindowOrientation _lastOrientation = WindowOrientation.UNKNOWN;
-    private bool _isRunning = false;
+    private bool _isRunning;
 
     public event Action<bool>? IsRunningChanged;
 
@@ -110,9 +109,7 @@ public class TargetStateManager(
 
         AddLog("Stopping service and restoring original states...");
 
-        // 1. 停止监控和钩子
-        keyboardHookService.Stop();
-        keyboardHookService.KeyPressed -= OnKeyPressed;
+        // 1. 停止监控
         monitorService.StopMonitoring();
         monitorService.WindowStateChanged -= OnWindowStateChanged;
         monitorService.MonitorChanged -= OnMonitorChanged;
@@ -148,24 +145,6 @@ public class TargetStateManager(
 
         IsRunningChanged?.Invoke(_isRunning);
         AddLog("Service stopped.");
-    }
-
-    private async void OnKeyPressed(int vkCode)
-    {
-        try
-        {
-            const int vkF12 = 0x7B; 
-
-            if (vkCode == vkF12)
-            {
-                AddLog("F12 key pressed. Shutting down...");
-                await StopAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            AddLog($"Error during F12 shutdown: {ex.Message}");
-        }
     }
 
     private async void OnWindowDestroyed(IntPtr hwnd)
