@@ -91,10 +91,14 @@ const onLaunchOnTaskStartChange = (e) => {
     bridge.SetLaunchOnTaskStart(val);
 }
 
-const onAutoStartFromThirdPartyChange = (e) => {
-    const val = e.target.checked;
-    emit('update:autoStartFromThirdParty', val);
-    bridge.SetAutoStartFromThirdParty(val);
+const onAutoStartFromThirdPartyChange = () => {
+    if (!props.autoStartFromThirdParty) {
+        // We emit an event to App.vue to show the modal
+        emit('showProtocolModal');
+    } else {
+        bridge.SetAutoStartFromThirdParty(false);
+        emit('update:autoStartFromThirdParty', false);
+    }
 }
 
 const onColorChange = (hex) => {
@@ -209,7 +213,7 @@ const detectCommandLine = async () => {
              :class="{ 'checked': autoStartFromThirdParty }" 
              @mouseenter="hoveredLaunchTab = 'invoked'"
              @mouseleave="hoveredLaunchTab = null"
-             @click="emit('update:autoStartFromThirdParty', !autoStartFromThirdParty); bridge.SetAutoStartFromThirdParty(!autoStartFromThirdParty)">
+             @click="onAutoStartFromThirdPartyChange">
         <div class="checkbox-circle"></div>
         {{ i18n.t.tabInvoked }}
       </div>

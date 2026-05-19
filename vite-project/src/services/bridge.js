@@ -11,7 +11,7 @@ const getBridge = () => {
     console.warn("WebView2 Bridge not found. Using mock implementation.");
     return {
         TargetProcessName: Promise.resolve("notepad.exe"),
-        EnableTaskbarAutoHide: Promise.resolve(false),
+        EnableTaskbarAutoHide: Promise.resolve(true),
         EnableDisplaySync: Promise.resolve(true),
         EnableBackgroundOverlay: Promise.resolve(true),
         BackgroundColor: Promise.resolve("#FF2D2D30"),

@@ -1,4 +1,4 @@
-﻿// File: App.xaml.cs
+// File: App.xaml.cs
 
 using System.Windows;
 using ImmersiveDisplay.Services;
@@ -14,6 +14,8 @@ public partial class App : Application
 {
     private readonly ServiceProvider _serviceProvider;
     private readonly Task<CoreWebView2Environment> _webViewEnvTask;
+
+    public static bool IsProtocolAutoStart { get; private set; }
 
     public App()
     {
@@ -44,6 +46,7 @@ public partial class App : Application
         services.AddSingleton<IConfigService, ConfigService>();
         services.AddSingleton<ILaunchService, LaunchService>();
         services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
+        services.AddSingleton<IProtocolService, ProtocolService>();
 
         // Register ViewModels
         services.AddSingleton<MainViewModel>();
@@ -54,6 +57,19 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Check for protocol activation
+        if (e.Args.Length > 0)
+        {
+            foreach (var arg in e.Args)
+            {
+                if (arg.StartsWith("immersivedisplay://autostart", StringComparison.OrdinalIgnoreCase))
+                {
+                    IsProtocolAutoStart = true;
+                    break;
+                }
+            }
+        }
+
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();
     }

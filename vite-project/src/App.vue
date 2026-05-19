@@ -27,7 +27,7 @@ const associatedLaunchPath = ref('')
 const launchOnAppStartup = ref(false)
 const launchOnTaskStart = ref(false)
 const autoStartFromThirdParty = ref(false)
-const autoHideTaskbar = ref(false)
+const autoHideTaskbar = ref(true)
 const enableDisplaySync = ref(true)
 const enableOverlay = ref(true)
 const bgMode = ref('color') 
@@ -91,6 +91,34 @@ const toggleRunState = () => {
 }
 
 const openAbout = () => {
+  bridge.ShowAbout();
+}
+
+const onCleanAssociation = () => {
+  bridge.CleanAssociation();
+}
+
+const showProtocolModal = () => {
+  modal.value = {
+    show: true,
+    title: i18n.t.protocolModalTitle,
+    message: i18n.t.protocolModalMessage,
+    buttonText: i18n.t.protocolConfirm,
+    secondaryButtonText: i18n.t.protocolCancel,
+    allowClose: true,
+    type: 'info',
+    onAction: () => {
+      bridge.SetAutoStartFromThirdParty(true);
+      autoStartFromThirdParty.value = true;
+      modal.value.show = false;
+    },
+    onSecondaryAction: () => {
+      modal.value.show = false;
+    }
+  }
+}
+
+const onAbout = () => {
   bridge.ShowAbout();
 }
 
@@ -222,11 +250,13 @@ onMounted(() => {
   }">
     <div class="modal-container">
       <AppHeader 
-        :isRunning="isRunning" 
-        :isLightMode="isLightMode" 
-        @toggleTheme="toggleTheme" 
-        @showAbout="openAbout"
+        :is-running="isRunning" 
+        :is-light-mode="isLightMode"
+        @toggle-theme="toggleTheme"
+        @show-about="onAbout"
+        @clean-association="onCleanAssociation"
       />
+
 
       <div class="scroll-wrapper">
         <SetupView 
@@ -243,6 +273,7 @@ onMounted(() => {
           v-model:selectedColor="selectedColor"
           v-model:bgImage="bgImage"
           :propertyErrors="propertyErrors"
+          @show-protocol-modal="showProtocolModal"
         />
 
         <RunningView 

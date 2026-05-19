@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private readonly IProcessService _processService;
     private readonly IConfigService _configService;
     private readonly ILoggingService _loggingService;
+    private readonly IProtocolService _protocolService;
     private readonly Task<CoreWebView2Environment> _envTask;
     private AppBridge? _bridge;
 
@@ -23,6 +24,7 @@ public partial class MainWindow : Window
         IProcessService processService, 
         IConfigService configService,
         ILoggingService loggingService,
+        IProtocolService protocolService,
         Task<CoreWebView2Environment> envTask)
     {
         InitializeComponent();
@@ -30,6 +32,7 @@ public partial class MainWindow : Window
         _processService = processService;
         _configService = configService;
         _loggingService = loggingService;
+        _protocolService = protocolService;
         _envTask = envTask;
         DataContext = _viewModel;
 
@@ -83,33 +86,28 @@ public partial class MainWindow : Window
                 MessageBox.Show($"Web UI file not found at: {htmlPath}");
             }
 
-            // --- Auto Start From Third Party ---
+            // --- Auto Start From Third Party (Protocol-based) ---
             bool autoStartedByThirdParty = false;
-            if (_configService.IsAutoStartFromThirdPartyEnabled())
-            {
-                string? parentProcessName = _processService.GetParentProcessName()?.ToLowerInvariant();
-                _loggingService.AddLog($"[Startup] Parent process: {parentProcessName ?? "Unknown"}");
+            
+            // Check for path updates if feature is enabled
+            _protocolService.UpdateIfNecessary();
 
-                // List of common shell/dev launchers to ignore (treat as normal startup)
-                var ignoredParents = new[] { "explorer", "cmd", "powershell", "pwsh", "rider64", "devenv", "bash", "mintty" };
+            if (_configService.IsAutoStartFromThirdPartyEnabled() && App.IsProtocolAutoStart)
+            {
+                _loggingService.AddLog($"[Startup] Third-party launcher detected via protocol. Auto-launching and starting monitoring.");
+                autoStartedByThirdParty = true;
                 
-                if (!string.IsNullOrEmpty(parentProcessName) && !ignoredParents.Contains(parentProcessName))
+                // 1. Launch associated program
+                _viewModel.LaunchAssociatedProgram();
+                
+                // 2. Start monitoring task
+                _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => 
                 {
-                    _loggingService.AddLog($"[Startup] Third-party launcher detected. Auto-launching and starting monitoring.");
-                    autoStartedByThirdParty = true;
-                    
-                    // 1. Launch associated program
-                    _viewModel.LaunchAssociatedProgram();
-                    
-                    // 2. Start monitoring task
-                    _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => 
+                    if (!_viewModel.IsRunning && !string.IsNullOrWhiteSpace(_viewModel.TargetProcessName))
                     {
-                        if (!_viewModel.IsRunning && !string.IsNullOrWhiteSpace(_viewModel.TargetProcessName))
-                        {
-                            _viewModel.StartCommand.Execute(null);
-                        }
-                    }));
-                }
+                        _viewModel.StartCommand.Execute(null);
+                    }
+                }));
             }
 
             // --- Associated Launch (App Startup) ---

@@ -21,6 +21,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private readonly ILoggingService _loggingService;
     private readonly IPrivilegeService _privilegeService;
     private readonly ILaunchService _launchService;
+    private readonly IProtocolService _protocolService;
 
     private string? _targetProcessName;
     public string? TargetProcessName
@@ -207,15 +208,17 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ILoggingService loggingService,
         IPrivilegeService privilegeService,
         ILaunchService launchService,
-        IKeyboardHookService keyboardHookService)
+        IKeyboardHookService keyboardHookService,
+        IProtocolService protocolService)
     {
         _stateManager = stateManager;
         _configService = configService;
         _loggingService = loggingService;
         _privilegeService = privilegeService;
         _launchService = launchService;
+        _protocolService = protocolService;
 
-        // Start global keyboard hook for F9 (Start) and F12 (Stop)
+        // ... (global keyboard hook and state manager logic)
         keyboardHookService.Start();
         keyboardHookService.KeyPressed += (vkCode) => 
         {
@@ -271,9 +274,31 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
 
         SelectAssociatedProgramCommand = new RelayCommand(OnSelectAssociatedProgram);
+        CleanAssociationCommand = new RelayCommand(OnCleanAssociation);
     }
 
     public ICommand SelectAssociatedProgramCommand { get; }
+    public ICommand CleanAssociationCommand { get; }
+
+    public void ToggleAutoStartFromThirdParty(bool enable)
+    {
+        if (enable)
+        {
+            _protocolService.Register();
+            AutoStartFromThirdParty = true;
+        }
+        else
+        {
+            AutoStartFromThirdParty = false;
+        }
+    }
+
+    private void OnCleanAssociation()
+    {
+        _protocolService.Unregister();
+        AutoStartFromThirdParty = false;
+        _loggingService.AddLog("> System associations (Protocol & Shortcuts) cleaned successfully.");
+    }
 
     public void LaunchAssociatedProgram()
     {

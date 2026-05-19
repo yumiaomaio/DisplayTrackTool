@@ -180,32 +180,4 @@ public class ProcessService(ILoggingService loggingService) : IProcessService
         }
         return null;
     }
-
-    public string? GetParentProcessName()
-    {
-        try
-        {
-            var pbi = new NativeMethods.ProcessBasicInformation();
-            int returnLength;
-            int status = NativeMethods.NtQueryInformationProcess(
-                Process.GetCurrentProcess().Handle, 
-                0, // ProcessBasicInformation
-                ref pbi, 
-                Marshal.SizeOf(pbi), 
-                out returnLength);
-
-            if (status != 0) return null; // NT_SUCCESS
-
-            int parentPid = pbi.InheritedFromUniqueProcessId.ToInt32();
-            if (parentPid <= 0) return null;
-
-            using var parentProcess = Process.GetProcessById(parentPid);
-            return parentProcess.ProcessName;
-        }
-        catch (Exception ex)
-        {
-            loggingService.AddLog($"[ProcessService] Failed to get parent process: {ex.Message}");
-            return null;
-        }
-    }
 }
