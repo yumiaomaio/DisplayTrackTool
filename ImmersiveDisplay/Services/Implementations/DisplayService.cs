@@ -7,8 +7,9 @@ using ImmersiveDisplay.Models;
 namespace ImmersiveDisplay.Services.Implementations;
 
 public class DisplayService(ILoggingService loggingService) : IDisplayService
-{
+ {
     private DisplayProfile? _originalDisplayProfile;
+    private string? _capturedDeviceName;
 
     public void CaptureOriginalState(IntPtr hwnd)
     {
@@ -19,6 +20,8 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
             if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo)) return;
 
             string deviceName = monitorInfo.szDevice;
+            _capturedDeviceName = deviceName;
+            
             var devMode = new Devmode { dmSize = (short)Marshal.SizeOf<Devmode>() };
             if (!NativeMethods.EnumDisplaySettings(deviceName, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode))
                 return;
@@ -42,16 +45,22 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
     {
         if (profile == null) return;
 
+        var targetDeviceName = GetGdiDeviceName(hwnd);
+        if (string.IsNullOrEmpty(targetDeviceName))
+        {
+            loggingService.AddLog("[DisplayService] Failed to get GDI device name for HWND.");
+            return;
+        }
+
+        ApplyDisplayProfileInternal(targetDeviceName, profile);
+    }
+
+    private void ApplyDisplayProfileInternal(string targetDeviceName, DisplayProfile? profile)
+    {
+        if (profile == null || string.IsNullOrEmpty(targetDeviceName)) return;
+
         try
         {
-            // 1. Map HWND to CCD Path
-            var targetDeviceName = GetGdiDeviceName(hwnd);
-            if (string.IsNullOrEmpty(targetDeviceName))
-            {
-                loggingService.AddLog("[DisplayService] Failed to get GDI device name for HWND.");
-                return;
-            }
-
             loggingService.AddLog($"[DisplayService] Target GDI: {targetDeviceName}");
 
             // 2. Query CCD Config
@@ -112,7 +121,7 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
                     loggingService.AddLog($"[DisplayService] Changing CCD rotation: {paths[targetPathIdx].targetInfo.rotation} -> {newRotation}");
                     paths[targetPathIdx].targetInfo.rotation = newRotation;
                     
-                    // Apply change - Using the actual counts returned from QueryDisplayConfig
+                    // Apply change
                     int result = NativeMethods.SetDisplayConfig(pathCount, paths, modeCount, modes, 
                         SetDisplayConfigFlags.SDC_APPLY | SetDisplayConfigFlags.SDC_USE_SUPPLIED_DISPLAY_CONFIG | SetDisplayConfigFlags.SDC_ALLOW_CHANGES);
                     
@@ -142,8 +151,24 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
         if (_originalDisplayProfile == null) return;
         
         loggingService.AddLog("[DisplayService] Restoring original display settings...");
-        ApplyDisplayProfile(hwnd, _originalDisplayProfile);
+        
+        string? targetDeviceName = _capturedDeviceName;
+        if (string.IsNullOrEmpty(targetDeviceName) && hwnd != IntPtr.Zero)
+        {
+            targetDeviceName = GetGdiDeviceName(hwnd);
+        }
+
+        if (!string.IsNullOrEmpty(targetDeviceName))
+        {
+            ApplyDisplayProfileInternal(targetDeviceName, _originalDisplayProfile);
+        }
+        else
+        {
+            loggingService.AddLog("[DisplayService] Cannot restore display: device name is empty.");
+        }
+        
         _originalDisplayProfile = null;
+        _capturedDeviceName = null;
     }
 
     private string GetGdiDeviceName(IntPtr hwnd)

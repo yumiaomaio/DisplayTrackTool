@@ -183,12 +183,12 @@ public class TargetStateManager(
         if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
         {
             layoutManager.RestoreOriginalState(lastHwnd);
-            
-            if (configService.IsDisplaySyncEnabled())
-            {
-                displayService.RestoreOriginalState(lastHwnd);
-                await Task.Delay(500);
-            }
+        }
+
+        if (configService.IsDisplaySyncEnabled())
+        {
+            displayService.RestoreOriginalState(lastHwnd);
+            await Task.Delay(500);
         }
 
         if (configService.IsTaskbarAutoHideEnabled())
