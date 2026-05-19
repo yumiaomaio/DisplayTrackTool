@@ -4,6 +4,7 @@ namespace ImmersiveDisplay.Services;
 
 public interface IConfigService
 {
+    event Action<string, object?>? ConfigChanged;
     string GetDefaultProcessName();
     void SetDefaultProcessName(string processName);
     LayoutProfile GetPortraitProfile();

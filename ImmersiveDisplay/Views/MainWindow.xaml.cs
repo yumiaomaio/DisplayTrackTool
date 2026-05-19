@@ -2,41 +2,35 @@ using System.IO;
 using System.Windows;
 using ImmersiveDisplay.Bridge;
 using ImmersiveDisplay.Helpers;
-using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Services;
-using ImmersiveDisplay.ViewModels;
 using Microsoft.Web.WebView2.Core;
 
 namespace ImmersiveDisplay.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly MainViewModel _viewModel;
-    private readonly IProcessService _processService;
+    private readonly AppBridge _bridge;
+    private readonly IAppIntegrationService _appIntegrationService;
     private readonly IConfigService _configService;
     private readonly ILoggingService _loggingService;
-    private readonly IProtocolService _protocolService;
     private readonly Task<CoreWebView2Environment> _envTask;
-    private AppBridge? _bridge;
 
     public MainWindow(
-        MainViewModel viewModel, 
-        IProcessService processService, 
+        AppBridge bridge, 
+        IAppIntegrationService appIntegrationService, 
         IConfigService configService,
         ILoggingService loggingService,
-        IProtocolService protocolService,
         Task<CoreWebView2Environment> envTask)
     {
         InitializeComponent();
-        _viewModel = viewModel;
-        _processService = processService;
+        _bridge = bridge;
+        _appIntegrationService = appIntegrationService;
         _configService = configService;
         _loggingService = loggingService;
-        _protocolService = protocolService;
         _envTask = envTask;
-        DataContext = _viewModel;
 
         Loaded += MainWindow_Loaded;
+        Closed += MainWindow_Closed;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -46,34 +40,29 @@ public partial class MainWindow : Window
             var env = await _envTask;
             await WebView.EnsureCoreWebView2Async(env);
 
-            // Disable standard WebView2 drop to let WPF handle it
             WebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
             WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
 
             // --- Drag and Drop via Navigation Interception ---
-            // When a file or link is dropped into WebView2, it tries to navigate to it.
-            // We intercept anything that isn't part of our local WebUI.
-            WebView.CoreWebView2.NavigationStarting += (s, e) =>
+            WebView.CoreWebView2.NavigationStarting += (s, ev) =>
             {
-                if (!e.Uri.Contains("/WebUI/", StringComparison.OrdinalIgnoreCase))
+                if (!ev.Uri.Contains("/WebUI/", StringComparison.OrdinalIgnoreCase))
                 {
-                    e.Cancel = true;
-                    HandleExternalNavigation(e.Uri);
+                    ev.Cancel = true;
+                    HandleExternalNavigation(ev.Uri);
                 }
             };
 
-            WebView.CoreWebView2.NewWindowRequested += (s, e) =>
+            WebView.CoreWebView2.NewWindowRequested += (s, ev) =>
             {
-                if (!e.Uri.Contains("/WebUI/", StringComparison.OrdinalIgnoreCase))
+                if (!ev.Uri.Contains("/WebUI/", StringComparison.OrdinalIgnoreCase))
                 {
-                    e.Handled = true;
-                    HandleExternalNavigation(e.Uri);
+                    ev.Handled = true;
+                    HandleExternalNavigation(ev.Uri);
                 }
             };
 
-            _bridge = new AppBridge(_viewModel, _processService, _loggingService);
-            _bridge.Initialize(WebView.CoreWebView2); // Start auto-sync
-            
+            _bridge.Initialize(WebView.CoreWebView2);
             WebView.CoreWebView2.AddHostObjectToScript("bridge", _bridge);
             
             string htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebUI", "index.html");
@@ -86,58 +75,19 @@ public partial class MainWindow : Window
                 MessageBox.Show($"Web UI file not found at: {htmlPath}");
             }
 
-            // --- Auto Start From Third Party (Protocol-based) ---
-            bool autoStartedByThirdParty = false;
-            
-            // Check for path updates if feature is enabled
-            _protocolService.UpdateIfNecessary();
-
-            if (_configService.IsAutoStartFromThirdPartyEnabled() && App.IsProtocolAutoStart)
-            {
-                _loggingService.AddLog($"[Startup] Third-party launcher detected via protocol. Auto-launching target program.");
-                autoStartedByThirdParty = true;
-                
-                // 1. Launch associated program
-                _viewModel.LaunchAssociatedProgram();
-                
-                // 2. Start monitoring task conditionally based on "自动开始控制" and UAC rules
-                if (_configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
-                {
-                    bool isExe = _viewModel.IsAssociatedPathExe();
-                    bool isAdmin = _viewModel.IsAdmin;
-
-                    if (isExe || isAdmin)
-                    {
-                        _loggingService.AddLog($"[Startup] Auto-start monitoring active. (Bypass UAC or Admin confirmed). Starting monitoring.");
-                        _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => 
-                        {
-                            if (!_viewModel.IsRunning && !string.IsNullOrWhiteSpace(_viewModel.TargetProcessName))
-                            {
-                                _viewModel.StartCommand.Execute(null);
-                            }
-                        }));
-                    }
-                    else
-                    {
-                        _loggingService.AddLog($"[Startup] Auto-start monitoring blocked: Standard user running a URL protocol launch. UAC warning prompted.");
-                    }
-                }
-                else
-                {
-                    _loggingService.AddLog($"[Startup] Auto-start monitoring disabled by default settings. Opening in standby mode.");
-                }
-            }
-
-            // --- Associated Launch (App Startup) ---
-            if (!autoStartedByThirdParty && _configService.IsLaunchOnAppStartupEnabled())
-            {
-                _viewModel.LaunchAssociatedProgram();
-            }
+            // Initialize app integrations & launch startup scripts
+            _appIntegrationService.InitializeHooksAndTriggers();
+            _appIntegrationService.ExecuteStartupLogic();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"WebView2 Initialization failed: {ex.Message}");
         }
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        _bridge.Dispose();
     }
 
     private void MainWindow_DragOver(object sender, DragEventArgs e)
@@ -165,8 +115,6 @@ public partial class MainWindow : Window
     {
         try
         {
-            // Convert file:/// URIs back to C:\ local paths
-            // Keep other URIs (http, etc.) as they are
             string target = uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
                 ? new Uri(uri).LocalPath
                 : uri;
@@ -184,20 +132,21 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(path)) return;
         
         string extension = Path.GetExtension(path).ToLower();
+        string targetPath;
 
         if (extension == ".lnk")
         {
-            _viewModel.AssociatedLaunchPath = ShortcutResolver.Resolve(path);
+            targetPath = ShortcutResolver.Resolve(path);
         }
         else if (extension == ".exe")
         {
-            // Quote if contains spaces
-            _viewModel.AssociatedLaunchPath = path.Contains(' ') ? $"\"{path}\"" : path;
+            targetPath = path.Contains(' ') ? $"\"{path}\"" : path;
         }
         else
         {
-            // Generic files or URLs (if possible)
-            _viewModel.AssociatedLaunchPath = path;
+            targetPath = path;
         }
+
+        _configService.SetAssociatedLaunchPath(targetPath);
     }
 }

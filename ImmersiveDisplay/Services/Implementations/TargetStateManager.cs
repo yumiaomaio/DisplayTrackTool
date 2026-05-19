@@ -13,27 +13,39 @@ public class TargetStateManager(
     ILoggingService loggingService,
     ITaskbarService taskbarService,
     IDisplayService displayService,
-    ILaunchService launchService)
+    ILaunchService launchService,
+    IDialogService dialogService)
     : ITargetStateManager, IDisposable
 {
     // State
     private IntPtr _targetHwnd = IntPtr.Zero;
     private WindowOrientation _lastOrientation = WindowOrientation.UNKNOWN;
-    private bool _isRunning;
+    public bool IsRunning { get; private set; }
+    public int WaitingCountdown { get; private set; }
     private CancellationTokenSource? _startCts;
 
     public event Action<bool>? IsRunningChanged;
     public event Action<int>? WaitingCountdownChanged;
 
+    private void SetWaitingCountdown(int val)
+    {
+        WaitingCountdown = val;
+        WaitingCountdownChanged?.Invoke(val);
+    }
+
     public async Task StartAsync(string processName)
     {
-        if (_isRunning)
+        if (IsRunning)
         {
             AddLog("Already running. Please stop first.");
             return;
         }
 
-        _startCts?.Cancel();
+        if (_startCts != null)
+        {
+            _startCts.Cancel();
+            _startCts.Dispose();
+        }
         _startCts = new CancellationTokenSource();
         var token = _startCts.Token;
 
@@ -59,17 +71,17 @@ public class TargetStateManager(
         {
             if (token.IsCancellationRequested) 
             {
-                WaitingCountdownChanged?.Invoke(0);
+                SetWaitingCountdown(0);
                 return;
             }
 
-            WaitingCountdownChanged?.Invoke(i);
+            SetWaitingCountdown(i);
             
             _targetHwnd = await Task.Run(() => queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero);
             
             if (_targetHwnd != IntPtr.Zero)
             {
-                WaitingCountdownChanged?.Invoke(0);
+                SetWaitingCountdown(0);
                 break;
             }
 
@@ -77,7 +89,7 @@ public class TargetStateManager(
             {
                 try { await Task.Delay(1000, token); }
                 catch (TaskCanceledException) { 
-                    WaitingCountdownChanged?.Invoke(0);
+                    SetWaitingCountdown(0);
                     return; 
                 }
             }
@@ -85,7 +97,7 @@ public class TargetStateManager(
 
         if (_targetHwnd == IntPtr.Zero)
         {
-            WaitingCountdownChanged?.Invoke(-1); // Signal timeout/error
+            SetWaitingCountdown(-1); // Signal timeout/error
             AddLog($"Error: Could not find a visible window for process '{processName}' within {timeoutSeconds}s.");
             return;
         }
@@ -103,7 +115,7 @@ public class TargetStateManager(
         layoutManager.CaptureOriginalState(_targetHwnd);
         displayService.CaptureOriginalState(_targetHwnd);
 
-        _isRunning = true;
+        IsRunning = true;
         _lastOrientation = WindowOrientation.UNKNOWN;
 
         // --- 背景遮罩 ---
@@ -148,26 +160,29 @@ public class TargetStateManager(
             await StopAsync();
             
             // 弹窗提示可能需要管理员权限
-            System.Windows.MessageBox.Show(
+            dialogService.ShowWarning(
                 $"无法修改目标窗口样式。\n\n这通常是因为目标程序（游戏）是以管理员权限运行的，而本工具权限不足。\n\n请尝试【以管理员身份运行】本工具后再试。\n\n(错误信息: {ex.Message})",
-                "权限不足 / Privilege Elevation Required",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Warning);
+                "权限不足 / Privilege Elevation Required");
                 
             return;
         }
         
         _lastOrientation = WindowOrientation.PORTRAIT;
 
-        IsRunningChanged?.Invoke(_isRunning);
+        IsRunningChanged?.Invoke(IsRunning);
         AddLog("Service started. Press F12 to stop.");
     }
 
     public async Task StopAsync()
     {
-        _startCts?.Cancel();
+        if (_startCts != null)
+        {
+            _startCts.Cancel();
+            _startCts.Dispose();
+            _startCts = null;
+        }
         
-        if (!_isRunning) return;
+        if (!IsRunning) return;
 
         AddLog("Stopping service and restoring original states...");
 
@@ -203,9 +218,9 @@ public class TargetStateManager(
 
         // 3. 清理状态
         _targetHwnd = IntPtr.Zero;
-        _isRunning = false;
+        IsRunning = false;
 
-        IsRunningChanged?.Invoke(_isRunning);
+        IsRunningChanged?.Invoke(IsRunning);
         AddLog("Service stopped.");
     }
 
@@ -227,7 +242,7 @@ public class TargetStateManager(
 
     private async void OnMonitorChanged(IntPtr hwnd, IntPtr hMonitor)
     {
-        if (hwnd != _targetHwnd || !_isRunning) return;
+        if (hwnd != _targetHwnd || !IsRunning) return;
 
         AddLog($"Window moved to a different monitor ({hMonitor}). Triggering automatic shutdown...");
         await StopAsync();
@@ -235,7 +250,7 @@ public class TargetStateManager(
 
     private async void OnWindowStateChanged(IntPtr hwnd, System.Windows.Rect newRect)
     {
-        if (hwnd != _targetHwnd || !_isRunning) return;
+        if (hwnd != _targetHwnd || !IsRunning) return;
 
         try
         {
@@ -317,7 +332,7 @@ public class TargetStateManager(
             // Wait a bit for OS/drivers to settle
             await Task.Delay(300);
 
-            if (hwnd == IntPtr.Zero || !NativeMethods.IsWindow(hwnd) || !_isRunning) return;
+            if (hwnd == IntPtr.Zero || !NativeMethods.IsWindow(hwnd) || !IsRunning) return;
 
             if (NativeMethods.GetWindowRect(hwnd, out var rect))
             {

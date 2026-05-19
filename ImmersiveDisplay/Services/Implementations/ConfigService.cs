@@ -10,6 +10,7 @@ namespace ImmersiveDisplay.Services.Implementations;
 
 public class ConfigService : IConfigService
 {
+    public event Action<string, object?>? ConfigChanged;
     private const string ConfigFileName = "profiles.json";
     private readonly AppConfig _config;
     private readonly ILoggingService _loggingService;
@@ -29,6 +30,7 @@ public class ConfigService : IConfigService
         if (_config.TargetProcessName == processName) return;
         _config.TargetProcessName = processName;
         SaveConfig();
+        ConfigChanged?.Invoke("TargetProcessName", processName);
     }
     public string? GetBackgroundImageFileName() => _config.BackgroundImageFileName;
 
@@ -40,6 +42,7 @@ public class ConfigService : IConfigService
         if (_config.BackgroundImageFileName == fileName) return;
         _config.BackgroundImageFileName = fileName;
         SaveConfig();
+        ConfigChanged?.Invoke("CurrentImageFileName", fileName);
     }
     
     private void SaveConfig()
@@ -111,6 +114,7 @@ public class ConfigService : IConfigService
         if (_config.BackgroundMode == mode) return;
         _config.BackgroundMode = mode;
         SaveConfig();
+        ConfigChanged?.Invoke("BackgroundMode", mode.ToString().ToLower());
     }
 
     public void SetBackgroundColor(string color)
@@ -118,6 +122,7 @@ public class ConfigService : IConfigService
         if (string.Equals(_config.BackgroundColor, color, StringComparison.InvariantCultureIgnoreCase)) return;
         _config.BackgroundColor = color;
         SaveConfig();
+        ConfigChanged?.Invoke("BackgroundColor", color);
     }
 
     public bool IsBackgroundOverlayEnabled() => _config.EnableBackgroundOverlay;
@@ -127,6 +132,7 @@ public class ConfigService : IConfigService
         if (_config.EnableBackgroundOverlay == enabled) return;
         _config.EnableBackgroundOverlay = enabled;
         SaveConfig();
+        ConfigChanged?.Invoke("EnableBackgroundOverlay", enabled);
     }
 
     public bool IsTaskbarAutoHideEnabled() => _config.EnableTaskbarAutoHide;
@@ -136,6 +142,7 @@ public class ConfigService : IConfigService
         if (_config.EnableTaskbarAutoHide == enabled) return;
         _config.EnableTaskbarAutoHide = enabled;
         SaveConfig();
+        ConfigChanged?.Invoke("EnableTaskbarAutoHide", enabled);
     }
 
     public bool IsDisplaySyncEnabled() => _config.EnableDisplaySync;
@@ -145,6 +152,7 @@ public class ConfigService : IConfigService
         if (_config.EnableDisplaySync == enabled) return;
         _config.EnableDisplaySync = enabled;
         SaveConfig();
+        ConfigChanged?.Invoke("EnableDisplaySync", enabled);
     }
 
     public bool ShouldShowExitTip() => _config.ShowExitTip;
@@ -154,6 +162,7 @@ public class ConfigService : IConfigService
         if (_config.ShowExitTip == show) return;
         _config.ShowExitTip = show;
         SaveConfig();
+        ConfigChanged?.Invoke("ShouldShowExitTip", show);
     }
 
     public string? GetAssociatedLaunchPath() => _config.AssociatedLaunchPath;
@@ -162,6 +171,7 @@ public class ConfigService : IConfigService
         if (_config.AssociatedLaunchPath == path) return;
         _config.AssociatedLaunchPath = path;
         SaveConfig();
+        ConfigChanged?.Invoke("AssociatedLaunchPath", path);
     }
 
     public bool IsLaunchOnAppStartupEnabled() => _config.LaunchOnAppStartup;
@@ -170,6 +180,7 @@ public class ConfigService : IConfigService
         if (_config.LaunchOnAppStartup == enabled) return;
         _config.LaunchOnAppStartup = enabled;
         SaveConfig();
+        ConfigChanged?.Invoke("LaunchOnAppStartup", enabled);
     }
 
     public bool IsLaunchOnTaskStartEnabled() => _config.LaunchOnTaskStart;
@@ -178,6 +189,7 @@ public class ConfigService : IConfigService
         if (_config.LaunchOnTaskStart == enabled) return;
         _config.LaunchOnTaskStart = enabled;
         SaveConfig();
+        ConfigChanged?.Invoke("LaunchOnTaskStart", enabled);
     }
 
     public bool IsAutoStartFromThirdPartyEnabled() => _config.AutoStartFromThirdParty;
@@ -186,6 +198,7 @@ public class ConfigService : IConfigService
         if (_config.AutoStartFromThirdParty == enabled) return;
         _config.AutoStartFromThirdParty = enabled;
         SaveConfig();
+        ConfigChanged?.Invoke("AutoStartFromThirdParty", enabled);
     }
 
     public bool IsAutoStartMonitoringOnProtocolLaunchEnabled() => _config.AutoStartMonitoringOnProtocolLaunch;
@@ -194,6 +207,7 @@ public class ConfigService : IConfigService
         if (_config.AutoStartMonitoringOnProtocolLaunch == enabled) return;
         _config.AutoStartMonitoringOnProtocolLaunch = enabled;
         SaveConfig();
+        ConfigChanged?.Invoke("AutoStartMonitoringOnProtocolLaunch", enabled);
     }
 
     public int GetWindowDetectionTimeout() => _config.WindowDetectionTimeout;
@@ -202,6 +216,7 @@ public class ConfigService : IConfigService
         if (_config.WindowDetectionTimeout == seconds) return;
         _config.WindowDetectionTimeout = seconds;
         SaveConfig();
+        ConfigChanged?.Invoke("WindowDetectionTimeout", seconds);
     }
 
     private T ParseEnum<T>(List<string> values) where T : struct

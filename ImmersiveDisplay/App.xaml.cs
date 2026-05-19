@@ -1,9 +1,9 @@
 // File: App.xaml.cs
 
 using System.Windows;
+using ImmersiveDisplay.Bridge;
 using ImmersiveDisplay.Services;
 using ImmersiveDisplay.Services.Implementations;
-using ImmersiveDisplay.ViewModels;
 using ImmersiveDisplay.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.Core;
@@ -47,9 +47,12 @@ public partial class App : Application
         services.AddSingleton<ILaunchService, LaunchService>();
         services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
         services.AddSingleton<IProtocolService, ProtocolService>();
+        services.AddSingleton<IDialogService, WpfDialogService>();
+        services.AddSingleton<IOverlayImageService, OverlayImageService>();
+        services.AddSingleton<IAppIntegrationService, AppIntegrationService>();
 
-        // Register ViewModels
-        services.AddSingleton<MainViewModel>();
+        // Register Gateway / Bridges
+        services.AddSingleton<AppBridge>();
 
         // Register Views
         services.AddSingleton<MainWindow>();
