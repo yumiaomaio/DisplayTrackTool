@@ -91,10 +91,16 @@ const onLaunchOnTaskStartChange = (e) => {
     bridge.SetLaunchOnTaskStart(val);
 }
 
-const onAutoStartFromThirdPartyChange = () => {
+const onAutoStartFromThirdPartyChange = async () => {
     if (!props.autoStartFromThirdParty) {
-        // We emit an event to App.vue to show the modal
-        emit('showProtocolModal');
+        const isRegistered = await bridge.IsProtocolRegistered;
+        if (isRegistered) {
+            bridge.SetAutoStartFromThirdParty(true);
+            emit('update:autoStartFromThirdParty', true);
+        } else {
+            // We emit an event to App.vue to show the modal
+            emit('showProtocolModal');
+        }
     } else {
         bridge.SetAutoStartFromThirdParty(false);
         emit('update:autoStartFromThirdParty', false);

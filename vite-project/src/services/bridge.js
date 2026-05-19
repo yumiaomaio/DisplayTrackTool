@@ -23,6 +23,7 @@ const getBridge = () => {
         LaunchOnAppStartup: Promise.resolve(false),
         LaunchOnTaskStart: Promise.resolve(false),
         AutoStartFromThirdParty: Promise.resolve(false),
+        IsProtocolRegistered: Promise.resolve(false),
         GetLogs: () => Promise.resolve(["> Mock: System initialized."]),
         GetImageBase64: () => Promise.resolve(""),
         SetEnableTaskbarAutoHide: (val) => console.log("Mock: SetAutoHide", val),

@@ -82,6 +82,7 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService, 
     public bool LaunchOnAppStartup => viewModel.LaunchOnAppStartup;
     public bool LaunchOnTaskStart => viewModel.LaunchOnTaskStart;
     public bool AutoStartFromThirdParty => viewModel.AutoStartFromThirdParty;
+    public bool IsProtocolRegistered => viewModel.IsProtocolRegistered;
     public int WaitingCountdown => viewModel.WaitingCountdown;
     public int WindowDetectionTimeout => viewModel.WindowDetectionTimeout;
 

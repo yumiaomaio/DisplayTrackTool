@@ -201,6 +201,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public bool IsProtocolRegistered => _protocolService.IsRegistered();
+
     private int _waitingCountdown;
     public int WaitingCountdown
     {

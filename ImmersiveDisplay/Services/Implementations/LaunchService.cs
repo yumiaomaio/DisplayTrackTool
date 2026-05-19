@@ -21,6 +21,12 @@ public class LaunchService(ILoggingService loggingService) : ILaunchService
 
             var (fileName, arguments, workingDir) = ParseCommandLine(commandLine);
             
+            if (IsProcessRunning(fileName))
+            {
+                loggingService.AddLog($"> Program is already running in the system. Skipping launch: {fileName}");
+                return;
+            }
+
             loggingService.AddLog($"> Launching associated program: {fileName}");
             if (!string.IsNullOrWhiteSpace(arguments))
                 loggingService.AddLog($"> With arguments: {arguments}");
@@ -114,5 +120,43 @@ public class LaunchService(ILoggingService loggingService) : ILaunchService
         }
 
         return (fileName, arguments, workingDir);
+    }
+
+    private bool IsProcessRunning(string exePath)
+    {
+        try
+        {
+            // 排除网址类协议，比如 steam://
+            if (exePath.Contains("://") || !exePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            string processName = Path.GetFileNameWithoutExtension(exePath);
+            
+            // 查找同名进程
+            Process[] processes = Process.GetProcessesByName(processName);
+            if (processes.Length == 0) return false;
+
+            foreach (var p in processes)
+            {
+                try
+                {
+                    if (string.Equals(p.MainModule?.FileName, exePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // 某些系统进程或高权限进程无法读取 MainModule，直接忽略
+                }
+            }
+            
+            // 如果有同名进程运行，这里默认返回 true (即使用户权限不够读不到完整路径)
+            return true; 
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 }
