@@ -37,9 +37,26 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
 
         loggingService.AddLog($"[WindowLayoutManager] Applying profile '{profile.Name}' to HWND {hwnd}.");
 
-        // 1. Apply styles
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
+        // 1. Apply styles with failure detection
+        int result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
+        if (result == 0)
+        {
+            int error = Marshal.GetLastWin32Error();
+            if (error != 0)
+            {
+                throw new System.ComponentModel.Win32Exception(error, $"Failed to set window style GWL_STYLE. System Error Code: {error}");
+            }
+        }
+
+        result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
+        if (result == 0)
+        {
+            int error = Marshal.GetLastWin32Error();
+            if (error != 0)
+            {
+                throw new System.ComponentModel.Win32Exception(error, $"Failed to set window ex-style GWL_EXSTYLE. System Error Code: {error}");
+            }
+        }
 
         // 2. Calculate size and position
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
@@ -63,8 +80,16 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
         }
 
         IntPtr hwndInsertAfter = profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST) ? new IntPtr(-1) : IntPtr.Zero;
-        NativeMethods.SetWindowPos(hwnd, hwndInsertAfter, finalX, finalY, finalWidth, finalHeight, 
+        bool posResult = NativeMethods.SetWindowPos(hwnd, hwndInsertAfter, finalX, finalY, finalWidth, finalHeight, 
             SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
+        if (!posResult)
+        {
+            int error = Marshal.GetLastWin32Error();
+            if (error != 0)
+            {
+                throw new System.ComponentModel.Win32Exception(error, $"Failed to set window position. System Error Code: {error}");
+            }
+        }
     }
 
     public void ApplyAggressiveLayout(IntPtr hwnd, LayoutProfile profile)
@@ -80,9 +105,26 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
         }
 
-        // --- 2. Apply Styles ---
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
+        // --- 2. Apply Styles with failure detection ---
+        int result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
+        if (result == 0)
+        {
+            int error = Marshal.GetLastWin32Error();
+            if (error != 0)
+            {
+                throw new System.ComponentModel.Win32Exception(error, $"Failed to set aggressive window style GWL_STYLE. System Error Code: {error}");
+            }
+        }
+
+        result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
+        if (result == 0)
+        {
+            int error = Marshal.GetLastWin32Error();
+            if (error != 0)
+            {
+                throw new System.ComponentModel.Win32Exception(error, $"Failed to set aggressive window ex-style GWL_EXSTYLE. System Error Code: {error}");
+            }
+        }
 
         // --- 3. Get Monitor Info ---
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
@@ -96,7 +138,6 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
         int finalY = monitorRect.Top;
 
         // --- 4. Step-by-step repositioning ---
-        // --- 4. 分步骤强力应用位置 ---
         var overlayHwnd = overlayService.WindowHandle;
         if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
         {
@@ -107,17 +148,25 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
         IntPtr hwndInsertAfter = profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST) ? new IntPtr(-1) : IntPtr.Zero;
 
         // --- 4.1 执行最终拉伸 ---
-        // 使用 SWP_NOSENDCHANGING 防止应用拦截并修正尺寸
         var flags = SetWindowPosFlags.SWP_FRAMECHANGED | 
                     SetWindowPosFlags.SWP_NOACTIVATE | 
                     SetWindowPosFlags.SWP_SHOWWINDOW |
                     SetWindowPosFlags.SWP_NOSENDCHANGING;
 
-        NativeMethods.SetWindowPos(hwnd, hwndInsertAfter, finalX, finalY, finalWidth, finalHeight, flags);
+        bool posResult = NativeMethods.SetWindowPos(hwnd, hwndInsertAfter, finalX, finalY, finalWidth, finalHeight, flags);
+        if (!posResult)
+        {
+            int error = Marshal.GetLastWin32Error();
+            if (error != 0)
+            {
+                throw new System.ComponentModel.Win32Exception(error, $"Failed to set aggressive window position. System Error Code: {error}");
+            }
+        }
         
         // Final kick
         NativeMethods.ShowWindow(hwnd, NativeMethods.SW_SHOWNOACTIVATE);
     }
+
     public void EnsureTopmost(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero) return;
@@ -131,11 +180,27 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
 
         loggingService.AddLog($"[WindowLayoutManager] Patching HWND {hwnd} to add WS_EX_TOPMOST.");
         var newExStyle = currentExStyle | WindowExStyles.WS_EX_TOPMOST;
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)newExStyle);
+        int result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)newExStyle);
+        if (result == 0)
+        {
+            int error = Marshal.GetLastWin32Error();
+            if (error != 0)
+            {
+                throw new System.ComponentModel.Win32Exception(error, $"Failed to set GWL_EXSTYLE for EnsureTopmost. System Error Code: {error}");
+            }
+        }
         
         var topmostHwnd = new IntPtr(-1);
-        NativeMethods.SetWindowPos(hwnd, topmostHwnd, 0, 0, 0, 0,
+        bool posResult = NativeMethods.SetWindowPos(hwnd, topmostHwnd, 0, 0, 0, 0,
             SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
+        if (!posResult)
+        {
+            int error = Marshal.GetLastWin32Error();
+            if (error != 0)
+            {
+                throw new System.ComponentModel.Win32Exception(error, $"Failed to set window position for EnsureTopmost. System Error Code: {error}");
+            }
+        }
     }
 
     public void RestoreOriginalState(IntPtr hwnd)

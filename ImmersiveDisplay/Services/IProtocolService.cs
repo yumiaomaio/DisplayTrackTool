@@ -6,4 +6,5 @@ public interface IProtocolService
     void Unregister();
     void UpdateIfNecessary();
     bool IsRegistered();
+    bool IsAssociationValid();
 }

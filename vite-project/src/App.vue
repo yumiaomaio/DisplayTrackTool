@@ -27,6 +27,7 @@ const associatedLaunchPath = ref('')
 const launchOnAppStartup = ref(false)
 const launchOnTaskStart = ref(false)
 const autoStartFromThirdParty = ref(false)
+const autoStartMonitoringOnProtocolLaunch = ref(false)
 const autoHideTaskbar = ref(true)
 const enableDisplaySync = ref(true)
 const enableOverlay = ref(true)
@@ -156,8 +157,8 @@ const onAbout = () => {
 }
 
 const checkUAC = async () => {
-  const isAdmin = await bridge.IsAdmin;
-  if (!isAdmin) {
+  const shouldShow = await bridge.ShouldShowUacPrompt;
+  if (shouldShow) {
     modal.value = {
       show: true,
       title: i18n.t.uac.title,
@@ -191,6 +192,7 @@ async function init() {
   launchOnAppStartup.value = await bridge.LaunchOnAppStartup;
   launchOnTaskStart.value = await bridge.LaunchOnTaskStart;
   autoStartFromThirdParty.value = await bridge.AutoStartFromThirdParty;
+  autoStartMonitoringOnProtocolLaunch.value = await bridge.AutoStartMonitoringOnProtocolLaunch;
   isRunning.value = await bridge.IsRunning;
   shouldShowExitTip.value = await bridge.ShouldShowExitTip;
   waitingCountdown.value = await bridge.WaitingCountdown;
@@ -268,6 +270,9 @@ onMounted(() => {
     if (state.autoStartFromThirdParty !== undefined) {
         autoStartFromThirdParty.value = state.autoStartFromThirdParty;
     }
+    if (state.autoStartMonitoringOnProtocolLaunch !== undefined) {
+        autoStartMonitoringOnProtocolLaunch.value = state.autoStartMonitoringOnProtocolLaunch;
+    }
     if (state.waitingCountdown !== undefined) {
         waitingCountdown.value = state.waitingCountdown;
     }
@@ -306,6 +311,7 @@ onMounted(() => {
           v-model:launchOnAppStartup="launchOnAppStartup"
           v-model:launchOnTaskStart="launchOnTaskStart"
           v-model:autoStartFromThirdParty="autoStartFromThirdParty"
+          v-model:autoStartMonitoringOnProtocolLaunch="autoStartMonitoringOnProtocolLaunch"
           v-model:bgMode="bgMode"
           v-model:selectedColor="selectedColor"
           v-model:bgImage="bgImage"

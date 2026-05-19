@@ -135,7 +135,28 @@ public class TargetStateManager(
             displayService.ApplyDisplayProfile(_targetHwnd, profile.Display);
             await Task.Delay(500); 
         }
-        layoutManager.ApplyLayout(_targetHwnd, profile);
+        
+        try
+        {
+            layoutManager.ApplyLayout(_targetHwnd, profile);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            AddLog($"[TargetStateManager] Failed to apply initial window layout: {ex.Message}. Exiting control process.");
+            
+            // 退出控制流程并执行清理
+            await StopAsync();
+            
+            // 弹窗提示可能需要管理员权限
+            System.Windows.MessageBox.Show(
+                $"无法修改目标窗口样式。\n\n这通常是因为目标程序（游戏）是以管理员权限运行的，而本工具权限不足。\n\n请尝试【以管理员身份运行】本工具后再试。\n\n(错误信息: {ex.Message})",
+                "权限不足 / Privilege Elevation Required",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+                
+            return;
+        }
+        
         _lastOrientation = WindowOrientation.PORTRAIT;
 
         IsRunningChanged?.Invoke(_isRunning);
@@ -216,60 +237,72 @@ public class TargetStateManager(
     {
         if (hwnd != _targetHwnd || !_isRunning) return;
 
-        var currentOrientation = newRect.Width > newRect.Height
-            ? WindowOrientation.LANDSCAPE
-            : WindowOrientation.PORTRAIT;
-
-        if (currentOrientation != _lastOrientation)
+        try
         {
-            AddLog($"Orientation changed: {_lastOrientation} -> {currentOrientation}");
-            _lastOrientation = currentOrientation;
+            var currentOrientation = newRect.Width > newRect.Height
+                ? WindowOrientation.LANDSCAPE
+                : WindowOrientation.PORTRAIT;
 
-            switch (currentOrientation)
+            if (currentOrientation != _lastOrientation)
             {
-                case WindowOrientation.PORTRAIT:
-                    AddLog("Applying Portrait layout and monitor settings...");
-                    var portraitProfile = configService.GetPortraitProfile();
-                    if (configService.IsDisplaySyncEnabled())
-                    {
-                        displayService.ApplyDisplayProfile(_targetHwnd, portraitProfile.Display);
-                        await Task.Delay(500);
-                    }
-                    layoutManager.ApplyLayout(_targetHwnd, portraitProfile);
-                    _ = VerifyAndRetryLayoutAsync(_targetHwnd, portraitProfile);
-                    break;
-                case WindowOrientation.LANDSCAPE:
-                    AddLog("Applying Landscape layout and monitor settings...");
-                    var landscapeProfile = configService.GetLandscapeProfile();
-                    if (configService.IsDisplaySyncEnabled())
-                    {
-                        displayService.ApplyDisplayProfile(_targetHwnd, landscapeProfile.Display);
-                        await Task.Delay(500);
-                    }
-                    layoutManager.ApplyLayout(_targetHwnd, landscapeProfile);
-                    _ = VerifyAndRetryLayoutAsync(_targetHwnd, landscapeProfile);
-                    break;
+                AddLog($"Orientation changed: {_lastOrientation} -> {currentOrientation}");
+                _lastOrientation = currentOrientation;
+
+                switch (currentOrientation)
+                {
+                    case WindowOrientation.PORTRAIT:
+                        AddLog("Applying Portrait layout and monitor settings...");
+                        var portraitProfile = configService.GetPortraitProfile();
+                        if (configService.IsDisplaySyncEnabled())
+                        {
+                            displayService.ApplyDisplayProfile(_targetHwnd, portraitProfile.Display);
+                            await Task.Delay(500);
+                        }
+                        layoutManager.ApplyLayout(_targetHwnd, portraitProfile);
+                        _ = VerifyAndRetryLayoutAsync(_targetHwnd, portraitProfile);
+                        break;
+                    case WindowOrientation.LANDSCAPE:
+                        AddLog("Applying Landscape layout and monitor settings...");
+                        var landscapeProfile = configService.GetLandscapeProfile();
+                        if (configService.IsDisplaySyncEnabled())
+                        {
+                            displayService.ApplyDisplayProfile(_targetHwnd, landscapeProfile.Display);
+                            await Task.Delay(500);
+                        }
+                        layoutManager.ApplyLayout(_targetHwnd, landscapeProfile);
+                        _ = VerifyAndRetryLayoutAsync(_targetHwnd, landscapeProfile);
+                        break;
+                }
+
+                return;
             }
 
-            return;
+            // --- Topmost 状态维持 ---
+            var currentExStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+            if (!currentExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST))
+            {
+                AddLog($"Topmost style lost on HWND {hwnd} in {_lastOrientation} mode. Restoring...");
+
+                if (_lastOrientation == WindowOrientation.PORTRAIT)
+                {
+                    var profile = configService.GetPortraitProfile();
+                    layoutManager.ApplyLayout(_targetHwnd, profile);
+                    _ = VerifyAndRetryLayoutAsync(_targetHwnd, profile);
+                }
+                else if (_lastOrientation == WindowOrientation.LANDSCAPE)
+                {
+                    layoutManager.EnsureTopmost(_targetHwnd);
+                }
+            }
         }
-
-        // --- Topmost 状态维持 ---
-        var currentExStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
-        if (!currentExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST))
+        catch (System.ComponentModel.Win32Exception ex)
         {
-            AddLog($"Topmost style lost on HWND {hwnd} in {_lastOrientation} mode. Restoring...");
-
-            if (_lastOrientation == WindowOrientation.PORTRAIT)
-            {
-                var profile = configService.GetPortraitProfile();
-                layoutManager.ApplyLayout(_targetHwnd, profile);
-                _ = VerifyAndRetryLayoutAsync(_targetHwnd, profile);
-            }
-            else if (_lastOrientation == WindowOrientation.LANDSCAPE)
-            {
-                layoutManager.EnsureTopmost(_targetHwnd);
-            }
+            AddLog($"[TargetStateManager] Win32 error in orientation change handler: {ex.Message}. Stopping service.");
+            await StopAsync();
+        }
+        catch (Exception ex)
+        {
+            AddLog($"[TargetStateManager] Unexpected error in orientation change handler: {ex.Message}");
         }
     }
 
@@ -279,60 +312,72 @@ public class TargetStateManager(
     /// </summary>
     private async Task VerifyAndRetryLayoutAsync(IntPtr hwnd, LayoutProfile profile)
     {
-        // Wait a bit for OS/drivers to settle
-        await Task.Delay(300);
-
-        if (hwnd == IntPtr.Zero || !NativeMethods.IsWindow(hwnd) || !_isRunning) return;
-
-        if (NativeMethods.GetWindowRect(hwnd, out var rect))
+        try
         {
-            int currentW = rect.Right - rect.Left;
-            int currentH = rect.Bottom - rect.Top;
+            // Wait a bit for OS/drivers to settle
+            await Task.Delay(300);
 
-            // Get target monitor info to see what the size should be
-            IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
-            var monitorInfo = new Interop.Structs.Monitorinfo { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<Interop.Structs.Monitorinfo>() };
-            if (NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
+            if (hwnd == IntPtr.Zero || !NativeMethods.IsWindow(hwnd) || !_isRunning) return;
+
+            if (NativeMethods.GetWindowRect(hwnd, out var rect))
             {
-                int targetW = monitorInfo.rcMonitor.Right - monitorInfo.rcMonitor.Left;
-                int targetH = monitorInfo.rcMonitor.Bottom - monitorInfo.rcMonitor.Top;
+                int currentW = rect.Right - rect.Left;
+                int currentH = rect.Bottom - rect.Top;
 
-                // If deviation is more than a few pixels, retry
-                if (Math.Abs(currentW - targetW) > 5 || Math.Abs(currentH - targetH) > 5)
+                // Get target monitor info to see what the size should be
+                IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
+                var monitorInfo = new Interop.Structs.Monitorinfo { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<Interop.Structs.Monitorinfo>() };
+                if (NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
                 {
-                    AddLog($"[TargetStateManager] Layout mismatch detected (Current: {currentW}x{currentH}, Target: {targetW}x{targetH}).");
-                    
-                    // --- Diagnostic Mode: Output detailed info ---
-                    try 
-                    {
-                        var style = (WindowStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_STYLE);
-                        var exStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
-                        var dpi = NativeMethods.GetDpiForWindow(hwnd);
-                        
-                        var placement = new NativeMethods.WINDOWPLACEMENT();
-                        placement.length = System.Runtime.InteropServices.Marshal.SizeOf(placement);
-                        NativeMethods.GetWindowPlacement(hwnd, ref placement);
+                    int targetW = monitorInfo.rcMonitor.Right - monitorInfo.rcMonitor.Left;
+                    int targetH = monitorInfo.rcMonitor.Bottom - monitorInfo.rcMonitor.Top;
 
-                        var sb = new System.Text.StringBuilder();
-                        sb.AppendLine("--- DEBUG DIAGNOSTIC ---");
-                        sb.AppendLine($"HWND: {hwnd.ToInt64()} (0x{hwnd.ToInt64():X})");
-                        sb.AppendLine($"Style: {style} (0x{(uint)style:X})");
-                        sb.AppendLine($"ExStyle: {exStyle} (0x{(uint)exStyle:X})");
-                        sb.AppendLine($"DPI: {dpi}");
-                        sb.AppendLine($"ShowCmd: {placement.showCmd}");
-                        sb.AppendLine($"Monitor WorkArea: {monitorInfo.rcWork.Left},{monitorInfo.rcWork.Top} - {monitorInfo.rcWork.Right},{monitorInfo.rcWork.Bottom}");
-                        
-                        AddLog(sb.ToString());
-                    }
-                    catch (Exception ex)
+                    // If deviation is more than a few pixels, retry
+                    if (Math.Abs(currentW - targetW) > 5 || Math.Abs(currentH - targetH) > 5)
                     {
-                        AddLog($"[Diagnostic] Failed to gather details: {ex.Message}");
-                    }
+                        AddLog($"[TargetStateManager] Layout mismatch detected (Current: {currentW}x{currentH}, Target: {targetW}x{targetH}).");
+                        
+                        // --- Diagnostic Mode: Output detailed info ---
+                        try 
+                        {
+                            var style = (WindowStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_STYLE);
+                            var exStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+                            var dpi = NativeMethods.GetDpiForWindow(hwnd);
+                            
+                            var placement = new NativeMethods.WINDOWPLACEMENT();
+                            placement.length = System.Runtime.InteropServices.Marshal.SizeOf(placement);
+                            NativeMethods.GetWindowPlacement(hwnd, ref placement);
 
-                    AddLog("Retrying with AGGRESSIVE measures...");
-                    layoutManager.ApplyAggressiveLayout(hwnd, profile);
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine("--- DEBUG DIAGNOSTIC ---");
+                            sb.AppendLine($"HWND: {hwnd.ToInt64()} (0x{hwnd.ToInt64():X})");
+                            sb.AppendLine($"Style: {style} (0x{(uint)style:X})");
+                            sb.AppendLine($"ExStyle: {exStyle} (0x{(uint)exStyle:X})");
+                            sb.AppendLine($"DPI: {dpi}");
+                            sb.AppendLine($"ShowCmd: {placement.showCmd}");
+                            sb.AppendLine($"Monitor WorkArea: {monitorInfo.rcWork.Left},{monitorInfo.rcWork.Top} - {monitorInfo.rcWork.Right},{monitorInfo.rcWork.Bottom}");
+                            
+                            AddLog(sb.ToString());
+                        }
+                        catch (Exception ex)
+                        {
+                            AddLog($"[Diagnostic] Failed to gather details: {ex.Message}");
+                        }
+
+                        AddLog("Retrying with AGGRESSIVE measures...");
+                        layoutManager.ApplyAggressiveLayout(hwnd, profile);
+                    }
                 }
             }
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            AddLog($"[TargetStateManager] Win32 error in verification retry task: {ex.Message}. Stopping service.");
+            await StopAsync();
+        }
+        catch (Exception ex)
+        {
+            AddLog($"[TargetStateManager] Unexpected error in verification retry task: {ex.Message}");
         }
     }
 

@@ -201,6 +201,19 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private bool _autoStartMonitoringOnProtocolLaunch;
+    public bool AutoStartMonitoringOnProtocolLaunch
+    {
+        get => _autoStartMonitoringOnProtocolLaunch;
+        set
+        {
+            if (SetProperty(ref _autoStartMonitoringOnProtocolLaunch, value))
+            {
+                _configService.SetAutoStartMonitoringOnProtocolLaunch(value);
+            }
+        }
+    }
+
     public bool IsProtocolRegistered => _protocolService.IsRegistered();
 
     private int _waitingCountdown;
@@ -287,6 +300,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         LaunchOnAppStartup = _configService.IsLaunchOnAppStartupEnabled();
         LaunchOnTaskStart = _configService.IsLaunchOnTaskStartEnabled();
         AutoStartFromThirdParty = _configService.IsAutoStartFromThirdPartyEnabled();
+        AutoStartMonitoringOnProtocolLaunch = _configService.IsAutoStartMonitoringOnProtocolLaunchEnabled();
         WindowDetectionTimeout = _configService.GetWindowDetectionTimeout();
 
         StartCommand = new RelayCommand(() => _ = OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
@@ -308,7 +322,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         if (enable)
         {
-            _protocolService.Register();
+            if (!_protocolService.IsAssociationValid())
+            {
+                _protocolService.Register();
+            }
             AutoStartFromThirdParty = true;
         }
         else
@@ -327,6 +344,49 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public void LaunchAssociatedProgram()
     {
         _launchService.Launch(AssociatedLaunchPath ?? "");
+    }
+
+    public bool IsAssociatedPathExe()
+    {
+        var path = AssociatedLaunchPath?.Trim();
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        
+        // Trim quotes to inspect the actual target file/protocol
+        var cleanPath = path.Trim('\"').Trim();
+        if (cleanPath.Contains("://") || cleanPath.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
+        {
+            return false; // Case B: URL launch
+        }
+        return true; // Case A: EXE launch (any local program/shortcut/command)
+    }
+
+    public bool ShouldShowUacPrompt
+    {
+        get
+        {
+            // 1. If already admin, never show UAC prompt
+            if (IsAdmin) return false;
+
+            // 2. If not protocol auto-start, always show UAC prompt
+            if (!App.IsProtocolAutoStart) return true;
+
+            // 3. If protocol auto-start:
+            if (AutoStartFromThirdParty)
+            {
+                // If auto-start monitoring is enabled:
+                if (AutoStartMonitoringOnProtocolLaunch)
+                {
+                    // If it is an EXE launch (Case A), do NOT show UAC prompt
+                    if (IsAssociatedPathExe())
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            // Default: show UAC prompt
+            return true;
+        }
     }
 
     private void OnSelectAssociatedProgram()

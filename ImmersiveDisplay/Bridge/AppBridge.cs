@@ -82,6 +82,8 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService, 
     public bool LaunchOnAppStartup => viewModel.LaunchOnAppStartup;
     public bool LaunchOnTaskStart => viewModel.LaunchOnTaskStart;
     public bool AutoStartFromThirdParty => viewModel.AutoStartFromThirdParty;
+    public bool AutoStartMonitoringOnProtocolLaunch => viewModel.AutoStartMonitoringOnProtocolLaunch;
+    public bool ShouldShowUacPrompt => viewModel.ShouldShowUacPrompt;
     public bool IsProtocolRegistered => viewModel.IsProtocolRegistered;
     public int WaitingCountdown => viewModel.WaitingCountdown;
     public int WindowDetectionTimeout => viewModel.WindowDetectionTimeout;
@@ -141,6 +143,11 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService, 
     public void SetAutoStartFromThirdParty(bool enable)
     {
         viewModel.ToggleAutoStartFromThirdParty(enable);
+    }
+
+    public void SetAutoStartMonitoringOnProtocolLaunch(bool enable)
+    {
+        viewModel.AutoStartMonitoringOnProtocolLaunch = enable;
     }
 
     public void SetWindowDetectionTimeout(int seconds)

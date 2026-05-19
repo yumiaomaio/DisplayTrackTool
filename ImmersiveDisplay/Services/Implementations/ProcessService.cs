@@ -131,6 +131,21 @@ public class ProcessService(ILoggingService loggingService) : IProcessService
         if (path != null)
         {
             loggingService.AddLog($"[ProcessService] Command line detection failed, using executable path fallback for '{processName}'.");
+
+            // Prompt user about insufficient permissions to read full arguments
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show(
+                    "权限不足，无法获取目标进程的启动命令行参数（Launch Arguments）。\n\n" +
+                    "当前已自动降级为仅获取程序执行文件路径。若要抓取完整的启动参数（如 Steam 或 Epic 游戏的特殊启动参数），请以【管理员身份】重新运行本工具。\n\n" +
+                    "-----------------------------------------\n\n" +
+                    "Insufficient permissions to capture process startup arguments.\n\n" +
+                    "Falling back to executable path only. To capture complete launch parameters (e.g. for Steam/Epic games), please restart this tool as Administrator.",
+                    "权限提示 / Permission Warning",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            });
+
             return path.Contains(' ') ? $"\"{path}\"" : path;
         }
 

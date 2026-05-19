@@ -94,20 +94,38 @@ public partial class MainWindow : Window
 
             if (_configService.IsAutoStartFromThirdPartyEnabled() && App.IsProtocolAutoStart)
             {
-                _loggingService.AddLog($"[Startup] Third-party launcher detected via protocol. Auto-launching and starting monitoring.");
+                _loggingService.AddLog($"[Startup] Third-party launcher detected via protocol. Auto-launching target program.");
                 autoStartedByThirdParty = true;
                 
                 // 1. Launch associated program
                 _viewModel.LaunchAssociatedProgram();
                 
-                // 2. Start monitoring task
-                _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => 
+                // 2. Start monitoring task conditionally based on "自动开始控制" and UAC rules
+                if (_configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
                 {
-                    if (!_viewModel.IsRunning && !string.IsNullOrWhiteSpace(_viewModel.TargetProcessName))
+                    bool isExe = _viewModel.IsAssociatedPathExe();
+                    bool isAdmin = _viewModel.IsAdmin;
+
+                    if (isExe || isAdmin)
                     {
-                        _viewModel.StartCommand.Execute(null);
+                        _loggingService.AddLog($"[Startup] Auto-start monitoring active. (Bypass UAC or Admin confirmed). Starting monitoring.");
+                        _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => 
+                        {
+                            if (!_viewModel.IsRunning && !string.IsNullOrWhiteSpace(_viewModel.TargetProcessName))
+                            {
+                                _viewModel.StartCommand.Execute(null);
+                            }
+                        }));
                     }
-                }));
+                    else
+                    {
+                        _loggingService.AddLog($"[Startup] Auto-start monitoring blocked: Standard user running a URL protocol launch. UAC warning prompted.");
+                    }
+                }
+                else
+                {
+                    _loggingService.AddLog($"[Startup] Auto-start monitoring disabled by default settings. Opening in standby mode.");
+                }
             }
 
             // --- Associated Launch (App Startup) ---

@@ -12,6 +12,7 @@ const props = defineProps({
   launchOnAppStartup: Boolean,
   launchOnTaskStart: Boolean,
   autoStartFromThirdParty: Boolean,
+  autoStartMonitoringOnProtocolLaunch: Boolean,
   bgMode: String,
   selectedColor: String,
   bgImage: String,
@@ -30,6 +31,7 @@ const emit = defineEmits([
   'update:launchOnAppStartup',
   'update:launchOnTaskStart',
   'update:autoStartFromThirdParty',
+  'update:autoStartMonitoringOnProtocolLaunch',
   'update:bgMode', 
   'update:selectedColor',
   'update:bgImage'
@@ -105,6 +107,12 @@ const onAutoStartFromThirdPartyChange = async () => {
         bridge.SetAutoStartFromThirdParty(false);
         emit('update:autoStartFromThirdParty', false);
     }
+}
+
+const onAutoStartMonitoringChange = (e) => {
+    const val = e.target.checked;
+    emit('update:autoStartMonitoringOnProtocolLaunch', val);
+    bridge.SetAutoStartMonitoringOnProtocolLaunch(val);
 }
 
 const onColorChange = (hex) => {
@@ -258,6 +266,20 @@ const detectCommandLine = async () => {
         {{ i18n.t.associatedLaunchDefaultDesc }}
       </p>
     </div>
+
+    <!-- New "自动开始控制" switch, shown only when autoStartFromThirdParty is true -->
+    <template v-if="autoStartFromThirdParty">
+      <div class="row-setting">
+        <span style="border-bottom: 2px dashed var(--primary-color); padding-bottom: 4px;">{{ i18n.t.autoStartMonitoringOnProtocolLaunch }}</span>
+        <label class="switch-label">
+          <input type="checkbox" :checked="autoStartMonitoringOnProtocolLaunch" @change="onAutoStartMonitoringChange">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p class="section-desc" style="margin-top: 8px; margin-bottom: 0;">
+        {{ i18n.t.autoStartMonitoringOnProtocolLaunchDesc }}
+      </p>
+    </template>
 
     <div class="thick-divider"></div>
 

@@ -188,6 +188,14 @@ public class ConfigService : IConfigService
         SaveConfig();
     }
 
+    public bool IsAutoStartMonitoringOnProtocolLaunchEnabled() => _config.AutoStartMonitoringOnProtocolLaunch;
+    public void SetAutoStartMonitoringOnProtocolLaunch(bool enabled)
+    {
+        if (_config.AutoStartMonitoringOnProtocolLaunch == enabled) return;
+        _config.AutoStartMonitoringOnProtocolLaunch = enabled;
+        SaveConfig();
+    }
+
     public int GetWindowDetectionTimeout() => _config.WindowDetectionTimeout;
     public void SetWindowDetectionTimeout(int seconds)
     {

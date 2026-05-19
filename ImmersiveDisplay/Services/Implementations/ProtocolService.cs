@@ -71,27 +71,15 @@ public class ProtocolService(IConfigService configService, ILoggingService loggi
 
         try
         {
-            string currentExePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
-            if (string.IsNullOrEmpty(currentExePath)) return;
-
-            using var key = Registry.CurrentUser.OpenSubKey($@"Software\Classes\{ProtocolName}\shell\open\command");
-            if (key == null)
+            if (!IsAssociationValid())
             {
-                loggingService.AddLog("[ProtocolService] Feature enabled but registry missing. Re-registering...");
-                Register();
-                return;
-            }
-
-            string? registeredCommand = key.GetValue("") as string;
-            if (string.IsNullOrEmpty(registeredCommand) || !registeredCommand.Contains(currentExePath, StringComparison.OrdinalIgnoreCase))
-            {
-                loggingService.AddLog("[ProtocolService] Path mismatch detected. Updating associations...");
+                loggingService.AddLog("[ProtocolService] Association invalid or Start Menu shortcut missing. Restoring associations...");
                 Register();
             }
         }
         catch (Exception ex)
         {
-            loggingService.AddLog($"[ProtocolService] ERROR during path check: {ex.Message}");
+            loggingService.AddLog($"[ProtocolService] ERROR during automatic association validation: {ex.Message}");
         }
     }
 
@@ -99,6 +87,39 @@ public class ProtocolService(IConfigService configService, ILoggingService loggi
     {
         using var key = Registry.CurrentUser.OpenSubKey($@"Software\Classes\{ProtocolName}");
         return key != null;
+    }
+
+    public bool IsAssociationValid()
+    {
+        try
+        {
+            // 1. Check registry open command exists
+            using var key = Registry.CurrentUser.OpenSubKey($@"Software\Classes\{ProtocolName}\shell\open\command");
+            if (key == null) return false;
+
+            // 2. Check if registered path matches current EXE path
+            string currentExePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+            if (string.IsNullOrEmpty(currentExePath)) return false;
+
+            string? registeredCommand = key.GetValue("") as string;
+            if (string.IsNullOrEmpty(registeredCommand) || !registeredCommand.Contains(currentExePath, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // 3. Check if Start Menu shortcut exists (desktop shortcut is excluded as users often delete them)
+            string startMenuPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", ShortcutName);
+            if (!File.Exists(startMenuPath))
+            {
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void CreateShortcut(string folderPath, string exePath)

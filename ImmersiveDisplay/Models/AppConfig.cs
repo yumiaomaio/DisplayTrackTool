@@ -1,4 +1,4 @@
-﻿// File: Models/AppConfig.cs
+// File: Models/AppConfig.cs
 
 using System.Text.Json.Serialization;
 
@@ -48,6 +48,9 @@ public class AppConfig
     [JsonPropertyName("autoStartFromThirdParty")]
     public bool AutoStartFromThirdParty { get; set; }
 
+    [JsonPropertyName("autoStartMonitoringOnProtocolLaunch")]
+    public bool AutoStartMonitoringOnProtocolLaunch { get; set; }
+
     [JsonPropertyName("windowDetectionTimeout")]
     public int WindowDetectionTimeout { get; set; }
 
@@ -75,6 +78,7 @@ public class AppConfig
             LaunchOnAppStartup = false,
             LaunchOnTaskStart = false,
             AutoStartFromThirdParty = false,
+            AutoStartMonitoringOnProtocolLaunch = false,
             WindowDetectionTimeout = 10,
             EnableFileLogging = false, // Default is OFF as requested
             Profiles = new ProfileCollection
