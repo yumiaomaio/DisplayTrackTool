@@ -48,6 +48,9 @@ public class AppConfig
     [JsonPropertyName("autoStartFromThirdParty")]
     public bool AutoStartFromThirdParty { get; set; }
 
+    [JsonPropertyName("windowDetectionTimeout")]
+    public int WindowDetectionTimeout { get; set; }
+
     [JsonPropertyName("enableFileLogging")]
     public bool EnableFileLogging { get; set; }
 
@@ -72,6 +75,7 @@ public class AppConfig
             LaunchOnAppStartup = false,
             LaunchOnTaskStart = false,
             AutoStartFromThirdParty = false,
+            WindowDetectionTimeout = 10,
             EnableFileLogging = false, // Default is OFF as requested
             Profiles = new ProfileCollection
             {

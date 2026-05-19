@@ -36,6 +36,7 @@ const bgImage = ref('')
 const logs = ref([])
 const shouldShowExitTip = ref(true)
 const dontShowTipAgain = ref(false)
+const waitingCountdown = ref(0)
 
 // Validation State
 const propertyErrors = ref({})
@@ -47,11 +48,43 @@ const modal = ref({
   message: '',
   buttonText: '',
   secondaryButtonText: '',
+  showCheckbox: false,
+  checkboxLabel: '',
   allowClose: true,
   type: 'info',
   onAction: () => {},
   onSecondaryAction: () => {}
 })
+
+// Watch for countdown to show modal
+watch(waitingCountdown, (newVal) => {
+  if (newVal > 0) {
+    modal.value = {
+      show: true,
+      title: i18n.t.waitingTitle,
+      message: `${i18n.t.waitingMessage} (${newVal}${i18n.t.seconds})`,
+      buttonText: i18n.t.protocolCancel,
+      allowClose: false,
+      type: 'info',
+      onAction: () => {
+        bridge.StopMonitoring();
+        modal.value.show = false;
+      }
+    };
+  } else if (newVal === 0 && modal.value.title === i18n.t.waitingTitle) {
+    modal.value.show = false;
+  } else if (newVal === -1) {
+    modal.value = {
+      show: true,
+      title: 'TIMEOUT',
+      message: i18n.t.processNotFound,
+      buttonText: 'OK',
+      allowClose: true,
+      type: 'warning',
+      onAction: () => { modal.value.show = false; }
+    };
+  }
+});
 
 // --- Methods ---
 const toggleTheme = () => {
@@ -160,6 +193,7 @@ async function init() {
   autoStartFromThirdParty.value = await bridge.AutoStartFromThirdParty;
   isRunning.value = await bridge.IsRunning;
   shouldShowExitTip.value = await bridge.ShouldShowExitTip;
+  waitingCountdown.value = await bridge.WaitingCountdown;
 
   // Handle Background Mode
   const mode = await bridge.BackgroundMode;
@@ -233,6 +267,9 @@ onMounted(() => {
     }
     if (state.autoStartFromThirdParty !== undefined) {
         autoStartFromThirdParty.value = state.autoStartFromThirdParty;
+    }
+    if (state.waitingCountdown !== undefined) {
+        waitingCountdown.value = state.waitingCountdown;
     }
   });
 })

@@ -30,4 +30,6 @@ public interface IConfigService
     void SetLaunchOnTaskStart(bool enabled);
     bool IsAutoStartFromThirdPartyEnabled();
     void SetAutoStartFromThirdParty(bool enabled);
+    int GetWindowDetectionTimeout();
+    void SetWindowDetectionTimeout(int seconds);
 }

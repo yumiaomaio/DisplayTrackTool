@@ -188,6 +188,14 @@ public class ConfigService : IConfigService
         SaveConfig();
     }
 
+    public int GetWindowDetectionTimeout() => _config.WindowDetectionTimeout;
+    public void SetWindowDetectionTimeout(int seconds)
+    {
+        if (_config.WindowDetectionTimeout == seconds) return;
+        _config.WindowDetectionTimeout = seconds;
+        SaveConfig();
+    }
+
     private T ParseEnum<T>(List<string> values) where T : struct
     {
         if (!values.Any()) return default;

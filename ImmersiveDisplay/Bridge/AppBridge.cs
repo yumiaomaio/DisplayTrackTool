@@ -82,6 +82,8 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService, 
     public bool LaunchOnAppStartup => viewModel.LaunchOnAppStartup;
     public bool LaunchOnTaskStart => viewModel.LaunchOnTaskStart;
     public bool AutoStartFromThirdParty => viewModel.AutoStartFromThirdParty;
+    public int WaitingCountdown => viewModel.WaitingCountdown;
+    public int WindowDetectionTimeout => viewModel.WindowDetectionTimeout;
 
     // --- Methods from JS ---
     public void StartMonitoring(string processName)
@@ -138,6 +140,11 @@ public class AppBridge(MainViewModel viewModel, IProcessService processService, 
     public void SetAutoStartFromThirdParty(bool enable)
     {
         viewModel.ToggleAutoStartFromThirdParty(enable);
+    }
+
+    public void SetWindowDetectionTimeout(int seconds)
+    {
+        viewModel.WindowDetectionTimeout = seconds;
     }
 
     public void CleanAssociation()

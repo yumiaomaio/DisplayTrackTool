@@ -200,6 +200,26 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             }
         }
     }
+
+    private int _waitingCountdown;
+    public int WaitingCountdown
+    {
+        get => _waitingCountdown;
+        set => SetProperty(ref _waitingCountdown, value);
+    }
+
+    private int _windowDetectionTimeout;
+    public int WindowDetectionTimeout
+    {
+        get => _windowDetectionTimeout;
+        set
+        {
+            if (SetProperty(ref _windowDetectionTimeout, value))
+            {
+                _configService.SetWindowDetectionTimeout(value);
+            }
+        }
+    }
     #endregion
 
     public MainViewModel(
@@ -244,6 +264,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         };
 
         _stateManager.IsRunningChanged += OnIsRunningChanged;
+        _stateManager.WaitingCountdownChanged += (countdown) => WaitingCountdown = countdown;
 
         // --- Connect ShortcutResolver to our logs ---
         ShortcutResolver.LogAction = (msg) => _loggingService.AddLog(msg);
@@ -264,6 +285,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         LaunchOnAppStartup = _configService.IsLaunchOnAppStartupEnabled();
         LaunchOnTaskStart = _configService.IsLaunchOnTaskStartEnabled();
         AutoStartFromThirdParty = _configService.IsAutoStartFromThirdPartyEnabled();
+        WindowDetectionTimeout = _configService.GetWindowDetectionTimeout();
 
         StartCommand = new RelayCommand(() => _ = OnStartAsync(), () => !IsRunning && !string.IsNullOrWhiteSpace(TargetProcessName));
         StopCommand = new RelayCommand(() => _ = OnStopAsync(), () => IsRunning);
@@ -364,6 +386,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             await _stateManager.StopAsync();
+            _launchService.ClearHistory();
         }
         catch (Exception ex)
         {

@@ -20,8 +20,10 @@ public class TargetStateManager(
     private IntPtr _targetHwnd = IntPtr.Zero;
     private WindowOrientation _lastOrientation = WindowOrientation.UNKNOWN;
     private bool _isRunning;
+    private CancellationTokenSource? _startCts;
 
     public event Action<bool>? IsRunningChanged;
+    public event Action<int>? WaitingCountdownChanged;
 
     public async Task StartAsync(string processName)
     {
@@ -31,13 +33,60 @@ public class TargetStateManager(
             return;
         }
 
+        _startCts?.Cancel();
+        _startCts = new CancellationTokenSource();
+        var token = _startCts.Token;
+
         AddLog($"Attempting to start for process: {processName}...");
 
-        _targetHwnd = await Task.Run(() => queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero);
+        // --- 1. 关联启动 (优先执行) ---
+        if (configService.IsLaunchOnTaskStartEnabled())
+        {
+            var path = configService.GetAssociatedLaunchPath();
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                launchService.Launch(path);
+            }
+        }
+
+        // --- 2. 窗口探测 (带倒计时轮询) ---
+        _targetHwnd = IntPtr.Zero;
+        int timeoutSeconds = configService.GetWindowDetectionTimeout();
+        
+        AddLog($"Waiting for target window to appear (up to {timeoutSeconds}s)...");
+        
+        for (int i = timeoutSeconds; i >= 0; i--)
+        {
+            if (token.IsCancellationRequested) 
+            {
+                WaitingCountdownChanged?.Invoke(0);
+                return;
+            }
+
+            WaitingCountdownChanged?.Invoke(i);
+            
+            _targetHwnd = await Task.Run(() => queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero);
+            
+            if (_targetHwnd != IntPtr.Zero)
+            {
+                WaitingCountdownChanged?.Invoke(0);
+                break;
+            }
+
+            if (i > 0)
+            {
+                try { await Task.Delay(1000, token); }
+                catch (TaskCanceledException) { 
+                    WaitingCountdownChanged?.Invoke(0);
+                    return; 
+                }
+            }
+        }
 
         if (_targetHwnd == IntPtr.Zero)
         {
-            AddLog($"Error: Could not find a visible window for process '{processName}'.");
+            WaitingCountdownChanged?.Invoke(-1); // Signal timeout/error
+            AddLog($"Error: Could not find a visible window for process '{processName}' within {timeoutSeconds}s.");
             return;
         }
 
@@ -56,16 +105,6 @@ public class TargetStateManager(
 
         _isRunning = true;
         _lastOrientation = WindowOrientation.UNKNOWN;
-
-        // --- 关联启动 (任务启动时) ---
-        if (configService.IsLaunchOnTaskStartEnabled())
-        {
-            var path = configService.GetAssociatedLaunchPath();
-            if (!string.IsNullOrWhiteSpace(path))
-            {
-                launchService.Launch(path);
-            }
-        }
 
         // --- 背景遮罩 ---
         if (configService.IsBackgroundOverlayEnabled())
@@ -105,6 +144,8 @@ public class TargetStateManager(
 
     public async Task StopAsync()
     {
+        _startCts?.Cancel();
+        
         if (!_isRunning) return;
 
         AddLog("Stopping service and restoring original states...");
