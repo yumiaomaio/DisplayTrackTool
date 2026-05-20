@@ -323,6 +323,12 @@ public class TargetStateManager(
                         break;
                 }
 
+                // Adapting overlay for orientation change on the SAME screen
+                if (configService.IsBackgroundOverlayEnabled())
+                {
+                    overlayService.UpdatePosition(_targetHwnd);
+                }
+
                 return;
             }
 

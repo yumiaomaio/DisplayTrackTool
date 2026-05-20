@@ -10,21 +10,52 @@ using ImmersiveDisplay.Views;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class OverlayService(IConfigService configService, ILoggingService loggingService) : IOverlayService
+public class OverlayService : IOverlayService, IDisposable
 {
     private OverlayWindowShell? _overlayWindow;
+    private readonly IConfigService _configService;
+    private readonly ILoggingService _loggingService;
+    private IntPtr _lastTargetHwnd = IntPtr.Zero;
+
     public IntPtr? WindowHandle => _overlayWindow?.Hwnd;
+
+    public OverlayService(IConfigService configService, ILoggingService loggingService)
+    {
+        _configService = configService;
+        _loggingService = loggingService;
+        
+        _configService.ConfigChanged += OnConfigChanged;
+    }
+
+    private void OnConfigChanged(string key, object? value)
+    {
+        if (_lastTargetHwnd == IntPtr.Zero) return;
+
+        if (key == "EnableBackgroundOverlay")
+        {
+            bool enabled = value is bool b && b;
+            _loggingService.AddLog($"[OverlayService] Toggle Overlay: {enabled}");
+            if (enabled) Show(_lastTargetHwnd);
+            else Hide();
+        }
+        else if (_overlayWindow != null && (key == "BackgroundMode" || key == "BackgroundColor" || key == "CurrentImageFileName"))
+        {
+            _loggingService.AddLog($"[OverlayService] Config '{key}' changed. Refreshing active overlay...");
+            Show(_lastTargetHwnd);
+        }
+    }
 
     public void Show(IntPtr targetHwnd)
     {
+        _lastTargetHwnd = targetHwnd;
         // Capture all configuration values on the calling thread (thread-safe reads).
-        var backgroundMode = configService.GetBackgroundMode();
+        var backgroundMode = _configService.GetBackgroundMode();
         string? imagePath = null;
         string backgroundColor = "#FF000000"; // 默认黑色
 
         if (backgroundMode == BackgroundMode.IMAGE)
         {
-            string? imageName = configService.GetBackgroundImageFileName();
+            string? imageName = _configService.GetBackgroundImageFileName();
             if (!string.IsNullOrEmpty(imageName))
             {
                 string backgroundsDir = Path.Combine(AppContext.BaseDirectory, "Backgrounds");
@@ -37,13 +68,10 @@ public class OverlayService(IConfigService configService, ILoggingService loggin
         }
         else
         {
-            backgroundColor = configService.GetBackgroundColor();
+            backgroundColor = _configService.GetBackgroundColor();
         }
 
         // Marshal all Win32 window operations to the UI thread.
-        // CreateWindowEx / ShowWindow / DestroyWindow MUST execute on the thread
-        // that owns the message pump, otherwise the overlay window has no message
-        // processing and will hang, turn white, and eventually crash.
         UiDispatcher.BeginInvoke(() =>
         {
             if (_overlayWindow != null)
@@ -52,7 +80,7 @@ public class OverlayService(IConfigService configService, ILoggingService loggin
                 _overlayWindow = null;
             }
 
-            _overlayWindow = new OverlayWindowShell(imagePath, backgroundColor, loggingService);
+            _overlayWindow = new OverlayWindowShell(imagePath, backgroundColor, _loggingService);
 
             IntPtr hMonitor = NativeMethods.MonitorFromWindow(targetHwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
             var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
@@ -69,18 +97,13 @@ public class OverlayService(IConfigService configService, ILoggingService loggin
             }
             else
             {
-                x = 0;
-                y = 0;
-                width = 1920;
-                height = 1080;
+                x = 0; y = 0; width = 1920; height = 1080;
             }
 
             _overlayWindow.Create(x, y, width, height);
             _overlayWindow.Show();
 
-            // Synchronize topmost state and Z-order with target window.
-            // If the target window has the topmost style, place the overlay window topmost.
-            // If the target window does not, place the overlay window non-topmost.
+            // Synchronize Z-order
             var targetExStyle = (WindowExStyles)NativeMethods.GetWindowLong(targetHwnd, NativeMethods.GWL_EXSTYLE);
             bool isTargetTopmost = targetExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST);
 
@@ -95,17 +118,16 @@ public class OverlayService(IConfigService configService, ILoggingService loggin
                     SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
             }
 
-            // Order the overlay window directly behind the target window
             NativeMethods.SetWindowPos(_overlayWindow.Hwnd, targetHwnd, 0, 0, 0, 0,
                 SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
 
-            loggingService.AddLog("[OverlayService] Native Overlay shown and ordered behind target.");
+            _loggingService.AddLog("[OverlayService] Native Overlay shown and synchronized.");
         });
     }
 
     public void Hide()
     {
-        // DestroyWindow must also be called on the UI thread that created the window.
+        _lastTargetHwnd = IntPtr.Zero;
         UiDispatcher.BeginInvoke(() =>
         {
             if (_overlayWindow != null)
@@ -113,7 +135,23 @@ public class OverlayService(IConfigService configService, ILoggingService loggin
                 _overlayWindow.Dispose();
                 _overlayWindow = null;
             }
-            loggingService.AddLog("[OverlayService] Native Overlay hidden.");
+            _loggingService.AddLog("[OverlayService] Native Overlay hidden.");
         });
+    }
+
+    public void UpdatePosition(IntPtr targetHwnd)
+    {
+        if (_overlayWindow == null) return;
+
+        // Simply call Show again. Show() handles closing the old window and creating a new one
+        // based on the LATEST monitor info and configuration.
+        _loggingService.AddLog("[OverlayService] Orientation change detected. Re-syncing overlay window...");
+        Show(targetHwnd);
+    }
+
+    public void Dispose()
+    {
+        _configService.ConfigChanged -= OnConfigChanged;
+        Hide();
     }
 }

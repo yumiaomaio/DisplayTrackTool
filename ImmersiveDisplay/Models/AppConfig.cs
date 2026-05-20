@@ -6,7 +6,7 @@ namespace ImmersiveDisplay.Models;
 
 public enum BackgroundMode
 {
-    SOLID_COLOR,
+    COLOR,
     IMAGE
 }
 
@@ -73,7 +73,7 @@ public record AppConfig
             EnableBackgroundOverlay = true,
             EnableTaskbarAutoHide = true,
             EnableDisplaySync = true,
-            BackgroundMode = BackgroundMode.SOLID_COLOR,
+            BackgroundMode = BackgroundMode.COLOR,
             BackgroundColor = "#FF000000",
             ShowExitTip = true,
             LaunchOnAppStartup = false,

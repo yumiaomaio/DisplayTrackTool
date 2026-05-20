@@ -9,7 +9,7 @@ namespace ImmersiveDisplay.Helpers;
 public static partial class UiDispatcher
 {
     private static IntPtr _hwnd = IntPtr.Zero;
-    private static readonly ConcurrentQueue<Action> _queue = new();
+    private static readonly ConcurrentQueue<Action> Queue = new();
     private static ILoggingService? _loggingService;
     public const int WM_DISPATCH = 0x0400 + 777; // WM_USER + 777
 
@@ -22,7 +22,7 @@ public static partial class UiDispatcher
         _hwnd = hwnd;
         if (loggingService != null) _loggingService = loggingService;
         
-        if (!_queue.IsEmpty && _hwnd != IntPtr.Zero)
+        if (!Queue.IsEmpty && _hwnd != IntPtr.Zero)
         {
             PostMessage(_hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
         }
@@ -30,7 +30,7 @@ public static partial class UiDispatcher
 
     public static void BeginInvoke(Action action)
     {
-        _queue.Enqueue(action);
+        Queue.Enqueue(action);
         if (_hwnd != IntPtr.Zero)
         {
             PostMessage(_hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
@@ -39,7 +39,7 @@ public static partial class UiDispatcher
 
     public static void InvokePending()
     {
-        while (_queue.TryDequeue(out var action))
+        while (Queue.TryDequeue(out var action))
         {
             try
             {

@@ -162,9 +162,24 @@ public class AppBridge(
     public void SetEnableBackgroundOverlay(bool enable) => configService.SetEnableBackgroundOverlay(enable);
     public void SetBackgroundMode(string mode)
     {
-        if (Enum.TryParse<BackgroundMode>(mode, true, out var result))
+        loggingService.AddLog($"[AppBridge] SetBackgroundMode called with: {mode}");
+        // Normalize frontend values ('color', 'image') to enum members (COLOR, IMAGE)
+        BackgroundMode? targetMode = null;
+        if (mode.Equals("color", StringComparison.OrdinalIgnoreCase)) targetMode = Models.BackgroundMode.COLOR;
+        else if (mode.Equals("image", StringComparison.OrdinalIgnoreCase)) targetMode = Models.BackgroundMode.IMAGE;
+        else if (Enum.TryParse<BackgroundMode>(mode, true, out var result)) targetMode = result;
+
+        if (targetMode.HasValue)
         {
-            configService.SetBackgroundMode(result);
+            loggingService.AddLog($"[AppBridge] Mapping '{mode}' to enum {targetMode.Value}.");
+            configService.SetBackgroundMode(targetMode.Value);
+            // Notify frontend to confirm the change
+            var status = new Dictionary<string, object?> { ["backgroundMode"] = targetMode.Value.ToString().ToLower() };
+            _webView?.PostWebMessageAsJson(JsonSerializer.Serialize(status, AppJsonContext.Default.DictionaryStringObject));
+        }
+        else
+        {
+            loggingService.AddLog($"[AppBridge] Failed to parse BackgroundMode: {mode}");
         }
     }
     public void SelectImage() => overlayImageService.SelectAndSetBackgroundImage();

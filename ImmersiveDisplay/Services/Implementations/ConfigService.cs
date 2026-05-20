@@ -109,6 +109,7 @@ public class ConfigService : IConfigService
 
     public void SetBackgroundMode(BackgroundMode mode)
     {
+        _loggingService.AddLog($"[ConfigService] SetBackgroundMode: Current={_config.BackgroundMode}, New={mode}");
         if (_config.BackgroundMode == mode) return;
         _config = _config with { BackgroundMode = mode };
         SaveConfig();
@@ -117,6 +118,7 @@ public class ConfigService : IConfigService
 
     public void SetBackgroundColor(string color)
     {
+        _loggingService.AddLog($"[ConfigService] SetBackgroundColor: Current={_config.BackgroundColor}, New={color}");
         if (string.Equals(_config.BackgroundColor, color, StringComparison.InvariantCultureIgnoreCase)) return;
         _config = _config with { BackgroundColor = color };
         SaveConfig();
