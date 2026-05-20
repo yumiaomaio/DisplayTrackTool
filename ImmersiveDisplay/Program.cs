@@ -1,10 +1,8 @@
 // File: Program.cs
 
-using System;
-using System.IO;
-using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using ImmersiveDisplay.Bridge;
-using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Services;
 using ImmersiveDisplay.Services.Implementations;
@@ -12,7 +10,7 @@ using ImmersiveDisplay.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.Core;
 
-[assembly: System.Runtime.CompilerServices.DisableRuntimeMarshalling]
+[assembly: DisableRuntimeMarshalling]
 
 namespace ImmersiveDisplay;
 
@@ -20,15 +18,15 @@ public static partial class Program
 {
     public static bool IsProtocolAutoStart { get; private set; }
 
-    [System.Runtime.InteropServices.LibraryImport("user32.dll", SetLastError = true)]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetProcessDpiAwarenessContext(IntPtr value);
 
-    [System.Runtime.InteropServices.LibraryImport("shcore.dll", SetLastError = true)]
+    [LibraryImport("shcore.dll", SetLastError = true)]
     private static partial int SetProcessDpiAwareness(int value);
 
-    [System.Runtime.InteropServices.LibraryImport("user32.dll", SetLastError = true)]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetProcessDpiAware();
 
     private static void ConfigureDpiAwareness()

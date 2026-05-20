@@ -1,6 +1,7 @@
 // File: Interop/NativeMethods.WindowCreation.cs
 
-using System;
+using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop.Structs;
 
@@ -36,11 +37,11 @@ internal static partial class NativeMethods
         public IntPtr wParam;
         public IntPtr lParam;
         public uint time;
-        public System.Drawing.Point pt;
+        public Point pt;
         public uint lPrivate;
     }
 
-    [System.Runtime.CompilerServices.InlineArray(32)]
+    [InlineArray(32)]
     public struct Byte32Buffer
     {
         private byte _element0;

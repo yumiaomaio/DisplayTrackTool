@@ -1,7 +1,5 @@
 // File: Services/Implementations/OverlayService.cs
 
-using System;
-using System.IO;
 using System.Runtime.InteropServices;
 using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
@@ -54,7 +52,7 @@ public class OverlayService(IConfigService configService, ILoggingService loggin
                 _overlayWindow = null;
             }
 
-            _overlayWindow = new OverlayWindowShell(imagePath, backgroundColor);
+            _overlayWindow = new OverlayWindowShell(imagePath, backgroundColor, loggingService);
 
             IntPtr hMonitor = NativeMethods.MonitorFromWindow(targetHwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
             var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };

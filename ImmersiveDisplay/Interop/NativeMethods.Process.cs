@@ -1,7 +1,6 @@
 // File: Interop/NativeMethods.Process.cs
 
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace ImmersiveDisplay.Interop;
 

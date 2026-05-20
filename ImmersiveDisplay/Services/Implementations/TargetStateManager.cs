@@ -1,8 +1,18 @@
+using System.ComponentModel;
+using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Enums;
+using ImmersiveDisplay.Interop.Structs;
 using ImmersiveDisplay.Models;
 
 namespace ImmersiveDisplay.Services.Implementations;
+
+public enum WindowOrientation
+{
+    UNKNOWN,
+    PORTRAIT,
+    LANDSCAPE
+}
 
 public class TargetStateManager(
     IWindowQueryService queryService,
@@ -170,7 +180,7 @@ public class TargetStateManager(
         {
             layoutManager.ApplyLayout(_targetHwnd, profile);
         }
-        catch (System.ComponentModel.Win32Exception ex)
+        catch (Win32Exception ex)
         {
             AddLog($"[TargetStateManager] Failed to apply initial window layout: {ex.Message}. Exiting control process.");
             
@@ -272,7 +282,7 @@ public class TargetStateManager(
         await StopAsync();
     }
 
-    private async void OnWindowStateChanged(IntPtr hwnd, ImmersiveDisplay.Interop.Structs.Rect newRect)
+    private async void OnWindowStateChanged(IntPtr hwnd, Rect newRect)
     {
         if (hwnd != _targetHwnd || !IsRunning) return;
 
@@ -334,7 +344,7 @@ public class TargetStateManager(
                 }
             }
         }
-        catch (System.ComponentModel.Win32Exception ex)
+        catch (Win32Exception ex)
         {
             AddLog($"[TargetStateManager] Win32 error in orientation change handler: {ex.Message}. Stopping service.");
             await StopAsync();
@@ -365,7 +375,7 @@ public class TargetStateManager(
 
                 // Get target monitor info to see what the size should be
                 IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
-                var monitorInfo = new Interop.Structs.Monitorinfo { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<Interop.Structs.Monitorinfo>() };
+                var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
                 if (NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
                 {
                     int targetW = monitorInfo.rcMonitor.Right - monitorInfo.rcMonitor.Left;
@@ -384,7 +394,7 @@ public class TargetStateManager(
                             var dpi = NativeMethods.GetDpiForWindow(hwnd);
                             
                             var placement = new NativeMethods.WINDOWPLACEMENT();
-                            placement.length = System.Runtime.InteropServices.Marshal.SizeOf(placement);
+                            placement.length = Marshal.SizeOf(placement);
                             NativeMethods.GetWindowPlacement(hwnd, ref placement);
 
                             string diagnosticInfo = $"""
@@ -410,7 +420,7 @@ public class TargetStateManager(
                 }
             }
         }
-        catch (System.ComponentModel.Win32Exception ex)
+        catch (Win32Exception ex)
         {
             AddLog($"[TargetStateManager] Win32 error in verification retry task: {ex.Message}. Stopping service.");
             await StopAsync();

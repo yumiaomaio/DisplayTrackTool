@@ -1,18 +1,17 @@
-using System;
-using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Runtime.InteropServices.Marshalling;
-using System.Text;
 
 namespace ImmersiveDisplay.Helpers;
 
-[System.Runtime.CompilerServices.InlineArray(260)]
+[InlineArray(260)]
 internal struct Char260Buffer
 {
     private char _element0;
 }
 
-[System.Runtime.CompilerServices.InlineArray(14)]
+[InlineArray(14)]
 internal struct Char14Buffer
 {
     private char _element0;
@@ -147,9 +146,9 @@ public static partial class ShortcutResolver
     internal struct Win32FindDataw
     {
         public uint dwFileAttributes;
-        public System.Runtime.InteropServices.ComTypes.FILETIME ftCreationTime;
-        public System.Runtime.InteropServices.ComTypes.FILETIME ftLastAccessTime;
-        public System.Runtime.InteropServices.ComTypes.FILETIME ftLastWriteTime;
+        public FILETIME ftCreationTime;
+        public FILETIME ftLastAccessTime;
+        public FILETIME ftLastWriteTime;
         public uint nFileSizeHigh;
         public uint nFileSizeLow;
         public uint dwReserved0;

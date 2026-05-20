@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using ImmersiveDisplay.Helpers;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
@@ -44,7 +45,7 @@ public class LoggingService : ILoggingService
         string logEntry = $"[{timestamp}] {message}";
 
         // UI Update
-        Helpers.UiDispatcher.BeginInvoke(() =>
+        UiDispatcher.BeginInvoke(() =>
         {
             Logs.Insert(0, logEntry);
             while (Logs.Count > 100)

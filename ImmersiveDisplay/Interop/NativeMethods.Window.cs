@@ -2,7 +2,6 @@
 
 using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Text;
 using ImmersiveDisplay.Interop.Enums;
 using ImmersiveDisplay.Interop.Structs;
 

@@ -1,7 +1,5 @@
 // File: Services/Implementations/WindowMonitorService.cs
 
-using System;
-using System.Threading;
 using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Enums;

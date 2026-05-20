@@ -1,6 +1,5 @@
 // File: Services/IWindowMonitorService.cs
 
-using System;
 using ImmersiveDisplay.Interop.Structs;
 
 namespace ImmersiveDisplay.Services;

@@ -1,11 +1,9 @@
 // File: Services/Implementations/ProcessService.cs
 
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
-using System.Text;
 using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
 
@@ -42,11 +40,11 @@ public class ProcessService(ILoggingService loggingService, IDialogService dialo
 
             try
             {
-                using (var icon = System.Drawing.Icon.FromHandle(hIcon))
+                using (var icon = Icon.FromHandle(hIcon))
                 using (var bitmap = icon.ToBitmap())
                 using (var ms = new MemoryStream())
                 {
-                    bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                    bitmap.Save(ms, ImageFormat.Png);
                     byte[] iconBytes = ms.ToArray();
                     return "data:image/png;base64," + Convert.ToBase64String(iconBytes);
                 }

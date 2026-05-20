@@ -1,11 +1,8 @@
 // File: Services/Implementations/ConfigService.cs
 
-using System;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using ImmersiveDisplay.Bridge;
 using ImmersiveDisplay.Interop.Enums;
 using ImmersiveDisplay.Models;
 
@@ -53,7 +50,7 @@ public class ConfigService : IConfigService
         string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
         try
         {
-            File.WriteAllText(configPath, JsonSerializer.Serialize(_config, Bridge.AppJsonContext.Default.AppConfig));
+            File.WriteAllText(configPath, JsonSerializer.Serialize(_config, AppJsonContext.Default.AppConfig));
             _loggingService.AddLogs("[ConfigService] Serializing configurations...", $"[ConfigService] Config saved to '{configPath}'.");
         }
         catch (Exception ex)
@@ -69,7 +66,7 @@ public class ConfigService : IConfigService
         {
             _loggingService.AddLogs("[ConfigService] Config file not found.", $"[ConfigService] Creating default at '{configPath}'.");
             var defaultConfig = CreateDefaultConfig();
-            File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig, Bridge.AppJsonContext.Default.AppConfig));
+            File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig, AppJsonContext.Default.AppConfig));
             return defaultConfig;
         }
 
@@ -77,7 +74,7 @@ public class ConfigService : IConfigService
         {
             _loggingService.AddLogs($"[ConfigService] Loading config from '{configPath}'.", "[ConfigService] Deserializing JSON...");
             string json = File.ReadAllText(configPath);
-            var config = JsonSerializer.Deserialize(json, Bridge.AppJsonContext.Default.AppConfig) 
+            var config = JsonSerializer.Deserialize(json, AppJsonContext.Default.AppConfig) 
                    ?? CreateDefaultConfig();
 
             return config;

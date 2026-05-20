@@ -1,6 +1,5 @@
 // File: Services/Implementations/AppIntegrationService.cs
 
-using System;
 using ImmersiveDisplay.Helpers;
 
 namespace ImmersiveDisplay.Services.Implementations;

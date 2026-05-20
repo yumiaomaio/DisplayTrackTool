@@ -1,5 +1,6 @@
 // File: Services/Implementations/WindowLayoutManager.cs
 
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Enums;
@@ -7,6 +8,13 @@ using ImmersiveDisplay.Interop.Structs;
 using ImmersiveDisplay.Models;
 
 namespace ImmersiveDisplay.Services.Implementations;
+
+public record WindowSnapshot
+{
+    public WindowStyles Style { get; init; }
+    public WindowExStyles ExStyle { get; init; }
+    public Rect Rect { get; init; }
+}
 
 public class WindowLayoutManager(IOverlayService overlayService, ILoggingService loggingService)
     : IWindowLayoutManager
@@ -44,7 +52,7 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             int error = Marshal.GetLastWin32Error();
             if (error != 0)
             {
-                throw new System.ComponentModel.Win32Exception(error, $"Failed to set window style GWL_STYLE. System Error Code: {error}");
+                throw new Win32Exception(error, $"Failed to set window style GWL_STYLE. System Error Code: {error}");
             }
         }
 
@@ -54,7 +62,7 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             int error = Marshal.GetLastWin32Error();
             if (error != 0)
             {
-                throw new System.ComponentModel.Win32Exception(error, $"Failed to set window ex-style GWL_EXSTYLE. System Error Code: {error}");
+                throw new Win32Exception(error, $"Failed to set window ex-style GWL_EXSTYLE. System Error Code: {error}");
             }
         }
 
@@ -80,7 +88,7 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             int error = Marshal.GetLastWin32Error();
             if (error != 0)
             {
-                throw new System.ComponentModel.Win32Exception(error, $"Failed to set window position. System Error Code: {error}");
+                throw new Win32Exception(error, $"Failed to set window position. System Error Code: {error}");
             }
         }
 
@@ -127,7 +135,7 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             int error = Marshal.GetLastWin32Error();
             if (error != 0)
             {
-                throw new System.ComponentModel.Win32Exception(error, $"Failed to set aggressive window style GWL_STYLE. System Error Code: {error}");
+                throw new Win32Exception(error, $"Failed to set aggressive window style GWL_STYLE. System Error Code: {error}");
             }
         }
 
@@ -137,7 +145,7 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             int error = Marshal.GetLastWin32Error();
             if (error != 0)
             {
-                throw new System.ComponentModel.Win32Exception(error, $"Failed to set aggressive window ex-style GWL_EXSTYLE. System Error Code: {error}");
+                throw new Win32Exception(error, $"Failed to set aggressive window ex-style GWL_EXSTYLE. System Error Code: {error}");
             }
         }
 
@@ -167,7 +175,7 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             int error = Marshal.GetLastWin32Error();
             if (error != 0)
             {
-                throw new System.ComponentModel.Win32Exception(error, $"Failed to set aggressive window position. System Error Code: {error}");
+                throw new Win32Exception(error, $"Failed to set aggressive window position. System Error Code: {error}");
             }
         }
 
@@ -216,7 +224,7 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             int error = Marshal.GetLastWin32Error();
             if (error != 0)
             {
-                throw new System.ComponentModel.Win32Exception(error, $"Failed to set GWL_EXSTYLE for EnsureTopmost. System Error Code: {error}");
+                throw new Win32Exception(error, $"Failed to set GWL_EXSTYLE for EnsureTopmost. System Error Code: {error}");
             }
         }
         
@@ -228,7 +236,7 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             int error = Marshal.GetLastWin32Error();
             if (error != 0)
             {
-                throw new System.ComponentModel.Win32Exception(error, $"Failed to set window position for EnsureTopmost. System Error Code: {error}");
+                throw new Win32Exception(error, $"Failed to set window position for EnsureTopmost. System Error Code: {error}");
             }
         }
     }

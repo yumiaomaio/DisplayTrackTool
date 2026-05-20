@@ -1,13 +1,10 @@
 // File: Views/MainWindowShell.cs
 
-using System;
-using System.IO;
+using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using ImmersiveDisplay.Bridge;
 using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
-using ImmersiveDisplay.Interop.Structs;
 using ImmersiveDisplay.Services;
 using Microsoft.Web.WebView2.Core;
 
@@ -20,7 +17,7 @@ public class MainWindowShell
 
     [ThreadStatic]
     private static MainWindowShell? _creatingInstance;
-    private static readonly NativeMethods.WndProc _staticWndProcDelegate = StaticWndProc;
+    private static readonly NativeMethods.WndProc StaticWndProcDelegate = StaticWndProc;
 
     private IntPtr _hwnd = IntPtr.Zero;
     private readonly AppBridge _bridge;
@@ -56,7 +53,7 @@ public class MainWindowShell
         var wndClass = new NativeMethods.WNDCLASSEX();
         wndClass.cbSize = (uint)Marshal.SizeOf(wndClass);
         wndClass.style = 0;
-        wndClass.lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_staticWndProcDelegate);
+        wndClass.lpfnWndProc = Marshal.GetFunctionPointerForDelegate(StaticWndProcDelegate);
         wndClass.cbClsExtra = 0;
         wndClass.cbWndExtra = 0;
         wndClass.hInstance = NativeMethods.GetModuleHandle(null!);
@@ -128,7 +125,7 @@ public class MainWindowShell
             throw new Exception($"Failed to create MainWindow. Error: {error}");
         }
 
-        UiDispatcher.Initialize(_hwnd);
+        UiDispatcher.Initialize(_hwnd, _loggingService);
 
         _ = InitializeWebViewAsync();
     }
@@ -142,7 +139,7 @@ public class MainWindowShell
             _webViewController = await env.CreateCoreWebView2ControllerAsync(_hwnd);
 
             NativeMethods.GetClientRect(_hwnd, out var clientRect);
-            _webViewController.Bounds = new System.Drawing.Rectangle(0, 0, clientRect.Width, clientRect.Height);
+            _webViewController.Bounds = new Rectangle(0, 0, clientRect.Width, clientRect.Height);
 
             _webViewController.CoreWebView2.Settings.AreDevToolsEnabled = true;
             _webViewController.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
@@ -175,7 +172,7 @@ public class MainWindowShell
             }
             else
             {
-                Console.WriteLine($"Web UI file not found at: {htmlPath}");
+                _loggingService.AddLog($"Web UI file not found at: {htmlPath}");
             }
 
             _appIntegrationService.InitializeHooksAndTriggers();
@@ -183,7 +180,7 @@ public class MainWindowShell
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"WebView2 Initialization failed: {ex.Message}");
+            _loggingService.AddLog($"WebView2 Initialization failed: {ex.Message}");
         }
     }
 
@@ -293,7 +290,7 @@ public class MainWindowShell
                 if (_webViewController != null)
                 {
                     NativeMethods.GetClientRect(hWnd, out var clientRect);
-                    _webViewController.Bounds = new System.Drawing.Rectangle(0, 0, clientRect.Width, clientRect.Height);
+                    _webViewController.Bounds = new Rectangle(0, 0, clientRect.Width, clientRect.Height);
                 }
                 return IntPtr.Zero;
 
@@ -307,7 +304,12 @@ public class MainWindowShell
 
             case NativeMethods.WM_DESTROY:
                 _bridge.Dispose();
-                _webViewController?.Close();
+                if (_webViewController != null)
+                {
+                    _webViewController.CoreWebView2.Stop();
+                    _webViewController.Close();
+                    _webViewController = null;
+                }
                 NativeMethods.PostQuitMessage(0);
                 return IntPtr.Zero;
         }

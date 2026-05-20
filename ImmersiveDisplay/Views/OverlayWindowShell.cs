@@ -1,11 +1,9 @@
 // File: Views/OverlayWindowShell.cs
 
-using System;
 using System.Drawing;
-using System.IO;
 using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
-using ImmersiveDisplay.Interop.Structs;
+using ImmersiveDisplay.Services;
 
 namespace ImmersiveDisplay.Views;
 
@@ -16,19 +14,21 @@ public class OverlayWindowShell : IDisposable
     
     [ThreadStatic]
     private static OverlayWindowShell? _creatingInstance;
-    private static readonly NativeMethods.WndProc _staticWndProcDelegate = StaticWndProc;
+    private static readonly NativeMethods.WndProc StaticWndProcDelegate = StaticWndProc;
     
     private IntPtr _hwnd = IntPtr.Zero;
     private readonly string? _imagePath;
     private readonly uint _colorRef;
+    private readonly ILoggingService _loggingService;
     private Bitmap? _cachedBitmap;
 
     public IntPtr Hwnd => _hwnd;
 
-    public OverlayWindowShell(string? imagePath, string backgroundColor)
+    public OverlayWindowShell(string? imagePath, string backgroundColor, ILoggingService loggingService)
     {
         _imagePath = imagePath;
         _colorRef = ParseColorToColorRef(backgroundColor);
+        _loggingService = loggingService;
 
         if (!string.IsNullOrEmpty(_imagePath) && File.Exists(_imagePath))
         {
@@ -38,7 +38,7 @@ public class OverlayWindowShell : IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OverlayWindowShell] Failed to load image {_imagePath}: {ex.Message}");
+                _loggingService.AddLog($"[OverlayWindowShell] Failed to load image {_imagePath}: {ex.Message}");
             }
         }
 
@@ -52,7 +52,7 @@ public class OverlayWindowShell : IDisposable
         var wndClass = new NativeMethods.WNDCLASSEX();
         wndClass.cbSize = (uint)Marshal.SizeOf(wndClass);
         wndClass.style = 0;
-        wndClass.lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_staticWndProcDelegate);
+        wndClass.lpfnWndProc = Marshal.GetFunctionPointerForDelegate(StaticWndProcDelegate);
         wndClass.cbClsExtra = 0;
         wndClass.cbWndExtra = 0;
         wndClass.hInstance = NativeMethods.GetModuleHandle(null!);
@@ -201,7 +201,7 @@ public class OverlayWindowShell : IDisposable
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[OverlayWindowShell] Draw Error: {ex.Message}");
+                        _loggingService.AddLog($"[OverlayWindowShell] Draw Error: {ex.Message}");
                     }
                     finally
                     {
@@ -217,7 +217,7 @@ public class OverlayWindowShell : IDisposable
         return NativeMethods.DefWindowProc(hWnd, msg, wParam, lParam);
     }
 
-    private static uint ParseColorToColorRef(string hexColor)
+    private uint ParseColorToColorRef(string hexColor)
     {
         try
         {
@@ -236,7 +236,7 @@ public class OverlayWindowShell : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[OverlayWindowShell] Error parsing color '{hexColor}': {ex.Message}");
+            _loggingService.AddLog($"[OverlayWindowShell] Error parsing color '{hexColor}': {ex.Message}");
         }
         return 0; // Default to black
     }

@@ -1,5 +1,5 @@
-using System.IO;
-
+using ImmersiveDisplay.Helpers;
+using ImmersiveDisplay.Models;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
@@ -33,7 +33,7 @@ public class OverlayImageService(
 
     public void SelectAndSetBackgroundImage()
     {
-        ImmersiveDisplay.Helpers.UiDispatcher.BeginInvoke(() => 
+        UiDispatcher.BeginInvoke(() => 
         {
             var path = dialogService.ShowOpenFileDialog(
                 "Select a Background Image",
@@ -48,7 +48,7 @@ public class OverlayImageService(
                 try
                 {
                     File.Copy(path, destPath, true);
-                    configService.SetBackgroundMode(Models.BackgroundMode.IMAGE);
+                    configService.SetBackgroundMode(BackgroundMode.IMAGE);
                     configService.SetBackgroundImageFileName(fileName);
                 }
                 catch (Exception ex)

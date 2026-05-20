@@ -1,6 +1,5 @@
 // File: Services/Implementations/NativeDialogService.cs
 
-using System;
 using System.Runtime.InteropServices;
 
 namespace ImmersiveDisplay.Services.Implementations;

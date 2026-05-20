@@ -1,12 +1,11 @@
 // File: Bridge/AppBridge.cs
 
-using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using ImmersiveDisplay.Helpers;
+using ImmersiveDisplay.Models;
 using ImmersiveDisplay.Services;
 using Microsoft.Web.WebView2.Core;
 
@@ -73,7 +72,7 @@ public class AppBridge(
         PushToFrontend(new FrontendLogsDto { Logs = loggingService.Logs.ToArray() }, AppJsonContext.Default.FrontendLogsDto);
     }
 
-    private void PushToFrontend<T>(T state, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
+    private void PushToFrontend<T>(T state, JsonTypeInfo<T> typeInfo)
     {
         if (_webView == null) return;
         try
@@ -163,7 +162,7 @@ public class AppBridge(
     public void SetEnableBackgroundOverlay(bool enable) => configService.SetEnableBackgroundOverlay(enable);
     public void SetBackgroundMode(string mode)
     {
-        if (Enum.TryParse<Models.BackgroundMode>(mode, true, out var result))
+        if (Enum.TryParse<BackgroundMode>(mode, true, out var result))
         {
             configService.SetBackgroundMode(result);
         }
