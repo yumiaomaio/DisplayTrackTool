@@ -11,7 +11,7 @@ public class ProtocolService(IConfigService configService, ILoggingService loggi
     private const string AutoStartArg = "autostart";
     private const string ShortcutName = "Immersive Auto Launch.url";
 
-    public void Register()
+    public bool Register()
     {
         try
         {
@@ -39,14 +39,16 @@ public class ProtocolService(IConfigService configService, ILoggingService loggi
             CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"), exePath);
 
             loggingService.AddLog($"[ProtocolService] Protocol and shortcuts registered to: {exePath}");
+            return true;
         }
         catch (Exception ex)
         {
             loggingService.AddLog($"[ProtocolService] ERROR during registration: {ex.Message}");
+            return false;
         }
     }
 
-    public void Unregister()
+    public bool Unregister()
     {
         try
         {
@@ -58,10 +60,12 @@ public class ProtocolService(IConfigService configService, ILoggingService loggi
             DeleteShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"));
 
             loggingService.AddLog("[ProtocolService] Protocol and shortcuts unregistered.");
+            return true;
         }
         catch (Exception ex)
         {
             loggingService.AddLog($"[ProtocolService] ERROR during unregistration: {ex.Message}");
+            return false;
         }
     }
 

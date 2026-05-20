@@ -2,8 +2,8 @@ namespace ImmersiveDisplay.Services;
 
 public interface IProtocolService
 {
-    void Register();
-    void Unregister();
+    bool Register();
+    bool Unregister();
     void UpdateIfNecessary();
     bool IsRegistered();
     bool IsAssociationValid();

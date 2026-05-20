@@ -97,13 +97,16 @@ const onAutoStartFromThirdPartyChange = async () => {
     if (!props.autoStartFromThirdParty) {
         const isRegistered = await bridge.IsProtocolRegistered;
         if (isRegistered) {
-            bridge.SetAutoStartFromThirdParty(true);
-            emit('update:autoStartFromThirdParty', true);
-        } else {
-            // We emit an event to App.vue to show the modal
-            emit('showProtocolModal');
+            const success = await bridge.RegisterProtocol();
+            if (success) {
+                bridge.SetAutoStartFromThirdParty(true);
+                emit('update:autoStartFromThirdParty', true);
+                return;
+            }
         }
+        emit('showProtocolModal');
     } else {
+        await bridge.UnregisterProtocol();
         bridge.SetAutoStartFromThirdParty(false);
         emit('update:autoStartFromThirdParty', false);
     }

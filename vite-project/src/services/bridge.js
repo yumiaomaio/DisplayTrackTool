@@ -44,7 +44,9 @@ const getBridge = () => {
         StopMonitoring: () => console.log("Mock: Stop Monitoring"),
         SelectImage: () => console.log("Mock: Select Image"),
         ClearImage: () => console.log("Mock: Clear Image"),
-        CleanAssociation: () => console.log("Mock: CleanAssociation"),
+        RegisterProtocol: () => { console.log("Mock: RegisterProtocol"); return Promise.resolve(true); },
+        UnregisterProtocol: () => { console.log("Mock: UnregisterProtocol"); return Promise.resolve(true); },
+        CleanAssociation: () => { console.log("Mock: CleanAssociation"); return Promise.resolve(true); },
         GetProcessIconBase64: () => Promise.resolve(""),
         CheckProcessExists: () => Promise.resolve(false)
     };

@@ -173,13 +173,14 @@ public class AppBridge(
     public void SetAutoStartFromThirdParty(bool enable) => configService.SetAutoStartFromThirdParty(enable);
     public void SetAutoStartMonitoringOnProtocolLaunch(bool enable) => configService.SetAutoStartMonitoringOnProtocolLaunch(enable);
     public void SetWindowDetectionTimeout(int seconds) => configService.SetWindowDetectionTimeout(seconds);
-    public void RegisterProtocol() => protocolService.Register();
-    public void UnregisterProtocol() => protocolService.Unregister();
+    public bool RegisterProtocol() => protocolService.Register();
+    public bool UnregisterProtocol() => protocolService.Unregister();
     
-    public void CleanAssociation()
+    public bool CleanAssociation()
     {
-        protocolService.Unregister();
+        bool success = protocolService.Unregister();
         configService.SetAutoStartFromThirdParty(false);
+        return success;
     }
 
     public void ClearLogs() => loggingService.Logs.Clear();

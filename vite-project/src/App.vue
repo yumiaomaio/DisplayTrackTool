@@ -141,10 +141,25 @@ const showProtocolModal = () => {
     secondaryButtonText: i18n.t.protocolCancel,
     allowClose: true,
     type: 'info',
-    onAction: () => {
-      bridge.SetAutoStartFromThirdParty(true);
-      autoStartFromThirdParty.value = true;
-      modal.value.show = false;
+    onAction: async () => {
+      const success = await bridge.RegisterProtocol();
+      if (success) {
+        bridge.SetAutoStartFromThirdParty(true);
+        autoStartFromThirdParty.value = true;
+        modal.value.show = false;
+      } else {
+        modal.value = {
+          show: true,
+          title: i18n.t.errorTitle,
+          message: i18n.t.protocolRegisterError,
+          buttonText: 'OK',
+          allowClose: true,
+          type: 'warning',
+          onAction: () => {
+            modal.value.show = false;
+          }
+        }
+      }
     },
     onSecondaryAction: () => {
       modal.value.show = false;
