@@ -55,7 +55,7 @@ public static partial class ShortcutResolver
 
                 IntPtr pszPath = Marshal.AllocHGlobal(260 * sizeof(char));
                 IntPtr pszArgs = Marshal.AllocHGlobal(1024 * sizeof(char));
-                WIN32_FIND_DATAW pfd = default;
+                Win32FindDataw pfd = default;
                 try
                 {
                     // SLGP_UNCPRIORITY = 2
@@ -101,9 +101,9 @@ public static partial class ShortcutResolver
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal partial interface IShellLinkW
     {
-        void GetPath(IntPtr pszFile, int cchMaxPath, out WIN32_FIND_DATAW pfd, int fFlags);
-        void GetIDList(out IntPtr ppidl);
-        void SetIDList(IntPtr pidl);
+        void GetPath(IntPtr pszFile, int cchMaxPath, out Win32FindDataw pfd, int fFlags);
+        void GetIdList(out IntPtr ppidl);
+        void SetIdList(IntPtr pidl);
         void GetDescription(IntPtr pszName, int cchMaxName);
         void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string pszName);
         void GetWorkingDirectory(IntPtr pszDir, int cchMaxPath);
@@ -126,7 +126,7 @@ public static partial class ShortcutResolver
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal partial interface IPersistFile
     {
-        void GetClassID(out Guid pClassID);
+        void GetClassId(out Guid pClassID);
         [PreserveSig]
         int IsDirty();
         void Load([MarshalAs(UnmanagedType.LPWStr)] string pszFileName, int dwMode);
@@ -144,7 +144,7 @@ public static partial class ShortcutResolver
         out IntPtr ppv);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    internal struct WIN32_FIND_DATAW
+    internal struct Win32FindDataw
     {
         public uint dwFileAttributes;
         public System.Runtime.InteropServices.ComTypes.FILETIME ftCreationTime;

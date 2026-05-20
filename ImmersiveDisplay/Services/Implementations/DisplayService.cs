@@ -17,14 +17,21 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
         {
             IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
             var monitorInfo = new MonitorinfoEx { cbSize = Marshal.SizeOf<MonitorinfoEx>() };
-            if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo)) return;
+            if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
+            {
+                loggingService.AddLog($"[DisplayService] Failed to capture monitor info for HWND {hwnd}.");
+                return;
+            }
 
-            string deviceName = monitorInfo.szDevice;
+            string deviceName = monitorInfo.szDevice.ToString();
             _capturedDeviceName = deviceName;
             
             var devMode = new Devmode { dmSize = (short)Marshal.SizeOf<Devmode>() };
             if (!NativeMethods.EnumDisplaySettings(deviceName, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode))
+            {
+                loggingService.AddLog($"[DisplayService] Failed to enum settings for {deviceName}.");
                 return;
+            }
 
             _originalDisplayProfile = new DisplayProfile
             {
@@ -45,10 +52,16 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
     {
         if (profile == null) return;
 
-        var targetDeviceName = GetGdiDeviceName(hwnd);
+        // Prefer the captured device name if we have one, as it's more stable
+        var targetDeviceName = _capturedDeviceName;
         if (string.IsNullOrEmpty(targetDeviceName))
         {
-            loggingService.AddLog("[DisplayService] Failed to get GDI device name for HWND.");
+            targetDeviceName = GetGdiDeviceName(hwnd);
+        }
+
+        if (string.IsNullOrEmpty(targetDeviceName))
+        {
+            loggingService.AddLog($"[DisplayService] Failed to get GDI device name for HWND {hwnd}. (IsWindow: {NativeMethods.IsWindow(hwnd)})");
             return;
         }
 
@@ -174,11 +187,19 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
     private string GetGdiDeviceName(IntPtr hwnd)
     {
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
+        if (hMonitor == IntPtr.Zero)
+        {
+            loggingService.AddLog($"[DisplayService] MonitorFromWindow returned NULL for HWND {hwnd}.");
+            return string.Empty;
+        }
+
         var monitorInfo = new MonitorinfoEx { cbSize = Marshal.SizeOf<MonitorinfoEx>() };
         if (NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
         {
-            return monitorInfo.szDevice;
+            return monitorInfo.szDevice.ToString();
         }
+
+        loggingService.AddLog($"[DisplayService] GetMonitorInfo failed. hMonitor: {hMonitor}, cbSize: {monitorInfo.cbSize}");
         return string.Empty;
     }
 

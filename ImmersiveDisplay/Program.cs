@@ -29,7 +29,7 @@ public static partial class Program
 
     [System.Runtime.InteropServices.LibraryImport("user32.dll", SetLastError = true)]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    private static partial bool SetProcessDPIAware();
+    private static partial bool SetProcessDpiAware();
 
     private static void ConfigureDpiAwareness()
     {
@@ -49,7 +49,7 @@ public static partial class Program
             try
             {
                 // Fallback 2: SetProcessDPIAware (Windows Vista+)
-                SetProcessDPIAware();
+                SetProcessDpiAware();
             }
             catch
             {

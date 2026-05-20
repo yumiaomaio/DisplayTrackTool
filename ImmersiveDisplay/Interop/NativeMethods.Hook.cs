@@ -6,6 +6,7 @@ namespace ImmersiveDisplay.Interop;
 
 internal static partial class NativeMethods
 {
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [LibraryImport("user32.dll", EntryPoint = "SetWindowsHookExW", SetLastError = true)]

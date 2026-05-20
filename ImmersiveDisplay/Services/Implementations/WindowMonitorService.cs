@@ -32,44 +32,52 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
 
     public void StartMonitoring(IntPtr hwnd)
     {
-        if (_locationHookHandle != IntPtr.Zero || _lifecycleHookHandle != IntPtr.Zero)
+        UiDispatcher.BeginInvoke(() =>
         {
-            StopMonitoring();
-        }
+            if (_locationHookHandle != IntPtr.Zero || _lifecycleHookHandle != IntPtr.Zero)
+            {
+                StopMonitoringInternal();
+            }
 
-        _targetHwnd = hwnd;
-        _currentMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
+            _targetHwnd = hwnd;
+            _currentMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
 
-        uint threadId = NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
-        if (processId == 0)
-        {
-            _loggingService.AddLog("[WindowMonitorService] Failed to get process ID. Cannot start monitoring.");
-            return;
-        }
+            NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
+            if (processId == 0)
+            {
+                _loggingService.AddLog("[WindowMonitorService] Failed to get process ID. Cannot start monitoring.");
+                return;
+            }
 
-        // Hook 1: Location / Size changes
-        _locationHookHandle = NativeMethods.SetWinEventHook(
-            NativeMethods.EVENT_OBJECT_LOCATIONCHANGE,
-            NativeMethods.EVENT_OBJECT_LOCATIONCHANGE,
-            IntPtr.Zero, _eventDelegate, processId, threadId, NativeMethods.WINEVENT_OUTOFCONTEXT);
+            // Broad Hook: From DESTROY (0x8001) to LOCATIONCHANGE (0x800B)
+            // This covers Show, Hide, Reorder (Z-Order), StateChange (Style), and LocationChange.
+            // We use threadId = 0 to monitor all threads in the target process.
+            _locationHookHandle = NativeMethods.SetWinEventHook(
+                NativeMethods.EVENT_OBJECT_DESTROY,
+                NativeMethods.EVENT_OBJECT_LOCATIONCHANGE,
+                IntPtr.Zero, _eventDelegate, processId, 0, NativeMethods.WINEVENT_OUTOFCONTEXT);
 
-        // Hook 2: Lifecycle events (Destroy/Hide)
-        _lifecycleHookHandle = NativeMethods.SetWinEventHook(
-            NativeMethods.EVENT_OBJECT_DESTROY,
-            NativeMethods.EVENT_OBJECT_HIDE,
-            IntPtr.Zero, _eventDelegate, processId, threadId, NativeMethods.WINEVENT_OUTOFCONTEXT);
-
-        if (_locationHookHandle != IntPtr.Zero && _lifecycleHookHandle != IntPtr.Zero)
-        {
-            _loggingService.AddLog($"[WindowMonitorService] Started monitoring HWND {hwnd}.");
-        }
-        else
-        {
-            StopMonitoring();
-        }
+            if (_locationHookHandle != IntPtr.Zero)
+            {
+                _loggingService.AddLog($"[WindowMonitorService] Started monitoring HWND {hwnd} (Process: {processId}).");
+            }
+            else
+            {
+                StopMonitoringInternal();
+            }
+        });
     }
 
     public void StopMonitoring()
+    {
+        UiDispatcher.BeginInvoke(() =>
+        {
+            StopMonitoringInternal();
+            _loggingService.AddLog("[WindowMonitorService] Stopped monitoring.");
+        });
+    }
+
+    private void StopMonitoringInternal()
     {
         if (_locationHookHandle != IntPtr.Zero)
         {
@@ -91,8 +99,6 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
             _debounceTimer.Dispose();
             _debounceTimer = null;
         }
-        
-        _loggingService.AddLog("[WindowMonitorService] Stopped monitoring.");
     }
 
     private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild,

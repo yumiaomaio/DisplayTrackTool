@@ -95,18 +95,19 @@ const onLaunchOnTaskStartChange = (e) => {
 
 const onAutoStartFromThirdPartyChange = async () => {
     if (!props.autoStartFromThirdParty) {
+        // When turning ON: Check if already registered in system
         const isRegistered = await bridge.IsProtocolRegistered;
         if (isRegistered) {
-            const success = await bridge.RegisterProtocol();
-            if (success) {
-                bridge.SetAutoStartFromThirdParty(true);
-                emit('update:autoStartFromThirdParty', true);
-                return;
-            }
+            // Already registered, just enable the logic flag
+            bridge.SetAutoStartFromThirdParty(true);
+            emit('update:autoStartFromThirdParty', true);
+        } else {
+            // Not registered, show the modal to guide user to register
+            emit('showProtocolModal');
         }
-        emit('showProtocolModal');
     } else {
-        await bridge.UnregisterProtocol();
+        // When turning OFF: Just disable the logic flag. 
+        // DO NOT unregister the protocol from the system, as that's handled by "Clean Association".
         bridge.SetAutoStartFromThirdParty(false);
         emit('update:autoStartFromThirdParty', false);
     }
@@ -156,6 +157,7 @@ const detectCommandLine = async () => {
         type="text" 
         :value="processName" 
         @input="e => emit('update:processName', e.target.value)" 
+        @change="e => bridge.SetTargetProcessName(e.target.value)"
         placeholder="TargetApp.exe"
         :class="{ 'error': processName && isProcessFound === false, 'success': processName && isProcessFound === true }"
         style="padding-right: 40px;"
@@ -300,11 +302,11 @@ const detectCommandLine = async () => {
     <div v-show="enableOverlay" id="visual-area">
       <div class="mode-tabs">
         <label class="tab-label">
-          <input type="radio" :checked="bgMode === 'color'" @change="emit('update:bgMode', 'color')">
+          <input type="radio" :checked="bgMode === 'color'" @change="emit('update:bgMode', 'color'); bridge.SetBackgroundMode('color')">
           <div class="tab-bg">{{ i18n.t.solidColor }}</div>
         </label>
         <label class="tab-label">
-          <input type="radio" :checked="bgMode === 'image'" @change="emit('update:bgMode', 'image')">
+          <input type="radio" :checked="bgMode === 'image'" @change="emit('update:bgMode', 'image'); bridge.SetBackgroundMode('image')">
           <div class="tab-bg">{{ i18n.t.bgImage }}</div>
         </label>
       </div>

@@ -156,6 +156,8 @@ public class AppBridge(
     }
 
     public void SetBackgroundColor(string color) => configService.SetBackgroundColor(color);
+    public void SetTargetProcessName(string processName) => configService.SetDefaultProcessName(processName);
+    public void SetAssociatedLaunchPath(string path) => configService.SetAssociatedLaunchPath(path);
     public void SetEnableTaskbarAutoHide(bool enable) => configService.SetEnableTaskbarAutoHide(enable);
     public void SetEnableDisplaySync(bool enable) => configService.SetEnableDisplaySync(enable);
     public void SetEnableBackgroundOverlay(bool enable) => configService.SetEnableBackgroundOverlay(enable);
@@ -166,7 +168,8 @@ public class AppBridge(
             configService.SetBackgroundMode(result);
         }
     }
-    public void SelectBackgroundImage() => overlayImageService.SelectAndSetBackgroundImage();
+    public void SelectImage() => overlayImageService.SelectAndSetBackgroundImage();
+    public void ClearImage() => overlayImageService.ClearImage();
     public void SelectAssociatedProgram() => appIntegrationService.SelectAssociatedProgram();
     public void SetLaunchOnAppStartup(bool enable) => configService.SetLaunchOnAppStartup(enable);
     public void SetLaunchOnTaskStart(bool enable) => configService.SetLaunchOnTaskStart(enable);
@@ -175,6 +178,7 @@ public class AppBridge(
     public void SetWindowDetectionTimeout(int seconds) => configService.SetWindowDetectionTimeout(seconds);
     public bool RegisterProtocol() => protocolService.Register();
     public bool UnregisterProtocol() => protocolService.Unregister();
+    public bool IsAssociationValid() => protocolService.IsAssociationValid();
     
     public bool CleanAssociation()
     {

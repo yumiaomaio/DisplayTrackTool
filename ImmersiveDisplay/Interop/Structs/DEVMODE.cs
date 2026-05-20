@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace ImmersiveDisplay.Interop.Structs;
 
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 [System.Runtime.CompilerServices.InlineArray(32)]
 public struct Char32Buffer
 {

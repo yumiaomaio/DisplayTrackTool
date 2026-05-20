@@ -94,12 +94,13 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     public delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
 
-    [LibraryImport("user32.dll")]
+    [LibraryImport("user32.dll", SetLastError = true)]
     public static partial IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
 
-    [LibraryImport("user32.dll")]
+    [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool UnhookWinEvent(IntPtr hWinEventHook);
 
@@ -109,6 +110,8 @@ internal static partial class NativeMethods
     public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
     public const uint EVENT_OBJECT_DESTROY = 0x8001;
     public const uint EVENT_OBJECT_HIDE = 0x8003;
+    public const uint EVENT_OBJECT_REORDER = 0x8004;
+    public const uint EVENT_OBJECT_STATECHANGE = 0x800A;
     public const int GWL_STYLE = -16;
     public const int GWL_EXSTYLE = -20;
 }

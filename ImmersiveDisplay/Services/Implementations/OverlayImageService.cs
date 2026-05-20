@@ -58,4 +58,9 @@ public class OverlayImageService(
             }
         });
     }
+
+    public void ClearImage()
+    {
+        configService.SetBackgroundImageFileName(null);
+    }
 }

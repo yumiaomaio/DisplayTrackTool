@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace ImmersiveDisplay.Interop.Structs;
 
-[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 public struct Monitorinfo
 {
     public int cbSize;

@@ -30,6 +30,8 @@ const getBridge = () => {
         SetEnableDisplaySync: (val) => console.log("Mock: SetDisplaySync", val),
         SetEnableBackgroundOverlay: (val) => console.log("Mock: SetOverlay", val),
         SetBackgroundColor: (val) => console.log("Mock: SetColor", val),
+        SetTargetProcessName: (val) => console.log("Mock: SetTargetProcessName", val),
+        SetBackgroundMode: (val) => console.log("Mock: SetBackgroundMode", val),
         SetShowExitTip: (val) => console.log("Mock: SetShowExitTip", val),
         SetAssociatedLaunchPath: (val) => console.log("Mock: SetLaunchPath", val),
         SetLaunchOnAppStartup: (val) => console.log("Mock: SetLaunchOnAppStartup", val),
