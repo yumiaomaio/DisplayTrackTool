@@ -44,6 +44,7 @@ const getBridge = () => {
         StopMonitoring: () => console.log("Mock: Stop Monitoring"),
         SelectImage: () => console.log("Mock: Select Image"),
         ClearImage: () => console.log("Mock: Clear Image"),
+        CleanAssociation: () => console.log("Mock: CleanAssociation"),
         GetProcessIconBase64: () => Promise.resolve(""),
         CheckProcessExists: () => Promise.resolve(false)
     };

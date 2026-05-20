@@ -175,6 +175,13 @@ public class AppBridge(
     public void SetWindowDetectionTimeout(int seconds) => configService.SetWindowDetectionTimeout(seconds);
     public void RegisterProtocol() => protocolService.Register();
     public void UnregisterProtocol() => protocolService.Unregister();
+    
+    public void CleanAssociation()
+    {
+        protocolService.Unregister();
+        configService.SetAutoStartFromThirdParty(false);
+    }
+
     public void ClearLogs() => loggingService.Logs.Clear();
     public void SaveConfig() { /* Autosaved in Setters */ }
 
