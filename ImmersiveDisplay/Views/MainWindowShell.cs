@@ -14,6 +14,8 @@ public class MainWindowShell
 {
     private static bool _classRegistered = false;
     private const string ClassName = "ImmersiveMainWindow";
+    private const int DefaultWidth = 435;
+    private const int DefaultHeight = 800;
 
     [ThreadStatic]
     private static MainWindowShell? _creatingInstance;
@@ -99,8 +101,8 @@ public class MainWindowShell
             // Graceful fallback if GetDpiForSystem is not supported
         }
         double dpiFactor = dpi / 96.0;
-        int width = (int)(1200 * dpiFactor);
-        int height = (int)(800 * dpiFactor);
+        int width = (int)(DefaultWidth * dpiFactor);
+        int height = (int)(DefaultHeight * dpiFactor);
 
         _creatingInstance = this;
         _hwnd = NativeMethods.CreateWindowEx(
