@@ -28,11 +28,6 @@ public class AppBridge(
     : IDisposable
 {
     private CoreWebView2? _webView;
-    private readonly JsonSerializerOptions _jsonOptions = new()
-    { 
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DictionaryKeyPolicy = JsonNamingPolicy.CamelCase 
-    };
 
     /// <summary>
     /// Binds the bridge to the WebView and starts automatic state synchronization.
@@ -60,30 +55,30 @@ public class AppBridge(
 
     private void OnConfigChanged(string key, object? value)
     {
-        PushToFrontend(new Dictionary<string, object?> { { key, value } });
+        PushToFrontend(new Dictionary<string, object?> { { key, value } }, AppJsonContext.Default.DictionaryStringObject);
     }
 
     private void OnIsRunningChanged(bool isRunning)
     {
-        PushToFrontend(new Dictionary<string, object?> { { nameof(IsRunning), isRunning } });
+        PushToFrontend(new Dictionary<string, object?> { { nameof(IsRunning), isRunning } }, AppJsonContext.Default.DictionaryStringObject);
     }
 
     private void OnWaitingCountdownChanged(int countdown)
     {
-        PushToFrontend(new Dictionary<string, object?> { { nameof(WaitingCountdown), countdown } });
+        PushToFrontend(new Dictionary<string, object?> { { nameof(WaitingCountdown), countdown } }, AppJsonContext.Default.DictionaryStringObject);
     }
 
     private void OnLogsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        PushToFrontend(new { Logs = loggingService.Logs });
+        PushToFrontend(new FrontendLogsDto { Logs = loggingService.Logs.ToArray() }, AppJsonContext.Default.FrontendLogsDto);
     }
 
-    private void PushToFrontend(object state)
+    private void PushToFrontend<T>(T state, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
     {
         if (_webView == null) return;
         try
         {
-            string json = JsonSerializer.Serialize(state, _jsonOptions);
+            string json = JsonSerializer.Serialize(state, typeInfo);
             UiDispatcher.BeginInvoke(async () => 
             {
                 try

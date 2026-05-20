@@ -25,6 +25,7 @@ public record AppConfig
     public bool EnableDisplaySync { get; init; }
 
     [JsonPropertyName("backgroundMode")]
+    [JsonConverter(typeof(JsonStringEnumConverter<BackgroundMode>))]
     public BackgroundMode BackgroundMode { get; init; }
 
     [JsonPropertyName("backgroundColor")]
@@ -139,9 +140,11 @@ public record ProfileDefinition
     public List<string> ExStyles { get; init; } = new();
 
     [JsonPropertyName("sizing")]
+    [JsonConverter(typeof(JsonStringEnumConverter<SizingMode>))]
     public SizingMode Sizing { get; init; }
 
     [JsonPropertyName("positioning")]
+    [JsonConverter(typeof(JsonStringEnumConverter<PositioningMode>))]
     public PositioningMode Positioning { get; init; }
 
     [JsonPropertyName("display")]

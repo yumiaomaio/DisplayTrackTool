@@ -52,8 +52,7 @@ public class ConfigService : IConfigService
         string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
         try
         {
-            var options = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
-            File.WriteAllText(configPath, JsonSerializer.Serialize(_config, options));
+            File.WriteAllText(configPath, JsonSerializer.Serialize(_config, Bridge.AppJsonContext.Default.AppConfig));
             _loggingService.AddLog($"[ConfigService] Config saved to '{configPath}'.");
         }
         catch (Exception ex)
@@ -69,8 +68,7 @@ public class ConfigService : IConfigService
         {
             _loggingService.AddLog($"[ConfigService] Config file not found. Creating default at '{configPath}'.");
             var defaultConfig = CreateDefaultConfig();
-            var options = new JsonSerializerOptions { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
-            File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig, options));
+            File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig, Bridge.AppJsonContext.Default.AppConfig));
             return defaultConfig;
         }
 
@@ -78,7 +76,7 @@ public class ConfigService : IConfigService
         {
             _loggingService.AddLog($"[ConfigService] Loading config from '{configPath}'.");
             string json = File.ReadAllText(configPath);
-            var config = JsonSerializer.Deserialize<AppConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, Converters = { new JsonStringEnumConverter() } }) 
+            var config = JsonSerializer.Deserialize(json, Bridge.AppJsonContext.Default.AppConfig) 
                    ?? CreateDefaultConfig();
 
             return config;

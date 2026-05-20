@@ -6,11 +6,10 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UseWPF>false</UseWPF>
-        <PublishReadyToRun>true</PublishReadyToRun>
         <LangVersion>latest</LangVersion>
         <ApplicationIcon>icon.ico</ApplicationIcon>
-        <IsAotCompatible>true</IsAotCompatible>
-        <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <PublishAot>true</PublishAot>
     </PropertyGroup>
 
     <ItemGroup>
