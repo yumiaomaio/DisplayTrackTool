@@ -1,15 +1,17 @@
+// File: Services/Implementations/ProcessService.cs
+
+using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Windows;
-using System.Windows.Interop;
-using System.Windows.Media.Imaging;
+using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class ProcessService(ILoggingService loggingService) : IProcessService
+public class ProcessService(ILoggingService loggingService, IDialogService dialogService) : IProcessService
 {
     public string GetProcessIconBase64(string processName)
     {
@@ -40,16 +42,11 @@ public class ProcessService(ILoggingService loggingService) : IProcessService
 
             try
             {
-                var bitmapSource = Imaging.CreateBitmapSourceFromHIcon(
-                    hIcon,
-                    Int32Rect.Empty,
-                    BitmapSizeOptions.FromEmptyOptions());
-
+                using (var icon = System.Drawing.Icon.FromHandle(hIcon))
+                using (var bitmap = icon.ToBitmap())
                 using (var ms = new MemoryStream())
                 {
-                    var encoder = new PngBitmapEncoder();
-                    encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
-                    encoder.Save(ms);
+                    bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
                     byte[] iconBytes = ms.ToArray();
                     return "data:image/png;base64," + Convert.ToBase64String(iconBytes);
                 }
@@ -77,14 +74,12 @@ public class ProcessService(ILoggingService loggingService) : IProcessService
         var process = Process.GetProcessesByName(searchName).FirstOrDefault();
         if (process == null) return null;
 
-        // 尝试标准方法
         try
         {
             return process.MainModule?.FileName;
         }
         catch
         {
-            // 权限不足时的 Fallback
             IntPtr hProcess = NativeMethods.OpenProcess(NativeMethods.PROCESS_QUERY_LIMITED_INFORMATION, false, process.Id);
             if (hProcess != IntPtr.Zero)
             {
@@ -118,7 +113,6 @@ public class ProcessService(ILoggingService loggingService) : IProcessService
         var process = Process.GetProcessesByName(searchName).FirstOrDefault();
         if (process == null) return null;
 
-        // --- Method 1: Kernel-level Query (Most robust) ---
         string? commandLine = GetCommandLineViaKernelQuery(process);
         if (!string.IsNullOrEmpty(commandLine))
         {
@@ -126,24 +120,20 @@ public class ProcessService(ILoggingService loggingService) : IProcessService
             return commandLine;
         }
 
-        // --- Method 2: Absolute Fallback (Path Only) ---
         string? path = GetProcessExecutablePath(processName);
         if (path != null)
         {
             loggingService.AddLog($"[ProcessService] Command line detection failed, using executable path fallback for '{processName}'.");
 
-            // Prompt user about insufficient permissions to read full arguments
-            Application.Current.Dispatcher.Invoke(() =>
+            UiDispatcher.BeginInvoke(() =>
             {
-                MessageBox.Show(
+                dialogService.ShowWarning(
                     "权限不足，无法获取目标进程的启动命令行参数（Launch Arguments）。\n\n" +
                     "当前已自动降级为仅获取程序执行文件路径。若要抓取完整的启动参数（如 Steam 或 Epic 游戏的特殊启动参数），请以【管理员身份】重新运行本工具。\n\n" +
                     "-----------------------------------------\n\n" +
                     "Insufficient permissions to capture process startup arguments.\n\n" +
                     "Falling back to executable path only. To capture complete launch parameters (e.g. for Steam/Epic games), please restart this tool as Administrator.",
-                    "权限提示 / Permission Warning",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                    "权限提示 / Permission Warning");
             });
 
             return path.Contains(' ') ? $"\"{path}\"" : path;
@@ -159,7 +149,6 @@ public class ProcessService(ILoggingService loggingService) : IProcessService
 
         try
         {
-            // First call to get required buffer size
             int status = NativeMethods.NtQueryInformationProcess(hProcess, NativeMethods.PROCESS_COMMAND_LINE_INFORMATION, IntPtr.Zero, 0, out int length);
             
             if (length == 0) return null;
@@ -170,7 +159,6 @@ public class ProcessService(ILoggingService loggingService) : IProcessService
                 status = NativeMethods.NtQueryInformationProcess(hProcess, NativeMethods.PROCESS_COMMAND_LINE_INFORMATION, buffer, length, out _);
                 if (status == 0)
                 {
-                    // The buffer contains a UNICODE_STRING structure
                     short len = Marshal.ReadInt16(buffer);
                     IntPtr strPtr = Marshal.ReadIntPtr(buffer, IntPtr.Size == 8 ? 8 : 4);
                     

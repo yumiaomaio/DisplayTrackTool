@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.Windows;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
@@ -45,17 +44,14 @@ public class LoggingService : ILoggingService
         string logEntry = $"[{timestamp}] {message}";
 
         // UI Update
-        if (Application.Current != null)
+        ImmersiveDisplay.Helpers.UiDispatcher.BeginInvoke(() =>
         {
-            Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+            Logs.Insert(0, logEntry);
+            while (Logs.Count > 100)
             {
-                Logs.Insert(0, logEntry);
-                while (Logs.Count > 100)
-                {
-                    Logs.RemoveAt(Logs.Count - 1);
-                }
-            }));
-        }
+                Logs.RemoveAt(Logs.Count - 1);
+            }
+        });
 
         // Debug Output
         Debug.WriteLine(logEntry);

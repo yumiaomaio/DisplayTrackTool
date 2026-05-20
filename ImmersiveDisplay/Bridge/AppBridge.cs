@@ -1,6 +1,12 @@
+// File: Bridge/AppBridge.cs
+
+using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Services;
 using Microsoft.Web.WebView2.Core;
 
@@ -78,7 +84,7 @@ public class AppBridge(
         try
         {
             string json = JsonSerializer.Serialize(state, _jsonOptions);
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(async () => 
+            UiDispatcher.BeginInvoke(async () => 
             {
                 try
                 {
@@ -91,7 +97,7 @@ public class AppBridge(
                 {
                     loggingService.AddLog($"[AppBridge] JS eval failed: {ex.Message}");
                 }
-            }));
+            });
         }
         catch (Exception ex)
         {
@@ -124,7 +130,7 @@ public class AppBridge(
     public void StartMonitoring(string processName)
     {
         configService.SetDefaultProcessName(processName);
-        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(async () => 
+        UiDispatcher.BeginInvoke(async () => 
         {
             try
             {
@@ -135,12 +141,12 @@ public class AppBridge(
                 loggingService.AddLog($"Failed to start monitoring: {ex.Message}");
                 dialogService.ShowError($"An error occurred: {ex.Message}");
             }
-        }));
+        });
     }
 
     public void StopMonitoring()
     {
-        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(async () => 
+        UiDispatcher.BeginInvoke(async () => 
         {
             try
             {
@@ -151,67 +157,46 @@ public class AppBridge(
             {
                 loggingService.AddLog($"Error during stop: {ex.Message}");
             }
-        }));
+        });
     }
 
     public void SetBackgroundColor(string color) => configService.SetBackgroundColor(color);
     public void SetEnableTaskbarAutoHide(bool enable) => configService.SetEnableTaskbarAutoHide(enable);
     public void SetEnableDisplaySync(bool enable) => configService.SetEnableDisplaySync(enable);
     public void SetEnableBackgroundOverlay(bool enable) => configService.SetEnableBackgroundOverlay(enable);
-    public void SetShowExitTip(bool show) => configService.SetShowExitTip(show);
-    public void SetAssociatedLaunchPath(string path) => configService.SetAssociatedLaunchPath(path);
+    public void SetBackgroundMode(string mode)
+    {
+        if (Enum.TryParse<Models.BackgroundMode>(mode, true, out var result))
+        {
+            configService.SetBackgroundMode(result);
+        }
+    }
+    public void SelectBackgroundImage() => overlayImageService.SelectAndSetBackgroundImage();
+    public void SelectAssociatedProgram() => appIntegrationService.SelectAssociatedProgram();
     public void SetLaunchOnAppStartup(bool enable) => configService.SetLaunchOnAppStartup(enable);
     public void SetLaunchOnTaskStart(bool enable) => configService.SetLaunchOnTaskStart(enable);
-    
-    public void SetAutoStartFromThirdParty(bool enable)
-    {
-        if (enable)
-        {
-            if (!protocolService.IsAssociationValid())
-            {
-                protocolService.Register();
-            }
-            configService.SetAutoStartFromThirdParty(true);
-        }
-        else
-        {
-            configService.SetAutoStartFromThirdParty(false);
-        }
-    }
-
+    public void SetAutoStartFromThirdParty(bool enable) => configService.SetAutoStartFromThirdParty(enable);
     public void SetAutoStartMonitoringOnProtocolLaunch(bool enable) => configService.SetAutoStartMonitoringOnProtocolLaunch(enable);
     public void SetWindowDetectionTimeout(int seconds) => configService.SetWindowDetectionTimeout(seconds);
-
-    public void CleanAssociation()
-    {
-        protocolService.Unregister();
-        configService.SetAutoStartFromThirdParty(false);
-        loggingService.AddLog("> System associations (Protocol & Shortcuts) cleaned successfully.");
-    }
-
-    public void SelectAssociatedProgram() => appIntegrationService.SelectAssociatedProgram();
-    public void SelectImage() => overlayImageService.SelectAndSetBackgroundImage();
-
-    public void ClearImage()
-    {
-        configService.SetBackgroundMode(Models.BackgroundMode.SOLID_COLOR);
-        configService.SetBackgroundImageFileName(null);
-    }
+    public void RegisterProtocol() => protocolService.Register();
+    public void UnregisterProtocol() => protocolService.Unregister();
+    public void ClearLogs() => loggingService.Logs.Clear();
+    public void SaveConfig() { /* Autosaved in Setters */ }
 
     public string GetImageBase64(string fileName) => overlayImageService.GetImageBase64(fileName);
     public string GetProcessCommandLine(string processName) => processService.GetProcessCommandLine(processName) ?? "";
     public string GetProcessIconBase64(string processName) => processService.GetProcessIconBase64(processName);
     public bool CheckProcessExists(string processName) => processService.GetProcessExecutablePath(processName) != null;
     public void RestartAsAdmin() => privilegeService.RestartAsAdministrator();
-    public void ExitApp() => System.Windows.Application.Current.Shutdown();
+    public void ExitApp() => Environment.Exit(0);
     public void ShowAbout()
     {
-        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => 
+        UiDispatcher.BeginInvoke(() => 
         {
             dialogService.ShowInfo(
                 "Responsive Window Tool\nVersion 1.2.0\n\n \n\nGitHub: https://github.com/yumiaomaio/GameWindowTool", 
                 "About");
-        }));
+        });
     }
 
     public string[] GetLogs() => loggingService.Logs.ToArray();
@@ -220,7 +205,7 @@ public class AppBridge(
     private bool CalculateShouldShowUacPrompt()
     {
         if (IsAdmin) return false;
-        if (!App.IsProtocolAutoStart) return true;
+        if (!Program.IsProtocolAutoStart) return true;
         if (AutoStartFromThirdParty)
         {
             if (AutoStartMonitoringOnProtocolLaunch)

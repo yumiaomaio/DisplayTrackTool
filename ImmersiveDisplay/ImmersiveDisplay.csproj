@@ -5,23 +5,18 @@
         <TargetFramework>net10.0-windows</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <UseWPF>true</UseWPF>
+        <UseWPF>false</UseWPF>
         <PublishReadyToRun>true</PublishReadyToRun>
-        <LangVersion>12</LangVersion>
+        <LangVersion>latest</LangVersion>
         <ApplicationIcon>icon.ico</ApplicationIcon>
+        <IsAotCompatible>true</IsAotCompatible>
+        <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
     </PropertyGroup>
-
-    <ItemGroup>
-      <Page Update="Views\MainWindow.xaml">
-        <Generator>MSBuild:Compile</Generator>
-        <XamlRuntime>Wpf</XamlRuntime>
-        <SubType>Designer</SubType>
-      </Page>
-    </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.6" />
       <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3065.39" />
+      <PackageReference Include="System.Drawing.Common" Version="9.0.2" />
     </ItemGroup>
 
     <ItemGroup>

@@ -1,8 +1,7 @@
-﻿// File: Services/IWindowMonitorService.cs
+// File: Services/IWindowMonitorService.cs
 
-using System.Windows;
-
-// For Rect
+using System;
+using ImmersiveDisplay.Interop.Structs;
 
 namespace ImmersiveDisplay.Services;
 

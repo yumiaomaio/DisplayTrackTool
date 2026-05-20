@@ -1,9 +1,11 @@
 // File: Services/Implementations/WindowMonitorService.cs
 
-using System.Windows;
-using System.Windows.Threading;
+using System;
+using System.Threading;
+using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Enums;
+using ImmersiveDisplay.Interop.Structs;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
@@ -18,7 +20,7 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
     private IntPtr _currentMonitor = IntPtr.Zero;
 
     private readonly NativeMethods.WinEventDelegate _eventDelegate;
-    private readonly DispatcherTimer _debounceTimer;
+    private Timer? _debounceTimer;
     private IntPtr _targetHwnd;
     private readonly ILoggingService _loggingService;
 
@@ -26,8 +28,6 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
     {
         _loggingService = loggingService;
         _eventDelegate = WinEventProc;
-        _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
-        _debounceTimer.Tick += DebounceTimer_Tick;
     }
 
     public void StartMonitoring(IntPtr hwnd)
@@ -47,13 +47,13 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
             return;
         }
 
-        // 钩子1: 专门用于位置/大小变化
+        // Hook 1: Location / Size changes
         _locationHookHandle = NativeMethods.SetWinEventHook(
             NativeMethods.EVENT_OBJECT_LOCATIONCHANGE,
             NativeMethods.EVENT_OBJECT_LOCATIONCHANGE,
             IntPtr.Zero, _eventDelegate, processId, threadId, NativeMethods.WINEVENT_OUTOFCONTEXT);
 
-        // 钩子2: 生命周期事件 (Hide/Destroy)
+        // Hook 2: Lifecycle events (Destroy/Hide)
         _lifecycleHookHandle = NativeMethods.SetWinEventHook(
             NativeMethods.EVENT_OBJECT_DESTROY,
             NativeMethods.EVENT_OBJECT_HIDE,
@@ -85,54 +85,63 @@ public class WindowMonitorService : IWindowMonitorService, IDisposable
 
         _targetHwnd = IntPtr.Zero;
         _currentMonitor = IntPtr.Zero;
-        _debounceTimer.Stop();
+        
+        if (_debounceTimer != null)
+        {
+            _debounceTimer.Dispose();
+            _debounceTimer = null;
+        }
+        
         _loggingService.AddLog("[WindowMonitorService] Stopped monitoring.");
     }
 
     private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild,
         uint dwEventThread, uint dwmsEventTime)
     {
-        // 仅处理我们关注的窗口，且排除非窗口对象的干扰
         if (idObject != 0 || hwnd != _targetHwnd) return;
 
-        // 无论是移动还是销毁，都重新启动去抖计时器
-        // 这样可以确保在一连串动作（比如窗口先缩放再关闭）完成后，只执行最后一次状态判定
-        _debounceTimer.Stop();
-        _debounceTimer.Start();
+        // Restart debounce timer
+        if (_debounceTimer == null)
+        {
+            _debounceTimer = new Timer(DebounceTimer_Tick, null, 150, Timeout.Infinite);
+        }
+        else
+        {
+            _debounceTimer.Change(150, Timeout.Infinite);
+        }
     }
 
-    private void DebounceTimer_Tick(object? sender, EventArgs e)
+    private void DebounceTimer_Tick(object? state)
     {
-        _debounceTimer.Stop();
-
-        IntPtr hwnd = _targetHwnd;
-        if (hwnd == IntPtr.Zero) return;
-
-        // --- 1. 验证窗口是否还存在且可见 ---
-        // 这是对 Hook 2 的去抖验证。如果 150ms 后窗口已经没了或隐藏了，触发销毁事件。
-        if (!NativeMethods.IsWindow(hwnd) || !NativeMethods.IsWindowVisible(hwnd))
+        UiDispatcher.BeginInvoke(() =>
         {
-            _loggingService.AddLog($"[WindowMonitorService] Window terminal state confirmed for HWND {hwnd}.");
-            WindowDestroyed?.Invoke(hwnd);
-            return; // 窗口都没了，不需要后续位置检测了
-        }
+            IntPtr hwnd = _targetHwnd;
+            if (hwnd == IntPtr.Zero) return;
 
-        // --- 2. 检查显示器切换 ---
-        IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
-        if (hMonitor != _currentMonitor && hMonitor != IntPtr.Zero)
-        {
-            _loggingService.AddLog($"[WindowMonitorService] Monitor change confirmed: {_currentMonitor} -> {hMonitor}");
-            _currentMonitor = hMonitor;
-            MonitorChanged?.Invoke(hwnd, hMonitor);
-        }
+            // 1. Verify window exists and is visible
+            if (!NativeMethods.IsWindow(hwnd) || !NativeMethods.IsWindowVisible(hwnd))
+            {
+                _loggingService.AddLog($"[WindowMonitorService] Window terminal state confirmed for HWND {hwnd}.");
+                WindowDestroyed?.Invoke(hwnd);
+                return;
+            }
 
-        // --- 3. 检查位置/大小变化 ---
-        if (NativeMethods.GetWindowRect(hwnd, out var rect))
-        {
-            var windowsRect = new Rect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
-            _loggingService.AddLog($"[WindowMonitorService] Window state update confirmed for HWND {hwnd}. New Rect: {windowsRect}");
-            WindowStateChanged?.Invoke(hwnd, windowsRect);
-        }
+            // 2. Check monitor switch
+            IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
+            if (hMonitor != _currentMonitor && hMonitor != IntPtr.Zero)
+            {
+                _loggingService.AddLog($"[WindowMonitorService] Monitor change confirmed: {_currentMonitor} -> {hMonitor}");
+                _currentMonitor = hMonitor;
+                MonitorChanged?.Invoke(hwnd, hMonitor);
+            }
+
+            // 3. Check position/size changes
+            if (NativeMethods.GetWindowRect(hwnd, out var rect))
+            {
+                _loggingService.AddLog($"[WindowMonitorService] Window state update confirmed for HWND {hwnd}. New Rect: L={rect.Left}, T={rect.Top}, W={rect.Width}, H={rect.Height}");
+                WindowStateChanged?.Invoke(hwnd, rect);
+            }
+        });
     }
 
     public void Dispose()

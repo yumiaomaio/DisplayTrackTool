@@ -1,11 +1,13 @@
+// File: Services/Implementations/PrivilegeService.cs
+
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Security.Principal;
-using System.Windows;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class PrivilegeService(ILoggingService loggingService) : IPrivilegeService
+public class PrivilegeService(ILoggingService loggingService, IDialogService dialogService) : IPrivilegeService
 {
     public bool IsAdministrator()
     {
@@ -27,7 +29,7 @@ public class PrivilegeService(ILoggingService loggingService) : IPrivilegeServic
         try
         {
             Process.Start(processInfo);
-            Application.Current.Shutdown();
+            Environment.Exit(0);
         }
         catch (Win32Exception ex)
         {
@@ -37,7 +39,7 @@ public class PrivilegeService(ILoggingService loggingService) : IPrivilegeServic
         catch (Exception ex)
         {
             loggingService.AddLog($"[PrivilegeService] Error during elevation: {ex.Message}");
-            MessageBox.Show($"Failed to restart as administrator: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            dialogService.ShowError($"Failed to restart as administrator: {ex.Message}", "Error");
         }
     }
 }

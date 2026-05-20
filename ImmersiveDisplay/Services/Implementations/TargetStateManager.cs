@@ -248,7 +248,7 @@ public class TargetStateManager(
         await StopAsync();
     }
 
-    private async void OnWindowStateChanged(IntPtr hwnd, System.Windows.Rect newRect)
+    private async void OnWindowStateChanged(IntPtr hwnd, ImmersiveDisplay.Interop.Structs.Rect newRect)
     {
         if (hwnd != _targetHwnd || !IsRunning) return;
 

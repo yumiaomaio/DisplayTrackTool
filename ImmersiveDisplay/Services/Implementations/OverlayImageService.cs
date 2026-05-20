@@ -33,7 +33,7 @@ public class OverlayImageService(
 
     public void SelectAndSetBackgroundImage()
     {
-        System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => 
+        ImmersiveDisplay.Helpers.UiDispatcher.BeginInvoke(() => 
         {
             var path = dialogService.ShowOpenFileDialog(
                 "Select a Background Image",
@@ -56,6 +56,6 @@ public class OverlayImageService(
                     dialogService.ShowError($"Error copying file: {ex.Message}");
                 }
             }
-        }));
+        });
     }
 }

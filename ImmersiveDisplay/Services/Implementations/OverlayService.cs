@@ -1,9 +1,8 @@
 // File: Services/Implementations/OverlayService.cs
 
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Interop;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Enums;
 using ImmersiveDisplay.Interop.Structs;
@@ -14,14 +13,15 @@ namespace ImmersiveDisplay.Services.Implementations;
 
 public class OverlayService(IConfigService configService, ILoggingService loggingService) : IOverlayService
 {
-    private OverlayWindow? _overlayWindow;
-    public IntPtr? WindowHandle { get; private set; }
+    private OverlayWindowShell? _overlayWindow;
+    public IntPtr? WindowHandle => _overlayWindow?.Hwnd;
 
     public void Show(IntPtr targetHwnd)
     {
         if (_overlayWindow != null)
         {
-            _overlayWindow.Close();
+            _overlayWindow.Dispose();
+            _overlayWindow = null;
         }
 
         var backgroundMode = configService.GetBackgroundMode();
@@ -30,7 +30,6 @@ public class OverlayService(IConfigService configService, ILoggingService loggin
 
         if (backgroundMode == BackgroundMode.IMAGE)
         {
-            // 图片模式逻辑
             string? imageName = configService.GetBackgroundImageFileName();
             if (!string.IsNullOrEmpty(imageName))
             {
@@ -44,45 +43,44 @@ public class OverlayService(IConfigService configService, ILoggingService loggin
         }
         else
         {
-            // 纯色模式逻辑
             backgroundColor = configService.GetBackgroundColor();
         }
 
-        // 将两种可能的值都传递给 OverlayWindow
-        _overlayWindow = new OverlayWindow(imagePath, backgroundColor);
-
-        _overlayWindow.SourceInitialized += (_, _) =>
-        {
-            WindowHandle = new WindowInteropHelper(_overlayWindow).Handle;
-        };
+        _overlayWindow = new OverlayWindowShell(imagePath, backgroundColor);
 
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(targetHwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
         var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
 
+        int x = 0, y = 0, width = 800, height = 600;
+
         if (NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
         {
             var monitorRect = monitorInfo.rcMonitor;
-            _overlayWindow.Left = monitorRect.Left;
-            _overlayWindow.Top = monitorRect.Top;
-            _overlayWindow.Width = monitorRect.Right - monitorRect.Left;
-            _overlayWindow.Height = monitorRect.Bottom - monitorRect.Top;
-            _overlayWindow.WindowState = WindowState.Normal; // Ensure it's not maximized in a weird way
+            x = monitorRect.Left;
+            y = monitorRect.Top;
+            width = monitorRect.Right - monitorRect.Left;
+            height = monitorRect.Bottom - monitorRect.Top;
         }
         else
         {
-            // Fallback to primary screen
-            _overlayWindow.WindowState = WindowState.Maximized;
+            x = 0;
+            y = 0;
+            width = 1920;
+            height = 1080;
         }
 
+        _overlayWindow.Create(x, y, width, height);
         _overlayWindow.Show();
-        loggingService.AddLog("[OverlayService] Overlay shown.");
+        loggingService.AddLog("[OverlayService] Native Overlay shown.");
     }
 
     public void Hide()
     {
-        _overlayWindow?.Close();
-        _overlayWindow = null;
-        WindowHandle = null; // 清理句柄
-        loggingService.AddLog("[OverlayService] Overlay hidden.");
+        if (_overlayWindow != null)
+        {
+            _overlayWindow.Dispose();
+            _overlayWindow = null;
+        }
+        loggingService.AddLog("[OverlayService] Native Overlay hidden.");
     }
 }

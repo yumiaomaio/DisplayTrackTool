@@ -1,4 +1,6 @@
-using System.Windows;
+// File: Services/Implementations/AppIntegrationService.cs
+
+using System;
 using ImmersiveDisplay.Helpers;
 
 namespace ImmersiveDisplay.Services.Implementations;
@@ -32,7 +34,7 @@ public class AppIntegrationService(
                 if (!stateManager.IsRunning && !string.IsNullOrWhiteSpace(processName))
                 {
                     loggingService.AddLog("F9 key pressed. Starting...");
-                    Application.Current?.Dispatcher?.BeginInvoke(new Action(async () => 
+                    UiDispatcher.BeginInvoke(async () => 
                     {
                         try
                         {
@@ -42,7 +44,7 @@ public class AppIntegrationService(
                         {
                             loggingService.AddLog($"Failed to start from F9 hook: {ex.Message}");
                         }
-                    }));
+                    });
                 }
             }
             else if (vkCode == vkF12)
@@ -50,7 +52,7 @@ public class AppIntegrationService(
                 if (stateManager.IsRunning)
                 {
                     loggingService.AddLog("F12 key pressed. Shutting down...");
-                    Application.Current?.Dispatcher?.BeginInvoke(new Action(async () => 
+                    UiDispatcher.BeginInvoke(async () => 
                     {
                         try
                         {
@@ -61,7 +63,7 @@ public class AppIntegrationService(
                         {
                             loggingService.AddLog($"Failed to stop from F12 hook: {ex.Message}");
                         }
-                    }));
+                    });
                 }
             }
         };
@@ -74,7 +76,7 @@ public class AppIntegrationService(
         // Check for path updates if feature is enabled
         protocolService.UpdateIfNecessary();
 
-        if (configService.IsAutoStartFromThirdPartyEnabled() && App.IsProtocolAutoStart)
+        if (configService.IsAutoStartFromThirdPartyEnabled() && Program.IsProtocolAutoStart)
         {
             loggingService.AddLog($"[Startup] Third-party launcher detected via protocol. Auto-launching target program.");
             autoStartedByThirdParty = true;
@@ -95,7 +97,7 @@ public class AppIntegrationService(
                 if (isExe || isAdmin)
                 {
                     loggingService.AddLog($"[Startup] Auto-start monitoring active. (Bypass UAC or Admin confirmed). Starting monitoring.");
-                    Application.Current?.Dispatcher?.BeginInvoke(new Action(async () => 
+                    UiDispatcher.BeginInvoke(async () => 
                     {
                         var targetProc = configService.GetDefaultProcessName();
                         if (!stateManager.IsRunning && !string.IsNullOrWhiteSpace(targetProc))
@@ -109,7 +111,7 @@ public class AppIntegrationService(
                                 loggingService.AddLog($"Startup monitoring failed: {ex.Message}");
                             }
                         }
-                    }));
+                    });
                 }
                 else
                 {
@@ -138,7 +140,6 @@ public class AppIntegrationService(
         var path = configService.GetAssociatedLaunchPath()?.Trim();
         if (string.IsNullOrWhiteSpace(path)) return false;
         
-        // Trim quotes to inspect the actual target file/protocol
         var cleanPath = path.Trim('\"').Trim();
         if (cleanPath.Contains("://") || cleanPath.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
         {
@@ -149,7 +150,7 @@ public class AppIntegrationService(
 
     public void SelectAssociatedProgram()
     {
-        Application.Current?.Dispatcher?.BeginInvoke(new Action(() => 
+        UiDispatcher.BeginInvoke(() => 
         {
             var path = dialogService.ShowOpenFileDialog(
                 "Select Application or Shortcut",
@@ -168,6 +169,6 @@ public class AppIntegrationService(
                 }
                 configService.SetAssociatedLaunchPath(resolvedPath);
             }
-        }));
+        });
     }
 }
