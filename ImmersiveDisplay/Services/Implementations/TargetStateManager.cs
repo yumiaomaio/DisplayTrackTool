@@ -76,58 +76,75 @@ public class TargetStateManager(
         }
         _startCts = new CancellationTokenSource();
         var token = _startCts.Token;
-
         AddLog($"Attempting to start for process: {processName}...");
+        
+        bool didLaunchAssociated = false;
 
-        // --- 1. 关联启动 (优先执行) ---
+        // --- 1. 关联启动 ---
         if (configService.IsLaunchOnTaskStartEnabled())
         {
             var path = configService.GetAssociatedLaunchPath();
             if (!string.IsNullOrWhiteSpace(path))
             {
                 launchService.Launch(path);
+                didLaunchAssociated = true;
             }
         }
 
-        // --- 2. 窗口探测 (带倒计时轮询) ---
-        _targetHwnd = IntPtr.Zero;
-        int timeoutSeconds = configService.GetWindowDetectionTimeout();
-        
-        AddLog($"Waiting for target window to appear (up to {timeoutSeconds}s)...");
-        
-        for (int i = timeoutSeconds; i >= 0; i--)
+        // --- 2. 首次瞬时探测 ---
+        _targetHwnd = queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero;
+
+        // --- 3. 结果判断与倒计时分流 ---
+        if (_targetHwnd == IntPtr.Zero)
         {
-            if (token.IsCancellationRequested) 
+            // 情况 A：没找到，而且本次也没有启动任何关联程序 -> 立即报错退出
+            if (!didLaunchAssociated)
             {
-                WaitingCountdown = 0;
+                WaitingCountdown = -1;
+                AddLog($"Error: Target process '{processName}' is not running. Start the process first.");
                 return;
             }
 
-            WaitingCountdown = i;
+            // 情况 B：没找到，但刚才刚刚调起了关联程序 -> 进入倒计时等待
+            int timeoutSeconds = configService.GetWindowDetectionTimeout();
+            AddLog($"Waiting for launched target window to appear (up to {timeoutSeconds}s)...");
             
-            _targetHwnd = await Task.Run(() => queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero);
-            
-            if (_targetHwnd != IntPtr.Zero)
+            for (int i = timeoutSeconds; i >= 0; i--)
             {
-                WaitingCountdown = 0;
-                break;
-            }
-
-            if (i > 0)
-            {
-                try { await Task.Delay(1000, token); }
-                catch (TaskCanceledException) { 
+                if (token.IsCancellationRequested) 
+                {
                     WaitingCountdown = 0;
-                    return; 
+                    return;
+                }
+
+                WaitingCountdown = i;
+                
+                _targetHwnd = await Task.Run(() => queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero);
+                
+                if (_targetHwnd != IntPtr.Zero)
+                {
+                    WaitingCountdown = 0;
+                    break;
+                }
+
+                if (i > 0)
+                {
+                    try { await Task.Delay(1000, token); }
+                    catch (TaskCanceledException) 
+                    { 
+                        WaitingCountdown = 0;
+                        return; 
+                    }
                 }
             }
-        }
 
-        if (_targetHwnd == IntPtr.Zero)
-        {
-            WaitingCountdown = -1; // Signal timeout/error
-            AddLog($"Error: Could not find a visible window for process '{processName}' within {timeoutSeconds}s.");
-            return;
+            // 等了 n 秒还是没找到
+            if (_targetHwnd == IntPtr.Zero)
+            {
+                WaitingCountdown = -1;
+                AddLog($"Error: Could not find a visible window for process '{processName}' after launching.");
+                return;
+            }
         }
 
         // 检查并还原最小化窗口
