@@ -23,8 +23,7 @@ public struct DisplayconfigDeviceInfo_Header
 public struct DisplayconfigSourceDeviceName
 {
     public DisplayconfigDeviceInfo_Header header;
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-    public string viewGdiDeviceName;
+    public Char32Buffer viewGdiDeviceName;
 }
 
 [StructLayout(LayoutKind.Sequential)]

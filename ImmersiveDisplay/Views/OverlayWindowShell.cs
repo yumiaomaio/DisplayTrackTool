@@ -52,22 +52,31 @@ public class OverlayWindowShell : IDisposable
         var wndClass = new NativeMethods.WNDCLASSEX();
         wndClass.cbSize = (uint)Marshal.SizeOf(wndClass);
         wndClass.style = 0;
-        wndClass.lpfnWndProc = _staticWndProcDelegate;
+        wndClass.lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_staticWndProcDelegate);
         wndClass.cbClsExtra = 0;
         wndClass.cbWndExtra = 0;
         wndClass.hInstance = NativeMethods.GetModuleHandle(null!);
         wndClass.hIcon = IntPtr.Zero;
         wndClass.hCursor = IntPtr.Zero;
         wndClass.hbrBackground = IntPtr.Zero; // Clear background to prevent flashes
-        wndClass.lpszMenuName = null!;
-        wndClass.lpszClassName = ClassName;
-        wndClass.hIconSm = IntPtr.Zero;
-
-        ushort regResult = NativeMethods.RegisterClassEx(ref wndClass);
-        if (regResult == 0)
+        wndClass.lpszMenuName = IntPtr.Zero;
+        
+        IntPtr classNamePtr = Marshal.StringToHGlobalUni(ClassName);
+        try
         {
-            int error = Marshal.GetLastWin32Error();
-            throw new Exception($"Failed to register OverlayWindow class. Error: {error}");
+            wndClass.lpszClassName = classNamePtr;
+            wndClass.hIconSm = IntPtr.Zero;
+
+            ushort regResult = NativeMethods.RegisterClassEx(in wndClass);
+            if (regResult == 0)
+            {
+                int error = Marshal.GetLastWin32Error();
+                throw new Exception($"Failed to register OverlayWindow class. Error: {error}");
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(classNamePtr);
         }
 
         _classRegistered = true;
@@ -76,7 +85,7 @@ public class OverlayWindowShell : IDisposable
     public void Create(int x, int y, int width, int height)
     {
         uint dwExStyle = NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TOPMOST | NativeMethods.WS_EX_NOACTIVATE;
-        uint dwStyle = NativeMethods.WS_POPUP | NativeMethods.WS_VISIBLE;
+        uint dwStyle = NativeMethods.WS_POPUP; // Create invisible first to prevent activation issues during CreateWindowEx
 
         _creatingInstance = this;
         _hwnd = NativeMethods.CreateWindowEx(
@@ -106,7 +115,8 @@ public class OverlayWindowShell : IDisposable
     {
         if (_hwnd != IntPtr.Zero)
         {
-            NativeMethods.ShowWindow(_hwnd, 5); // SW_SHOW
+            // Use SW_SHOWNOACTIVATE to prevent taking input focus and causing focus struggle loops
+            NativeMethods.ShowWindow(_hwnd, NativeMethods.SW_SHOWNOACTIVATE);
         }
     }
 
@@ -132,9 +142,11 @@ public class OverlayWindowShell : IDisposable
         else if (_creatingInstance != null)
         {
             instance = _creatingInstance;
-            GCHandle gcHandle = GCHandle.Alloc(instance);
-            NativeMethods.SetWindowLongPtr(hWnd, NativeMethods.GWLP_USERDATA, GCHandle.ToIntPtr(gcHandle));
-            _creatingInstance = null;
+            if (msg == NativeMethods.WM_NCCREATE || msg == NativeMethods.WM_CREATE)
+            {
+                GCHandle gcHandle = GCHandle.Alloc(instance);
+                NativeMethods.SetWindowLongPtr(hWnd, NativeMethods.GWLP_USERDATA, GCHandle.ToIntPtr(gcHandle));
+            }
         }
 
         if (msg == NativeMethods.WM_DESTROY)
@@ -183,7 +195,7 @@ public class OverlayWindowShell : IDisposable
                         else
                         {
                             IntPtr brush = NativeMethods.CreateSolidBrush(_colorRef);
-                            NativeMethods.FillRect(hdc, ref clientRect, brush);
+                            NativeMethods.FillRect(hdc, in clientRect, brush);
                             NativeMethods.DeleteObject(brush);
                         }
                     }
@@ -193,7 +205,7 @@ public class OverlayWindowShell : IDisposable
                     }
                     finally
                     {
-                        NativeMethods.EndPaint(hWnd, ref ps);
+                        NativeMethods.EndPaint(hWnd, in ps);
                     }
                 }
                 return IntPtr.Zero;

@@ -2,11 +2,29 @@ using System.Runtime.InteropServices;
 
 namespace ImmersiveDisplay.Interop.Structs;
 
-[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+[System.Runtime.CompilerServices.InlineArray(32)]
+public struct Char32Buffer
+{
+    private char _element0;
+
+    public override string ToString()
+    {
+        unsafe
+        {
+            fixed (char* p = &_element0)
+            {
+                return new string(p).TrimEnd('\0');
+            }
+        }
+    }
+
+    public static implicit operator string(Char32Buffer buffer) => buffer.ToString();
+}
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 public struct Devmode
 {
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-    public string dmDeviceName;
+    public Char32Buffer dmDeviceName;
     public short dmSpecVersion;
     public short dmDriverVersion;
     public short dmSize;
@@ -29,8 +47,7 @@ public struct Devmode
     public short dmYResolution;
     public short dmTTOption;
     public short dmCollate;
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-    public string dmFormName;
+    public Char32Buffer dmFormName;
     public short dmLogPixels;
     public uint dmBitsPerPel;
     public uint dmPelsWidth;

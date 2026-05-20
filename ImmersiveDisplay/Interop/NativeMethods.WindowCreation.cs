@@ -16,17 +16,15 @@ internal static partial class NativeMethods
     {
         public uint cbSize;
         public uint style;
-        public WndProc lpfnWndProc;
+        public IntPtr lpfnWndProc;
         public int cbClsExtra;
         public int cbWndExtra;
         public IntPtr hInstance;
         public IntPtr hIcon;
         public IntPtr hCursor;
         public IntPtr hbrBackground;
-        [MarshalAs(UnmanagedType.LPWStr)]
-        public string lpszMenuName;
-        [MarshalAs(UnmanagedType.LPWStr)]
-        public string lpszClassName;
+        public IntPtr lpszMenuName;
+        public IntPtr lpszClassName;
         public IntPtr hIconSm;
     }
 
@@ -42,24 +40,31 @@ internal static partial class NativeMethods
         public uint lPrivate;
     }
 
+    [System.Runtime.CompilerServices.InlineArray(32)]
+    public struct Byte32Buffer
+    {
+        private byte _element0;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     public struct PAINTSTRUCT
     {
         public IntPtr hdc;
-        public bool fErase;
+        public int fErase;
         public Rect rcPaint;
-        public bool fRestore;
-        public bool fIncUpdate;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public byte[] rgbReserved;
+        public int fRestore;
+        public int fIncUpdate;
+        public Byte32Buffer rgbReserved;
     }
 
     // Windows Messages
+    public const uint WM_CREATE = 0x0001;
     public const uint WM_DESTROY = 0x0002;
     public const uint WM_SIZE = 0x0005;
     public const uint WM_PAINT = 0x000F;
     public const uint WM_CLOSE = 0x0010;
     public const uint WM_ERASEBKGND = 0x0014;
+    public const uint WM_NCCREATE = 0x0081;
     
     // Window Styles
     public const uint WS_OVERLAPPEDWINDOW = 0x00CF0000;
@@ -71,11 +76,11 @@ internal static partial class NativeMethods
     public const uint WS_EX_TOPMOST = 0x00000008;
     public const uint WS_EX_NOACTIVATE = 0x08000000;
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    public static extern ushort RegisterClassEx([In] ref WNDCLASSEX lpwcx);
+    [LibraryImport("user32.dll", EntryPoint = "RegisterClassExW", SetLastError = true)]
+    public static partial ushort RegisterClassEx(in WNDCLASSEX lpwcx);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    public static extern IntPtr CreateWindowEx(
+    [LibraryImport("user32.dll", EntryPoint = "CreateWindowExW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    public static partial IntPtr CreateWindowEx(
         uint dwExStyle,
         string lpClassName,
         string lpWindowName,
@@ -89,40 +94,44 @@ internal static partial class NativeMethods
         IntPtr hInstance,
         IntPtr lpParam);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool DestroyWindow(IntPtr hWnd);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DestroyWindow(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
-    public static extern IntPtr DefWindowProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+    [LibraryImport("user32.dll", EntryPoint = "DefWindowProcW")]
+    public static partial IntPtr DefWindowProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll")]
-    public static extern void PostQuitMessage(int nExitCode);
+    [LibraryImport("user32.dll")]
+    public static partial void PostQuitMessage(int nExitCode);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    public static extern int GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+    [LibraryImport("user32.dll", EntryPoint = "GetMessageW", SetLastError = true)]
+    public static partial int GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
 
-    [DllImport("user32.dll")]
-    public static extern bool TranslateMessage([In] ref MSG lpMsg);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool TranslateMessage(in MSG lpMsg);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    public static extern IntPtr DispatchMessage([In] ref MSG lpMsg);
+    [LibraryImport("user32.dll", EntryPoint = "DispatchMessageW")]
+    public static partial IntPtr DispatchMessage(in MSG lpMsg);
 
-    [DllImport("user32.dll")]
-    public static extern bool GetClientRect(IntPtr hWnd, out Rect lpRect);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetClientRect(IntPtr hWnd, out Rect lpRect);
 
-    [DllImport("user32.dll")]
-    public static extern IntPtr BeginPaint(IntPtr hwnd, out PAINTSTRUCT lpPaint);
+    [LibraryImport("user32.dll")]
+    public static partial IntPtr BeginPaint(IntPtr hwnd, out PAINTSTRUCT lpPaint);
 
-    [DllImport("user32.dll")]
-    public static extern bool EndPaint(IntPtr hwnd, [In] ref PAINTSTRUCT lpPaint);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EndPaint(IntPtr hwnd, in PAINTSTRUCT lpPaint);
 
-    [DllImport("user32.dll")]
-    public static extern int FillRect(IntPtr hDC, [In] ref Rect lprc, IntPtr hbr);
+    [LibraryImport("user32.dll")]
+    public static partial int FillRect(IntPtr hDC, in Rect lprc, IntPtr hbr);
 
-    [DllImport("gdi32.dll")]
-    public static extern IntPtr CreateSolidBrush(uint crColor);
+    [LibraryImport("gdi32.dll")]
+    public static partial IntPtr CreateSolidBrush(uint crColor);
 
-    [DllImport("gdi32.dll")]
-    public static extern bool DeleteObject(IntPtr hObject);
-
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DeleteObject(IntPtr hObject);
 }

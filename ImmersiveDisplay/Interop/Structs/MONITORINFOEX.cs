@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace ImmersiveDisplay.Interop.Structs;
 
-[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 public struct MonitorinfoEx
 {
     public int cbSize;
@@ -10,6 +10,5 @@ public struct MonitorinfoEx
     public Rect rcWork;
     public uint dwFlags;
 
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-    public string szDevice;
+    public Char32Buffer szDevice;
 }

@@ -6,14 +6,15 @@ using System.Runtime.InteropServices;
 
 namespace ImmersiveDisplay.Helpers;
 
-public static class UiDispatcher
+public static partial class UiDispatcher
 {
     private static IntPtr _hwnd = IntPtr.Zero;
     private static readonly ConcurrentQueue<Action> _queue = new();
     public const int WM_DISPATCH = 0x0400 + 777; // WM_USER + 777
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+    [LibraryImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
     public static void Initialize(IntPtr hwnd)
     {

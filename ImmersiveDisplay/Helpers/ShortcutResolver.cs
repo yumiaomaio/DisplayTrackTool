@@ -1,11 +1,24 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Text;
 
 namespace ImmersiveDisplay.Helpers;
 
-public static class ShortcutResolver
+[System.Runtime.CompilerServices.InlineArray(260)]
+internal struct Char260Buffer
+{
+    private char _element0;
+}
+
+[System.Runtime.CompilerServices.InlineArray(14)]
+internal struct Char14Buffer
+{
+    private char _element0;
+}
+
+public static partial class ShortcutResolver
 {
     public static Action<string>? LogAction { get; set; }
 
@@ -30,44 +43,51 @@ public static class ShortcutResolver
                 return lnkPath;
             }
 
-            IShellLinkW shellLink;
             try
             {
-                shellLink = (IShellLinkW)Marshal.GetObjectForIUnknown(pUnknown);
+                var cw = new StrategyBasedComWrappers();
+                var obj = cw.GetOrCreateObjectForComInstance(pUnknown, CreateObjectFlags.None);
+                var shellLink = (IShellLinkW)obj;
+                var persistFile = (IPersistFile)obj;
+
+                // STGM_READ is 0
+                persistFile.Load(lnkPath, 0);
+
+                IntPtr pszPath = Marshal.AllocHGlobal(260 * sizeof(char));
+                IntPtr pszArgs = Marshal.AllocHGlobal(1024 * sizeof(char));
+                WIN32_FIND_DATAW pfd = default;
+                try
+                {
+                    // SLGP_UNCPRIORITY = 2
+                    shellLink.GetPath(pszPath, 260, out pfd, 2);
+                    shellLink.GetArguments(pszArgs, 1024);
+
+                    string target = Marshal.PtrToStringUni(pszPath) ?? string.Empty;
+                    string args = Marshal.PtrToStringUni(pszArgs) ?? string.Empty;
+
+                    LogAction?.Invoke($"> Shell Target: {target}");
+                    if (!string.IsNullOrWhiteSpace(args))
+                        LogAction?.Invoke($"> Shell Args: {args}");
+
+                    if (string.IsNullOrWhiteSpace(args))
+                        return target;
+
+                    // Handle quoting if needed
+                    if (target.Contains(' ') && !target.StartsWith("\""))
+                        target = $"\"{target}\"";
+
+                    return $"{target} {args}";
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(pszPath);
+                    Marshal.FreeHGlobal(pszArgs);
+                }
             }
             finally
             {
                 Marshal.Release(pUnknown);
             }
-
-            var persistFile = (IPersistFile)shellLink;
-            
-            // STGM_READ is 0
-            persistFile.Load(lnkPath, 0);
-
-            var sbPath = new StringBuilder(260);
-            var sbArgs = new StringBuilder(1024);
-            WIN32_FIND_DATAW pfd = default;
-
-            // SLGP_UNCPRIORITY = 2
-            shellLink.GetPath(sbPath, sbPath.Capacity, out pfd, 2);
-            shellLink.GetArguments(sbArgs, sbArgs.Capacity);
-
-            string target = sbPath.ToString();
-            string args = sbArgs.ToString();
-
-            LogAction?.Invoke($"> Shell Target: {target}");
-            if (!string.IsNullOrWhiteSpace(args))
-                LogAction?.Invoke($"> Shell Args: {args}");
-
-            if (string.IsNullOrWhiteSpace(args))
-                return target;
-
-            // Handle quoting if needed
-            if (target.Contains(' ') && !target.StartsWith("\""))
-                target = $"\"{target}\"";
-
-            return $"{target} {args}";
         }
         catch (Exception ex)
         {
@@ -76,35 +96,35 @@ public static class ShortcutResolver
         }
     }
 
-    [ComImport]
+    [GeneratedComInterface]
     [Guid("000214F9-0000-0000-C000-000000000046")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IShellLinkW
+    internal partial interface IShellLinkW
     {
-        void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile, int cchMaxPath, out WIN32_FIND_DATAW pfd, int fFlags);
+        void GetPath(IntPtr pszFile, int cchMaxPath, out WIN32_FIND_DATAW pfd, int fFlags);
         void GetIDList(out IntPtr ppidl);
         void SetIDList(IntPtr pidl);
-        void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszName, int cchMaxName);
+        void GetDescription(IntPtr pszName, int cchMaxName);
         void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string pszName);
-        void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszDir, int cchMaxPath);
+        void GetWorkingDirectory(IntPtr pszDir, int cchMaxPath);
         void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string pszDir);
-        void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszArgs, int cchMaxPath);
+        void GetArguments(IntPtr pszArgs, int cchMaxPath);
         void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string pszArgs);
         void GetHotkey(out short pwHotkey);
         void SetHotkey(short wHotkey);
         void GetShowCmd(out int piShowCmd);
         void SetShowCmd(int iShowCmd);
-        void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszIconPath, int cchIconPath, out int piIcon);
+        void GetIconLocation(IntPtr pszIconPath, int cchIconPath, out int piIcon);
         void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string pszIconPath, int iIcon);
         void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string pszPathRel, int dwReserved);
         void Resolve(IntPtr hwnd, int fFlags);
         void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
     }
 
-    [ComImport]
+    [GeneratedComInterface]
     [Guid("0000010b-0000-0000-C000-000000000046")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IPersistFile
+    internal partial interface IPersistFile
     {
         void GetClassID(out Guid pClassID);
         [PreserveSig]
@@ -112,19 +132,19 @@ public static class ShortcutResolver
         void Load([MarshalAs(UnmanagedType.LPWStr)] string pszFileName, int dwMode);
         void Save([MarshalAs(UnmanagedType.LPWStr)] string pszFileName, [MarshalAs(UnmanagedType.Bool)] bool fRemember);
         void SaveCompleted([MarshalAs(UnmanagedType.LPWStr)] string pszFileName);
-        void GetCurFile([MarshalAs(UnmanagedType.LPWStr)] out string pszFileName);
+        void GetCurFile(out IntPtr ppszFileName);
     }
 
-    [DllImport("ole32.dll", ExactSpelling = true)]
-    private static extern int CoCreateInstance(
-        [In, MarshalAs(UnmanagedType.LPStruct)] Guid rclsid,
+    [LibraryImport("ole32.dll", EntryPoint = "CoCreateInstance")]
+    private static partial int CoCreateInstance(
+        in Guid rclsid,
         IntPtr pUnkOuter,
         uint dwClsContext,
-        [In, MarshalAs(UnmanagedType.LPStruct)] Guid riid,
+        in Guid riid,
         out IntPtr ppv);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct WIN32_FIND_DATAW
+    internal struct WIN32_FIND_DATAW
     {
         public uint dwFileAttributes;
         public System.Runtime.InteropServices.ComTypes.FILETIME ftCreationTime;
@@ -134,9 +154,7 @@ public static class ShortcutResolver
         public uint nFileSizeLow;
         public uint dwReserved0;
         public uint dwReserved1;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-        public string cFileName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 14)]
-        public string cAlternateFileName;
+        public Char260Buffer cFileName;
+        public Char14Buffer cAlternateFileName;
     }
 }

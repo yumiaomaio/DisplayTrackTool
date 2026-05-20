@@ -10,6 +10,7 @@
         <ApplicationIcon>icon.ico</ApplicationIcon>
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <PublishAot>true</PublishAot>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>

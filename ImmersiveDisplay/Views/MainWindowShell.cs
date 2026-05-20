@@ -56,22 +56,31 @@ public class MainWindowShell
         var wndClass = new NativeMethods.WNDCLASSEX();
         wndClass.cbSize = (uint)Marshal.SizeOf(wndClass);
         wndClass.style = 0;
-        wndClass.lpfnWndProc = _staticWndProcDelegate;
+        wndClass.lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_staticWndProcDelegate);
         wndClass.cbClsExtra = 0;
         wndClass.cbWndExtra = 0;
         wndClass.hInstance = NativeMethods.GetModuleHandle(null!);
         wndClass.hIcon = IntPtr.Zero;
         wndClass.hCursor = IntPtr.Zero;
         wndClass.hbrBackground = (IntPtr)6; // COLOR_WINDOW + 1
-        wndClass.lpszMenuName = null!;
-        wndClass.lpszClassName = ClassName;
-        wndClass.hIconSm = IntPtr.Zero;
-
-        ushort regResult = NativeMethods.RegisterClassEx(ref wndClass);
-        if (regResult == 0)
+        wndClass.lpszMenuName = IntPtr.Zero;
+        
+        IntPtr classNamePtr = Marshal.StringToHGlobalUni(ClassName);
+        try
         {
-            int error = Marshal.GetLastWin32Error();
-            throw new Exception($"Failed to register MainWindow class. Error: {error}");
+            wndClass.lpszClassName = classNamePtr;
+            wndClass.hIconSm = IntPtr.Zero;
+
+            ushort regResult = NativeMethods.RegisterClassEx(in wndClass);
+            if (regResult == 0)
+            {
+                int error = Marshal.GetLastWin32Error();
+                throw new Exception($"Failed to register MainWindow class. Error: {error}");
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(classNamePtr);
         }
 
         _classRegistered = true;
@@ -247,9 +256,11 @@ public class MainWindowShell
         else if (_creatingInstance != null)
         {
             instance = _creatingInstance;
-            GCHandle gcHandle = GCHandle.Alloc(instance);
-            NativeMethods.SetWindowLongPtr(hWnd, NativeMethods.GWLP_USERDATA, GCHandle.ToIntPtr(gcHandle));
-            _creatingInstance = null;
+            if (msg == NativeMethods.WM_NCCREATE || msg == NativeMethods.WM_CREATE)
+            {
+                GCHandle gcHandle = GCHandle.Alloc(instance);
+                NativeMethods.SetWindowLongPtr(hWnd, NativeMethods.GWLP_USERDATA, GCHandle.ToIntPtr(gcHandle));
+            }
         }
 
         if (msg == NativeMethods.WM_DESTROY)

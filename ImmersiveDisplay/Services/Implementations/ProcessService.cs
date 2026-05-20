@@ -85,11 +85,19 @@ public class ProcessService(ILoggingService loggingService, IDialogService dialo
             {
                 try
                 {
-                    var sb = new StringBuilder(1024);
-                    int size = sb.Capacity;
-                    if (NativeMethods.QueryFullProcessImageName(hProcess, 0, sb, ref size))
+                    const int bufferSize = 1024;
+                    IntPtr buffer = Marshal.AllocHGlobal(bufferSize * sizeof(char));
+                    int size = bufferSize;
+                    try
                     {
-                        return sb.ToString();
+                        if (NativeMethods.QueryFullProcessImageName(hProcess, 0, buffer, ref size))
+                        {
+                            return Marshal.PtrToStringUni(buffer, size);
+                        }
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(buffer);
                     }
                 }
                 finally
@@ -160,7 +168,7 @@ public class ProcessService(ILoggingService loggingService, IDialogService dialo
                 if (status == 0)
                 {
                     short len = Marshal.ReadInt16(buffer);
-                    IntPtr strPtr = Marshal.ReadIntPtr(buffer, IntPtr.Size == 8 ? 8 : 4);
+                    IntPtr strPtr = Marshal.ReadIntPtr(buffer, 8);
                     
                     if (strPtr != IntPtr.Zero && len > 0)
                     {

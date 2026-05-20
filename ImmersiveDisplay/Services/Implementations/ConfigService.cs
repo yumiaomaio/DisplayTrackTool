@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ImmersiveDisplay.Interop.Enums;
@@ -53,7 +54,7 @@ public class ConfigService : IConfigService
         try
         {
             File.WriteAllText(configPath, JsonSerializer.Serialize(_config, Bridge.AppJsonContext.Default.AppConfig));
-            _loggingService.AddLog($"[ConfigService] Config saved to '{configPath}'.");
+            _loggingService.AddLogs("[ConfigService] Serializing configurations...", $"[ConfigService] Config saved to '{configPath}'.");
         }
         catch (Exception ex)
         {
@@ -66,7 +67,7 @@ public class ConfigService : IConfigService
         string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
         if (!File.Exists(configPath))
         {
-            _loggingService.AddLog($"[ConfigService] Config file not found. Creating default at '{configPath}'.");
+            _loggingService.AddLogs("[ConfigService] Config file not found.", $"[ConfigService] Creating default at '{configPath}'.");
             var defaultConfig = CreateDefaultConfig();
             File.WriteAllText(configPath, JsonSerializer.Serialize(defaultConfig, Bridge.AppJsonContext.Default.AppConfig));
             return defaultConfig;
@@ -74,7 +75,7 @@ public class ConfigService : IConfigService
 
         try
         {
-            _loggingService.AddLog($"[ConfigService] Loading config from '{configPath}'.");
+            _loggingService.AddLogs($"[ConfigService] Loading config from '{configPath}'.", "[ConfigService] Deserializing JSON...");
             string json = File.ReadAllText(configPath);
             var config = JsonSerializer.Deserialize(json, Bridge.AppJsonContext.Default.AppConfig) 
                    ?? CreateDefaultConfig();
@@ -98,8 +99,8 @@ public class ConfigService : IConfigService
         return new LayoutProfile
         {
             Name = def.Name,
-            Styles = ParseEnum<WindowStyles>(def.Styles),
-            ExStyles = ParseEnum<WindowExStyles>(def.ExStyles),
+            Styles = ParseEnum<WindowStyles>(CollectionsMarshal.AsSpan(def.Styles)),
+            ExStyles = ParseEnum<WindowExStyles>(CollectionsMarshal.AsSpan(def.ExStyles)),
             Sizing = def.Sizing,
             Positioning = def.Positioning,
             Display = def.Display
@@ -219,13 +220,15 @@ public class ConfigService : IConfigService
         ConfigChanged?.Invoke("WindowDetectionTimeout", seconds);
     }
 
-    private T ParseEnum<T>(System.Collections.Generic.List<string> values) where T : struct
+    private T ParseEnum<T>(ReadOnlySpan<string> values) where T : struct
     {
-        if (!values.Any()) return default;
+        if (values.IsEmpty) return default;
 
-        uint rawValue = values
-            .Select(s => Convert.ToUInt32(Enum.Parse(typeof(T), s, true)))
-            .Aggregate(0U, (current, next) => current | next);
+        uint rawValue = 0;
+        foreach (var val in values)
+        {
+            rawValue |= Convert.ToUInt32(Enum.Parse(typeof(T), val, true));
+        }
 
         return (T)(object)rawValue;
     }

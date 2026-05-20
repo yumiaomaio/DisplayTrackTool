@@ -20,18 +20,36 @@ public class TargetStateManager(
     // State
     private IntPtr _targetHwnd = IntPtr.Zero;
     private WindowOrientation _lastOrientation = WindowOrientation.UNKNOWN;
-    public bool IsRunning { get; private set; }
-    public int WaitingCountdown { get; private set; }
     private CancellationTokenSource? _startCts;
+
+    public bool IsRunning
+    {
+        get => field;
+        private set
+        {
+            if (field != value)
+            {
+                field = value;
+                IsRunningChanged?.Invoke(value);
+            }
+        }
+    }
+
+    public int WaitingCountdown
+    {
+        get => field;
+        private set
+        {
+            if (field != value)
+            {
+                field = value;
+                WaitingCountdownChanged?.Invoke(value);
+            }
+        }
+    }
 
     public event Action<bool>? IsRunningChanged;
     public event Action<int>? WaitingCountdownChanged;
-
-    private void SetWaitingCountdown(int val)
-    {
-        WaitingCountdown = val;
-        WaitingCountdownChanged?.Invoke(val);
-    }
 
     public async Task StartAsync(string processName)
     {
@@ -71,17 +89,17 @@ public class TargetStateManager(
         {
             if (token.IsCancellationRequested) 
             {
-                SetWaitingCountdown(0);
+                WaitingCountdown = 0;
                 return;
             }
 
-            SetWaitingCountdown(i);
+            WaitingCountdown = i;
             
             _targetHwnd = await Task.Run(() => queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero);
             
             if (_targetHwnd != IntPtr.Zero)
             {
-                SetWaitingCountdown(0);
+                WaitingCountdown = 0;
                 break;
             }
 
@@ -89,7 +107,7 @@ public class TargetStateManager(
             {
                 try { await Task.Delay(1000, token); }
                 catch (TaskCanceledException) { 
-                    SetWaitingCountdown(0);
+                    WaitingCountdown = 0;
                     return; 
                 }
             }
@@ -97,7 +115,7 @@ public class TargetStateManager(
 
         if (_targetHwnd == IntPtr.Zero)
         {
-            SetWaitingCountdown(-1); // Signal timeout/error
+            WaitingCountdown = -1; // Signal timeout/error
             AddLog($"Error: Could not find a visible window for process '{processName}' within {timeoutSeconds}s.");
             return;
         }
@@ -161,7 +179,15 @@ public class TargetStateManager(
             
             // 弹窗提示可能需要管理员权限
             dialogService.ShowWarning(
-                $"无法修改目标窗口样式。\n\n这通常是因为目标程序（游戏）是以管理员权限运行的，而本工具权限不足。\n\n请尝试【以管理员身份运行】本工具后再试。\n\n(错误信息: {ex.Message})",
+                $"""
+                无法修改目标窗口样式。
+
+                这通常是因为目标程序（游戏）是以管理员权限运行的，而本工具权限不足。
+
+                请尝试【以管理员身份运行】本工具后再试。
+
+                (错误信息: {ex.Message})
+                """,
                 "权限不足 / Privilege Elevation Required");
                 
             return;
@@ -169,7 +195,6 @@ public class TargetStateManager(
         
         _lastOrientation = WindowOrientation.PORTRAIT;
 
-        IsRunningChanged?.Invoke(IsRunning);
         AddLog("Service started. Press F12 to stop.");
     }
 
@@ -220,7 +245,6 @@ public class TargetStateManager(
         _targetHwnd = IntPtr.Zero;
         IsRunning = false;
 
-        IsRunningChanged?.Invoke(IsRunning);
         AddLog("Service stopped.");
     }
 
@@ -363,16 +387,17 @@ public class TargetStateManager(
                             placement.length = System.Runtime.InteropServices.Marshal.SizeOf(placement);
                             NativeMethods.GetWindowPlacement(hwnd, ref placement);
 
-                            var sb = new System.Text.StringBuilder();
-                            sb.AppendLine("--- DEBUG DIAGNOSTIC ---");
-                            sb.AppendLine($"HWND: {hwnd.ToInt64()} (0x{hwnd.ToInt64():X})");
-                            sb.AppendLine($"Style: {style} (0x{(uint)style:X})");
-                            sb.AppendLine($"ExStyle: {exStyle} (0x{(uint)exStyle:X})");
-                            sb.AppendLine($"DPI: {dpi}");
-                            sb.AppendLine($"ShowCmd: {placement.showCmd}");
-                            sb.AppendLine($"Monitor WorkArea: {monitorInfo.rcWork.Left},{monitorInfo.rcWork.Top} - {monitorInfo.rcWork.Right},{monitorInfo.rcWork.Bottom}");
+                            string diagnosticInfo = $"""
+                                --- DEBUG DIAGNOSTIC ---
+                                HWND: {hwnd.ToInt64()} (0x{hwnd.ToInt64():X})
+                                Style: {style} (0x{(uint)style:X})
+                                ExStyle: {exStyle} (0x{(uint)exStyle:X})
+                                DPI: {dpi}
+                                ShowCmd: {placement.showCmd}
+                                Monitor WorkArea: {monitorInfo.rcWork.Left},{monitorInfo.rcWork.Top} - {monitorInfo.rcWork.Right},{monitorInfo.rcWork.Bottom}
+                                """;
                             
-                            AddLog(sb.ToString());
+                            AddLog(diagnosticInfo);
                         }
                         catch (Exception ex)
                         {
@@ -399,6 +424,11 @@ public class TargetStateManager(
     private void AddLog(string message)
     {
         loggingService.AddLog(message);
+    }
+
+    private void AddLogs(params ReadOnlySpan<string> messages)
+    {
+        loggingService.AddLogs(messages);
     }
 
     public void Dispose()

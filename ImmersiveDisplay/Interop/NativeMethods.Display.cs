@@ -14,24 +14,26 @@ internal static partial class NativeMethods
     public const uint DM_PELSHEIGHT = 0x00100000;
     public const uint DM_DISPLAYORIENTATION = 0x00800000;
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern bool EnumDisplaySettings(string? lpszDeviceName, int iModeNum, ref Devmode lpDevMode);
+    [LibraryImport("user32.dll", EntryPoint = "EnumDisplaySettingsW", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EnumDisplaySettings(string? lpszDeviceName, int iModeNum, ref Devmode lpDevMode);
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern int ChangeDisplaySettingsEx(string? lpszDeviceName, ref Devmode lpDevMode, IntPtr hwnd, uint dwflags, IntPtr lParam);
+    [LibraryImport("user32.dll", EntryPoint = "ChangeDisplaySettingsExW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial int ChangeDisplaySettingsEx(string? lpszDeviceName, ref Devmode lpDevMode, IntPtr hwnd, uint dwflags, IntPtr lParam);
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MonitorinfoEx lpmi);
+    [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetMonitorInfo(IntPtr hMonitor, ref MonitorinfoEx lpmi);
 
-    [DllImport("user32.dll")]
-    public static extern int GetDisplayConfigBufferSizes(QueryDisplayConfigFlags flags, out uint numPathArrayElements, out uint numModeInfoArrayElements);
+    [LibraryImport("user32.dll")]
+    public static partial int GetDisplayConfigBufferSizes(QueryDisplayConfigFlags flags, out uint numPathArrayElements, out uint numModeInfoArrayElements);
 
-    [DllImport("user32.dll")]
-    public static extern int QueryDisplayConfig(QueryDisplayConfigFlags flags, ref uint numPathArrayElements, [In, Out] DisplayconfigPathInfo[] pathArray, ref uint numModeInfoArrayElements, [In, Out] DisplayconfigModeInfo[] modeInfoArray, IntPtr currentTopologyId);
+    [LibraryImport("user32.dll")]
+    public static partial int QueryDisplayConfig(QueryDisplayConfigFlags flags, ref uint numPathArrayElements, [In, Out] DisplayconfigPathInfo[] pathArray, ref uint numModeInfoArrayElements, [In, Out] DisplayconfigModeInfo[] modeInfoArray, IntPtr currentTopologyId);
 
-    [DllImport("user32.dll")]
-    public static extern int SetDisplayConfig(uint numPathArrayElements, [In] DisplayconfigPathInfo[] pathArray, uint numModeInfoArrayElements, [In] DisplayconfigModeInfo[] modeInfoArray, SetDisplayConfigFlags flags);
+    [LibraryImport("user32.dll")]
+    public static partial int SetDisplayConfig(uint numPathArrayElements, [In] DisplayconfigPathInfo[] pathArray, uint numModeInfoArrayElements, [In] DisplayconfigModeInfo[] modeInfoArray, SetDisplayConfigFlags flags);
 
-    [DllImport("user32.dll")]
-    public static extern int DisplayConfigGetDeviceInfo(ref DisplayconfigSourceDeviceName requestPacket);
+    [LibraryImport("user32.dll")]
+    public static partial int DisplayConfigGetDeviceInfo(ref DisplayconfigSourceDeviceName requestPacket);
 }

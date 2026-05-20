@@ -6,23 +6,30 @@ namespace ImmersiveDisplay.Interop;
 
 internal static partial class NativeMethods
 {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    [StructLayout(LayoutKind.Explicit, Size = 696)]
     public struct Shfileinfo
     {
+        [FieldOffset(0)]
         public IntPtr hIcon;
+        [FieldOffset(8)]
         public int iIcon;
+        [FieldOffset(12)]
         public uint dwAttributes;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-        public string szDisplayName;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
-        public string szTypeName;
     }
 
-    [DllImport("shell32.dll", CharSet = CharSet.Auto)]
-    public static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, ref Shfileinfo psfi, uint cbFileInfo, uint uFlags);
+    [LibraryImport("shell32.dll", EntryPoint = "SHGetFileInfoW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, ref Shfileinfo psfi, uint cbFileInfo, uint uFlags);
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern uint PrivateExtractIcons(string lpszFile, int nIconIndex, int cxIcon, int cyIcon, IntPtr[] phicon, uint[] piconid, uint nIcons, uint flags);
+    [LibraryImport("user32.dll", EntryPoint = "PrivateExtractIconsW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial uint PrivateExtractIcons(
+        string lpszFile,
+        int nIconIndex,
+        int cxIcon,
+        int cyIcon,
+        [Out] IntPtr[] phicon,
+        [Out] uint[] piconid,
+        uint nIcons,
+        uint flags);
 
     public const uint SHGFI_ICON = 0x100;
     public const uint SHGFI_LARGEICON = 0x0;

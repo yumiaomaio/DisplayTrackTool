@@ -1,16 +1,16 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.IO;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
 public class LoggingService : ILoggingService
 {
     public ObservableCollection<string> Logs { get; } = new();
-    
-    private string? _logFilePath;
+
+    private string? LogFilePath { get; set; }
+
     private bool _fileLoggingEnabled;
-    private readonly object _fileLock = new();
+    private readonly Lock _fileLock = new();
 
     public void EnableFileLogging(bool enable)
     {
@@ -26,7 +26,7 @@ public class LoggingService : ILoggingService
             }
 
             string fileName = $"log_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
-            _logFilePath = Path.Combine(logsDir, fileName);
+            LogFilePath = Path.Combine(logsDir, fileName);
             
             // Initial marker
             WriteToFile($"--- Log Started: {DateTime.Now} ---");
@@ -44,7 +44,7 @@ public class LoggingService : ILoggingService
         string logEntry = $"[{timestamp}] {message}";
 
         // UI Update
-        ImmersiveDisplay.Helpers.UiDispatcher.BeginInvoke(() =>
+        Helpers.UiDispatcher.BeginInvoke(() =>
         {
             Logs.Insert(0, logEntry);
             while (Logs.Count > 100)
@@ -57,21 +57,29 @@ public class LoggingService : ILoggingService
         Debug.WriteLine(logEntry);
 
         // File Output
-        if (_fileLoggingEnabled && _logFilePath != null)
+        if (_fileLoggingEnabled && LogFilePath != null)
         {
             WriteToFile(logEntry);
         }
     }
 
+    public void AddLogs(params ReadOnlySpan<string> messages)
+    {
+        foreach (var msg in messages)
+        {
+            AddLog(msg);
+        }
+    }
+
     private void WriteToFile(string text)
     {
-        if (_logFilePath == null) return;
+        if (LogFilePath == null) return;
         
         lock (_fileLock)
         {
             try
             {
-                File.AppendAllText(_logFilePath, text + Environment.NewLine);
+                File.AppendAllText(LogFilePath, text + Environment.NewLine);
             }
             catch (Exception ex)
             {

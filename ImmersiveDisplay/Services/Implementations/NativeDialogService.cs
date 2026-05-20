@@ -5,44 +5,45 @@ using System.Runtime.InteropServices;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class NativeDialogService : IDialogService
+public partial class NativeDialogService : IDialogService
 {
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetActiveWindow();
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetActiveWindow();
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
+    [LibraryImport("user32.dll", EntryPoint = "MessageBoxW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int MessageBox(IntPtr hWnd, string text, string caption, uint type);
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    [StructLayout(LayoutKind.Sequential)]
     private struct OPENFILENAME
     {
         public int lStructSize;
         public IntPtr hwndOwner;
         public IntPtr hInstance;
         public IntPtr lpstrFilter; // Use IntPtr instead of string to preserve embedded null characters
-        public string lpstrCustomFilter;
+        public IntPtr lpstrCustomFilter;
         public int nMaxCustFilter;
         public int nFilterIndex;
         public IntPtr lpstrFile;
         public int nMaxFile;
-        public string lpstrFileTitle;
+        public IntPtr lpstrFileTitle;
         public int nMaxFileTitle;
-        public string lpstrInitialDir;
-        public string lpstrTitle;
+        public IntPtr lpstrInitialDir;
+        public IntPtr lpstrTitle;
         public int Flags;
         public short nFileOffset;
         public short nFileExtension;
-        public string lpstrDefExt;
+        public IntPtr lpstrDefExt;
         public IntPtr lCustData;
         public IntPtr lpfnHook;
-        public string lpTemplateName;
+        public IntPtr lpTemplateName;
         public IntPtr pvReserved;
         public int dwReserved;
         public int FlagsEx;
     }
 
-    [DllImport("comdlg32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern bool GetOpenFileName(ref OPENFILENAME ofn);
+    [LibraryImport("comdlg32.dll", EntryPoint = "GetOpenFileNameW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetOpenFileName(ref OPENFILENAME ofn);
 
     private const uint MB_OK = 0x00000000;
     private const uint MB_ICONINFORMATION = 0x00000040;
@@ -75,13 +76,13 @@ public class NativeDialogService : IDialogService
         var ofn = new OPENFILENAME();
         ofn.lStructSize = Marshal.SizeOf(ofn);
         ofn.hwndOwner = GetActiveWindow();
-        ofn.lpstrTitle = title;
         ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
         
         // Allocate a buffer for the selected file path
         const int maxFileLength = 2048;
         IntPtr fileBuffer = Marshal.AllocHGlobal(maxFileLength * sizeof(char));
         IntPtr filterBuffer = Marshal.StringToHGlobalUni(nullFilter); // Manually marshal to preserve internal nulls
+        IntPtr titleBuffer = Marshal.StringToHGlobalUni(title);
         try
         {
             // Zero-init the file buffer
@@ -91,6 +92,7 @@ public class NativeDialogService : IDialogService
             ofn.lpstrFile = fileBuffer;
             ofn.nMaxFile = maxFileLength;
             ofn.lpstrFilter = filterBuffer;
+            ofn.lpstrTitle = titleBuffer;
             
             if (GetOpenFileName(ref ofn))
             {
@@ -101,6 +103,7 @@ public class NativeDialogService : IDialogService
         {
             Marshal.FreeHGlobal(fileBuffer);
             Marshal.FreeHGlobal(filterBuffer);
+            Marshal.FreeHGlobal(titleBuffer);
         }
 
         return null;

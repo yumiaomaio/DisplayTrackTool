@@ -12,20 +12,24 @@ using ImmersiveDisplay.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.Core;
 
+[assembly: System.Runtime.CompilerServices.DisableRuntimeMarshalling]
+
 namespace ImmersiveDisplay;
 
-public static class Program
+public static partial class Program
 {
     public static bool IsProtocolAutoStart { get; private set; }
 
-    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetProcessDpiAwarenessContext(IntPtr value);
+    [System.Runtime.InteropServices.LibraryImport("user32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static partial bool SetProcessDpiAwarenessContext(IntPtr value);
 
-    [System.Runtime.InteropServices.DllImport("shcore.dll", SetLastError = true)]
-    private static extern int SetProcessDpiAwareness(int value);
+    [System.Runtime.InteropServices.LibraryImport("shcore.dll", SetLastError = true)]
+    private static partial int SetProcessDpiAwareness(int value);
 
-    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetProcessDPIAware();
+    [System.Runtime.InteropServices.LibraryImport("user32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static partial bool SetProcessDPIAware();
 
     private static void ConfigureDpiAwareness()
     {
@@ -91,8 +95,8 @@ public static class Program
         NativeMethods.MSG msg;
         while (NativeMethods.GetMessage(out msg, IntPtr.Zero, 0, 0) != 0)
         {
-            NativeMethods.TranslateMessage(ref msg);
-            NativeMethods.DispatchMessage(ref msg);
+            NativeMethods.TranslateMessage(in msg);
+            NativeMethods.DispatchMessage(in msg);
         }
     }
 

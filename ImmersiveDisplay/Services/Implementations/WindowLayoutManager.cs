@@ -72,13 +72,6 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
         loggingService.AddLog($"[WindowLayoutManager] Layout: X={finalX}, Y={finalY}, W={finalWidth}, H={finalHeight}");
 
         // 3. Apply position
-        var overlayHwnd = overlayService.WindowHandle;
-        if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
-        {
-            NativeMethods.SetWindowPos(overlayHwnd.Value, 0, 0, 0, 0, 0, 
-                SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
-        }
-
         IntPtr hwndInsertAfter = profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST) ? new IntPtr(-1) : IntPtr.Zero;
         bool posResult = NativeMethods.SetWindowPos(hwnd, hwndInsertAfter, finalX, finalY, finalWidth, finalHeight, 
             SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
@@ -89,6 +82,28 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             {
                 throw new System.ComponentModel.Win32Exception(error, $"Failed to set window position. System Error Code: {error}");
             }
+        }
+
+        // 4. Order overlay window directly behind the target window
+        var overlayHwnd = overlayService.WindowHandle;
+        if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
+        {
+            // Sync topmost state
+            bool isTargetTopmost = profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST);
+            if (isTargetTopmost)
+            {
+                NativeMethods.SetWindowPos(overlayHwnd.Value, new IntPtr(-1) /* HWND_TOPMOST */, 0, 0, 0, 0, 
+                    SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
+            }
+            else
+            {
+                NativeMethods.SetWindowPos(overlayHwnd.Value, new IntPtr(-2) /* HWND_NOTOPMOST */, 0, 0, 0, 0, 
+                    SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
+            }
+
+            // Chain behind target
+            NativeMethods.SetWindowPos(overlayHwnd.Value, hwnd, 0, 0, 0, 0, 
+                SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
         }
     }
 
@@ -138,13 +153,6 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
         int finalY = monitorRect.Top;
 
         // --- 4. Step-by-step repositioning ---
-        var overlayHwnd = overlayService.WindowHandle;
-        if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
-        {
-            NativeMethods.SetWindowPos(overlayHwnd.Value, 0, 0, 0, 0, 0, 
-                SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
-        }
-
         IntPtr hwndInsertAfter = profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST) ? new IntPtr(-1) : IntPtr.Zero;
 
         // --- 4.1 执行最终拉伸 ---
@@ -161,6 +169,28 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
             {
                 throw new System.ComponentModel.Win32Exception(error, $"Failed to set aggressive window position. System Error Code: {error}");
             }
+        }
+
+        // --- 4.2 Order overlay window directly behind the target window ---
+        var overlayHwnd = overlayService.WindowHandle;
+        if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
+        {
+            // Sync topmost state
+            bool isTargetTopmost = profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST);
+            if (isTargetTopmost)
+            {
+                NativeMethods.SetWindowPos(overlayHwnd.Value, new IntPtr(-1) /* HWND_TOPMOST */, 0, 0, 0, 0, 
+                    SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
+            }
+            else
+            {
+                NativeMethods.SetWindowPos(overlayHwnd.Value, new IntPtr(-2) /* HWND_NOTOPMOST */, 0, 0, 0, 0, 
+                    SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
+            }
+
+            // Chain behind target
+            NativeMethods.SetWindowPos(overlayHwnd.Value, hwnd, 0, 0, 0, 0, 
+                SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
         }
         
         // Final kick

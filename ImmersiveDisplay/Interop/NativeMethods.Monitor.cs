@@ -8,9 +8,10 @@ namespace ImmersiveDisplay.Interop;
 
 internal static partial class NativeMethods
 {
-    [DllImport("user32.dll")]
-    public static extern IntPtr MonitorFromWindow(IntPtr hwnd, MonitorOptions dwFlags);
+    [LibraryImport("user32.dll")]
+    public static partial IntPtr MonitorFromWindow(IntPtr hwnd, MonitorOptions dwFlags);
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref Monitorinfo lpmi);
+    [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetMonitorInfo(IntPtr hMonitor, ref Monitorinfo lpmi);
 }

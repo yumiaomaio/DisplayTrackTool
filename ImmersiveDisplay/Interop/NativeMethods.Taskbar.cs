@@ -18,11 +18,11 @@ internal static partial class NativeMethods
         public IntPtr lParam;
     }
 
-    [DllImport("shell32.dll", CallingConvention = CallingConvention.StdCall)]
-    public static extern uint SHAppBarMessage(uint dwMessage, ref Appbardata pData);
+    [LibraryImport("shell32.dll")]
+    public static partial uint SHAppBarMessage(uint dwMessage, ref Appbardata pData);
 
-    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-    public static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
+    [LibraryImport("user32.dll", EntryPoint = "FindWindowW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    public static partial IntPtr FindWindow(string lpClassName, string? lpWindowName);
 
     public const uint ABM_SETSTATE = 0x0000000a;
     public const uint ABM_GETSTATE = 0x00000004;
