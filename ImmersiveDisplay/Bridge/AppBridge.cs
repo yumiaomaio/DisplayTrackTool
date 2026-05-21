@@ -367,8 +367,8 @@ public class AppBridge(
                     StartMonitoring(processName);
                 }
             }
-            // 4. 如果是任意自定义协议（如 steam://）或者 http(s):// 就直接保存
-            else if (scheme.StartsWith("http") || scheme != "file")
+            // 4. 如果是 app:// 或者 http(s):// 就直接保存
+            else if (scheme == "app" || scheme.StartsWith("http"))
             {
                 loggingService.AddLog($"[AppBridge] Saving URI launch path: {uri}");
                 SetAssociatedLaunchPath(uri);
