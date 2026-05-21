@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 project(immersive-cpp)
-
+if(MSVC)
+    add_compile_definitions(UNICODE _UNICODE)
+endif()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# --- Development Control ---
+option(BUILD_CPP_ONLY "Build only the C++ executable without forcing C# and frontend build" OFF)
 
 # --- Configuration Paths ---
 set(FRONTEND_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../vite-project")
@@ -43,8 +48,12 @@ set(SOURCES
 # --- 5. Add executable ---
 add_executable(immersive-cpp WIN32 ${SOURCES})
 
-# Ensure both C# and Frontend are built before C++
-add_dependencies(immersive-cpp rebuild_csharp rebuild_frontend)
+# Ensure both C# and Frontend are built before C++ unless dev-only C++ is requested
+if (NOT BUILD_CPP_ONLY)
+    add_dependencies(immersive-cpp rebuild_csharp rebuild_frontend)
+else()
+    message(STATUS "BUILD_CPP_ONLY=ON: skipping rebuild_csharp and rebuild_frontend for faster C++ iteration")
+endif()
 
 # --- 6. Link libraries ---
 target_link_libraries(immersive-cpp 

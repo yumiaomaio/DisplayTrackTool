@@ -23,6 +23,9 @@ public:
     // Get absolute path to index.html
     static std::wstring GetWebUiPath();
 
+    // JSON string escaping (escapes ", \, \n, \r, \t, and control chars)
+    static std::string JsonEscape(std::string_view s);
+
     // C++20 Template with Concept
     template<Win32Handle T>
     static bool IsValid(T handle) {

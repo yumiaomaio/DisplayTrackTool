@@ -15,6 +15,11 @@ void* g_engineHandle = nullptr;
 WebViewHost g_webViewHost;
 AppWindow g_appWindow;
 
+// Configuration: window size in device-independent pixels (DIPs)
+static constexpr int kWindowWidthDips = 435;
+static constexpr int kWindowHeightDips = 850;
+static constexpr int kWindowDpiBase = 96;
+
 // Helper to print truncated JSON for debugging (prevents Base64 flooding)
 void SmartPrint(std::string_view prefix, const char* json) {
     if (!json) return;
@@ -50,12 +55,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     // 0. Enable DPI Awareness
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-    // 0.1 Allocate Debug Console
-    AllocConsole();
-    FILE* fp;
-    freopen_s(&fp, "CONOUT$", "w", stdout);
-    freopen_s(&fp, "CONOUT$", "w", stderr);
-    std::println("--- Immersive Display Debug Console (C++23) ---");
+    // 0.1 Attach to parent console (cmd/PowerShell) if available
+    bool hasConsole = AttachConsole(ATTACH_PARENT_PROCESS);
+    if (hasConsole) {
+        FILE* fp{};
+        freopen_s(&fp, "CONOUT$", "w", stdout);
+        freopen_s(&fp, "CONOUT$", "w", stderr);
+        (void)fp;
+        std::println("--- Immersive Display Debug Console (C++23) ---");
+    }
 
     // 1. Initialize COM
     CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
@@ -70,10 +78,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
     // 3. Create Main Window with DPI Scaling
     UINT dpi = GetDpiForSystem();
-    int width = MulDiv(450, dpi, 96);
-    int height = MulDiv(850, dpi, 96);
+    int width = MulDiv(kWindowWidthDips, dpi, kWindowDpiBase);
+    int height = MulDiv(kWindowHeightDips, dpi, kWindowDpiBase);
     
-    if (!g_appWindow.Create(hInstance, L"Immersive Display - C++ Native Host", width, height)) {
+    if (!g_appWindow.Create(hInstance, L"Immersive Display", width, height)) {
         return -1;
     }
 
@@ -116,5 +124,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     });
 
     // 6. Enter Message Loop
-    return g_appWindow.Run();
+    int result = g_appWindow.Run();
+
+    CoUninitialize();
+    if (hasConsole) FreeConsole();
+    return result;
 }

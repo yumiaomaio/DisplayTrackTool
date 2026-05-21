@@ -1,5 +1,6 @@
 #include "InteropHelper.h"
 #include <algorithm>
+#include <format>
 #include <vector>
 #include <ranges>
 
@@ -36,16 +37,47 @@ std::wstring InteropHelper::PathToUri(std::wstring_view path) {
 }
 
 std::wstring InteropHelper::GetWebUiPath() {
-    wchar_t path[MAX_PATH];
-    GetModuleFileNameW(NULL, path, MAX_PATH);
-    std::wstring fullPath(path);
-    
-    // C++20: string_view based search
-    std::wstring_view sv(fullPath);
-    if (auto last_slash = sv.find_last_of(L"\\/"); last_slash != std::wstring_view::npos) {
-        return std::wstring(sv.substr(0, last_slash)) + L"\\WebUI\\index.html";
+    DWORD size = MAX_PATH;
+    std::vector<wchar_t> buf(size);
+    DWORD len;
+
+    while ((len = GetModuleFileNameW(NULL, buf.data(), size)) == size) {
+        size *= 2;
+        buf.resize(size);
+    }
+
+    if (len == 0) return L"WebUI\\index.html";
+
+    std::wstring fullPath(buf.data(), len);
+    auto last_slash = fullPath.find_last_of(L"\\/");
+    if (last_slash != std::wstring::npos) {
+        return fullPath.substr(0, last_slash) + L"\\WebUI\\index.html";
     }
     return L"WebUI\\index.html";
+}
+
+std::string InteropHelper::JsonEscape(std::string_view s) {
+    std::string result;
+    result.reserve(s.size() + 8);
+
+    for (char c : s) {
+        switch (c) {
+        case '"':  result += "\\\""; break;
+        case '\\': result += "\\\\"; break;
+        case '\n': result += "\\n";  break;
+        case '\r': result += "\\r";  break;
+        case '\t': result += "\\t";  break;
+        default:
+            if (static_cast<unsigned char>(c) < 0x20) {
+                result += std::format("\\u{:04X}", static_cast<unsigned char>(c));
+            } else {
+                result += c;
+            }
+            break;
+        }
+    }
+
+    return result;
 }
 
 } // namespace Immersive

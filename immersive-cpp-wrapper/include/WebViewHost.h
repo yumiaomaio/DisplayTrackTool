@@ -11,7 +11,7 @@ namespace Immersive {
 class WebViewHost {
 public:
     WebViewHost();
-    ~WebViewHost();
+    virtual ~WebViewHost();
 
     // Initialize using C++20 Coroutines (Fire and Forget)
     AsyncVoid InitializeAsync(HWND parentHwnd, std::function<void()> onReady);

@@ -1,4 +1,4 @@
-#include "WebViewHost.h"
+﻿#include "WebViewHost.h"
 #include "InteropHelper.h"
 #include <print>
 #include <wrl.h>
@@ -79,20 +79,23 @@ AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> on
     m_webView->add_NavigationStarting(Callback<ICoreWebView2NavigationStartingEventHandler>(
         [this](ICoreWebView2* sender, ICoreWebView2NavigationStartingEventArgs* args) -> HRESULT {
             LPWSTR uri = nullptr;
-            if (SUCCEEDED(args->get_Uri(&uri)) && uri) {
-                std::wstring uriStr(uri);
-                if (m_firstNavigationPerformed) {
-                    std::println("[C++ Nav] Intercepted Navigation: {}", InteropHelper::WideToUtf8(uri));
-                    args->put_Cancel(TRUE); // 阻止当前窗口跳转
-                    if (m_messageCallback) {
-                        std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::WideToUtf8(uri));
-                        m_messageCallback(json);
-                    }
-                } else {
-                    m_firstNavigationPerformed = true;
-                }
-                CoTaskMemFree(uri);
+            if (!SUCCEEDED(args->get_Uri(&uri)) || !uri) {
+                return S_OK;
             }
+
+            if (!m_firstNavigationPerformed) {
+                m_firstNavigationPerformed = true;
+                CoTaskMemFree(uri);
+                return S_OK;
+            }
+
+            std::println("[C++ Nav] Intercepted Navigation: {}", InteropHelper::WideToUtf8(uri));
+            args->put_Cancel(TRUE); // 阻止当前窗口跳转
+            if (m_messageCallback) {
+                std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::JsonEscape(InteropHelper::WideToUtf8(uri)));
+                m_messageCallback(json);
+            }
+            CoTaskMemFree(uri);
             return S_OK;
         }).Get(), nullptr);
 
@@ -100,19 +103,21 @@ AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> on
     m_webView->add_NewWindowRequested(Callback<ICoreWebView2NewWindowRequestedEventHandler>(
         [this](ICoreWebView2* sender, ICoreWebView2NewWindowRequestedEventArgs* args) -> HRESULT {
             LPWSTR uri = nullptr;
-            if (SUCCEEDED(args->get_Uri(&uri)) && uri) {
-                std::println("[C++ Nav] Intercepted New Window Request: {}", InteropHelper::WideToUtf8(uri));
-
-                // 1. 核心：标记为已处理，阻止弹出独立窗口
-                args->put_Handled(TRUE); 
-
-                // 2. 透传给 C# 处理逻辑
-                if (m_messageCallback) {
-                    std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::WideToUtf8(uri));
-                    m_messageCallback(json);
-                }
-                CoTaskMemFree(uri);
+            if (!SUCCEEDED(args->get_Uri(&uri)) || !uri) {
+                return S_OK;
             }
+
+            std::println("[C++ Nav] Intercepted New Window Request: {}", InteropHelper::WideToUtf8(uri));
+
+            // 1. 核心：标记为已处理，阻止弹出独立窗口
+            args->put_Handled(TRUE); 
+
+            // 2. 透传给 C# 处理逻辑
+            if (m_messageCallback) {
+                std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::JsonEscape(InteropHelper::WideToUtf8(uri)));
+                m_messageCallback(json);
+            }
+            CoTaskMemFree(uri);
             return S_OK;
         }).Get(), nullptr);
 
@@ -125,43 +130,27 @@ AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> on
                 args->get_DownloadOperation(&download);
 
                 LPWSTR uri = nullptr;
-                if (download && SUCCEEDED(download->get_Uri(&uri)) && uri) {
-                    std::println("[C++ Nav] Intercepted Download: {}", InteropHelper::WideToUtf8(uri));
-
-                    // 1. 核心：取消下载任务
-                    args->put_Cancel(TRUE);
-                    // 2. 隐藏默认下载 UI
-                    args->put_Handled(TRUE);
-
-                    // 3. 透传给 C#
-                    if (m_messageCallback) {
-                        std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::WideToUtf8(uri));
-                        m_messageCallback(json);
-                    }
-                    CoTaskMemFree(uri);
+                if (!download || !SUCCEEDED(download->get_Uri(&uri)) || !uri) {
+                    return S_OK;
                 }
+
+                std::println("[C++ Nav] Intercepted Download: {}", InteropHelper::WideToUtf8(uri));
+
+                // 1. 核心：取消下载任务
+                args->put_Cancel(TRUE);
+                // 2. 隐藏默认下载 UI
+                args->put_Handled(TRUE);
+
+                // 3. 透传给 C#
+                if (m_messageCallback) {
+                    std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::JsonEscape(InteropHelper::WideToUtf8(uri)));
+                    m_messageCallback(json);
+                }
+                CoTaskMemFree(uri);
                 return S_OK;
             }).Get(), nullptr);
     }
 
-
-    // Resource Interception
-    m_webView->AddWebResourceRequestedFilter(L"*", COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL);
-    m_webView->add_WebResourceRequested(Callback<ICoreWebView2WebResourceRequestedEventHandler>(
-        [this](ICoreWebView2* sender, ICoreWebView2WebResourceRequestedEventArgs* args) -> HRESULT {
-            ComPtr<ICoreWebView2WebResourceRequest> request;
-            args->get_Request(&request);
-
-            LPWSTR uri = nullptr;
-            if (SUCCEEDED(request->get_Uri(&uri)) && uri) {
-                // Low-level resource logging
-                if (std::wstring_view(uri).find(L"file://") == 0) {
-                    // Optional: log or handle specific file resources
-                }
-                CoTaskMemFree(uri);
-            }
-            return S_OK;
-        }).Get(), nullptr);
 
     // Message Handling
     m_webView->add_WebMessageReceived(Callback<ICoreWebView2WebMessageReceivedEventHandler>(
@@ -175,25 +164,31 @@ AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> on
                     objects->get_Count(&count);
                     for (unsigned int i = 0; i < count; i++) {
                         ComPtr<IUnknown> obj;
-                        if (SUCCEEDED(objects->GetValueAtIndex(i, &obj))) {
-                            ComPtr<ICoreWebView2File> file;
-                            if (SUCCEEDED(obj->QueryInterface(IID_PPV_ARGS(&file)))) {
-                                LPWSTR path = nullptr;
-                                if (SUCCEEDED(file->get_Path(&path)) && path) {
-                                    std::println("[C++ Drop] File dropped: {}", InteropHelper::WideToUtf8(path));
-                                    
-                                    // Forward to C# as a protocol command
-                                    if (m_messageCallback) {
-                                        std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::WideToUtf8(path));
-                                        m_messageCallback(json);
-                                    }
-                                    CoTaskMemFree(path);
-                                    
-                                    // Normally we only process the first file for this tool
-                                    return S_OK;
-                                }
-                            }
+                        if (!SUCCEEDED(objects->GetValueAtIndex(i, &obj))) {
+                            continue;
                         }
+
+                        ComPtr<ICoreWebView2File> file;
+                        if (!SUCCEEDED(obj->QueryInterface(IID_PPV_ARGS(&file)))) {
+                            continue;
+                        }
+
+                        LPWSTR path = nullptr;
+                        if (!SUCCEEDED(file->get_Path(&path)) || !path) {
+                            continue;
+                        }
+
+                        std::println("[C++ Drop] File dropped: {}", InteropHelper::WideToUtf8(path));
+                        
+                        // Forward to C# as a protocol command
+                        if (m_messageCallback) {
+                            std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::JsonEscape(InteropHelper::WideToUtf8(path)));
+                            m_messageCallback(json);
+                        }
+                        CoTaskMemFree(path);
+                        
+                        // Normally we only process the first file for this tool
+                        return S_OK;
                     }
                 }
             }
@@ -203,15 +198,17 @@ AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> on
             if (SUCCEEDED(args->TryGetWebMessageAsString(&message)) && message) {
                 if (m_messageCallback) m_messageCallback(InteropHelper::WideToUtf8(message));
                 CoTaskMemFree(message);
-            } else {
-                args->get_WebMessageAsJson(&message);
-                if (message) {
-                    if (m_messageCallback) m_messageCallback(InteropHelper::WideToUtf8(message));
-                    CoTaskMemFree(message);
-                }
+                return S_OK;
+            }
+
+            args->get_WebMessageAsJson(&message);
+            if (message) {
+                if (m_messageCallback) m_messageCallback(InteropHelper::WideToUtf8(message));
+                CoTaskMemFree(message);
             }
             return S_OK;
-        }).Get(), nullptr);
+        }
+    ).Get(), nullptr);
 
     if (onReady) onReady();
     co_return;
@@ -244,4 +241,4 @@ void WebViewHost::SetMessageCallback(std::function<void(const std::string&)> cal
     m_messageCallback = callback;
 }
 
-} // namespace Immersive
+} 

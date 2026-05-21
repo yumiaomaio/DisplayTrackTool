@@ -1,7 +1,10 @@
 /ImmersiveDisplay/bin/
 /ImmersiveDisplay/obj/
 /immersive-cpp-wrapper/build/
+/immersive-cpp-wrapper/build-dev/
 /immersive-cpp-wrapper/packages/
+.claude/
+GEMINI.md
 /immersive-cpp-wrapper/obj/
 /immersive-rust-wrapper/target/
 /vite-project/dist/
