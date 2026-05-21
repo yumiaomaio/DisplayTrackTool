@@ -361,18 +361,14 @@ public class AppBridge(
                 
                 // 1, 2 调用 SetTargetProcessName
                 string processName = Path.GetFileNameWithoutExtension(finalPath);
-                if (!string.IsNullOrEmpty(processName))
-                {
-                    SetTargetProcessName(processName);
-                    StartMonitoring(processName);
-                }
+                if (!string.IsNullOrEmpty(processName)){ SetTargetProcessName(processName); }
+                
             }
             // 4. 如果是 app:// 或者 http(s):// 就直接保存
             else if (scheme == "app" || scheme.StartsWith("http"))
             {
                 loggingService.AddLog($"[AppBridge] Saving URI launch path: {uri}");
                 SetAssociatedLaunchPath(uri);
-                
                 // 注意：URI 通常无法直接推断进程名，除非有额外配置
             }
             else
