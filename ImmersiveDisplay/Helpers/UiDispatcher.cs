@@ -8,6 +8,7 @@ namespace ImmersiveDisplay.Helpers;
 
 public static partial class UiDispatcher
 {
+    private static int _isDispatchPending = 0; // 0: false, 1: true
     private static HiddenMessageWindow? _messageWindow;
     private static readonly ConcurrentQueue<Action> Queue = new();
     private static ILoggingService? _loggingService;
@@ -38,16 +39,22 @@ public static partial class UiDispatcher
 
         if (!Queue.IsEmpty && _messageWindow.Hwnd != IntPtr.Zero)
         {
-            PostMessage(_messageWindow.Hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
+            if (Interlocked.CompareExchange(ref _isDispatchPending, 1, 0) == 0)
+            {
+                PostMessage(_messageWindow.Hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
+            }
         }
     }
 
     public static void BeginInvoke(Action action)
     {
         Queue.Enqueue(action);
-        if (_messageWindow != null && _messageWindow.Hwnd != IntPtr.Zero)
+        if (Interlocked.CompareExchange(ref _isDispatchPending, 1, 0) == 0)
         {
-            PostMessage(_messageWindow.Hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
+            if (_messageWindow != null && _messageWindow.Hwnd != IntPtr.Zero)
+            {
+                PostMessage(_messageWindow.Hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
+            }
         }
     }
 
@@ -59,6 +66,7 @@ public static partial class UiDispatcher
 
     public static void InvokePending()
     {
+        Interlocked.Exchange(ref _isDispatchPending, 0); // Reset the pending flag
         while (Queue.TryDequeue(out var action))
         {
             try
