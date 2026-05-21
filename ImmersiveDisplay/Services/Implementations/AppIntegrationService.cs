@@ -15,6 +15,8 @@ public class AppIntegrationService(
     IDialogService dialogService) 
     : IAppIntegrationService
 {
+    public bool IsProtocolAutoStart { get; set; }
+
     public void InitializeHooksAndTriggers()
     {
         // Global shortcut log redirection
@@ -75,7 +77,7 @@ public class AppIntegrationService(
         // Check for path updates if feature is enabled
         protocolService.UpdateIfNecessary();
 
-        if (configService.IsAutoStartFromThirdPartyEnabled() && Program.IsProtocolAutoStart)
+        if (configService.IsAutoStartFromThirdPartyEnabled() && IsProtocolAutoStart)
         {
             loggingService.AddLog($"[Startup] Third-party launcher detected via protocol. Auto-launching target program.");
             autoStartedByThirdParty = true;

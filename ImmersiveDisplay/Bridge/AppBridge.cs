@@ -1,18 +1,18 @@
 // File: Bridge/AppBridge.cs
 
 using System.Collections.Specialized;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Models;
 using ImmersiveDisplay.Services;
-using Microsoft.Web.WebView2.Core;
 
 namespace ImmersiveDisplay.Bridge;
 
-[ComVisible(true)]
-[ClassInterface(ClassInterfaceType.AutoDual)]
+/// <summary>
+/// A pure C# bridge that handles logic routing and state synchronization.
+/// Decoupled from WebView2 and COM for Native AOT compatibility.
+/// </summary>
 public class AppBridge(
     ITargetStateManager stateManager,
     IConfigService configService,
@@ -26,15 +26,14 @@ public class AppBridge(
     IOverlayImageService overlayImageService)
     : IDisposable
 {
-    private CoreWebView2? _webView;
-
     /// <summary>
-    /// Binds the bridge to the WebView and starts automatic state synchronization.
+    /// Event triggered when the DLL wants to push a state update or message to the frontend.
+    /// The host application should listen to this and relay it via webView.PostWebMessageAsJson.
     /// </summary>
-    public void Initialize(CoreWebView2 webView)
+    public event Action<string>? OnMessageSent;
+
+    public void Initialize()
     {
-        _webView = webView;
-        
         // --- Reactive Subscriptions to Service Events ---
         configService.ConfigChanged += OnConfigChanged;
         stateManager.IsRunningChanged += OnIsRunningChanged;
@@ -49,7 +48,188 @@ public class AppBridge(
         stateManager.IsRunningChanged -= OnIsRunningChanged;
         stateManager.WaitingCountdownChanged -= OnWaitingCountdownChanged;
         loggingService.Logs.CollectionChanged -= OnLogsChanged;
-        _webView = null;
+    }
+
+    /// <summary>
+    /// Main entry point for messages coming from the frontend (via the host application).
+    /// Hardcoded router for Native AOT compatibility (avoiding Reflection).
+    /// </summary>
+    public string HandleMessage(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            
+            if (!root.TryGetProperty("action", out var actionProp))
+                return SerializeResponse("error", "Missing 'action' property.");
+
+            string action = actionProp.GetString() ?? "";
+            string? callId = root.TryGetProperty("callId", out var cId) ? cId.GetString() : null;
+            
+            // Dispatch based on action name
+            switch (action)
+            {
+                case "GetInitialState":
+                    return SerializeResponse("ok", GetInitialState(), callId);
+
+                case "StartMonitoring":
+                    StartMonitoring(root.TryGetProperty("payload", out var p1) ? p1.GetString() ?? "" : "");
+                    return SerializeResponse("ok", null, callId);
+
+                case "StopMonitoring":
+                    StopMonitoring();
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetBackgroundColor":
+                    SetBackgroundColor(root.TryGetProperty("payload", out var p2) ? p2.GetString() ?? "" : "");
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetTargetProcessName":
+                    SetTargetProcessName(root.TryGetProperty("payload", out var p3) ? p3.GetString() ?? "" : "");
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetAssociatedLaunchPath":
+                    SetAssociatedLaunchPath(root.TryGetProperty("payload", out var p4) ? p4.GetString() ?? "" : "");
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetEnableTaskbarAutoHide":
+                    SetEnableTaskbarAutoHide(root.TryGetProperty("payload", out var p5) && p5.GetBoolean());
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetEnableDisplaySync":
+                    SetEnableDisplaySync(root.TryGetProperty("payload", out var p6) && p6.GetBoolean());
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetEnableBackgroundOverlay":
+                    SetEnableBackgroundOverlay(root.TryGetProperty("payload", out var p7) && p7.GetBoolean());
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetBackgroundMode":
+                    SetBackgroundMode(root.TryGetProperty("payload", out var p8) ? p8.GetString() ?? "" : "");
+                    return SerializeResponse("ok", null, callId);
+
+                case "SelectImage":
+                    SelectImage();
+                    return SerializeResponse("ok", null, callId);
+
+                case "ClearImage":
+                    ClearImage();
+                    return SerializeResponse("ok", null, callId);
+
+                case "SelectAssociatedProgram":
+                    SelectAssociatedProgram();
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetLaunchOnAppStartup":
+                    SetLaunchOnAppStartup(root.TryGetProperty("payload", out var p9) && p9.GetBoolean());
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetLaunchOnTaskStart":
+                    SetLaunchOnTaskStart(root.TryGetProperty("payload", out var p10) && p10.GetBoolean());
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetAutoStartFromThirdParty":
+                    SetAutoStartFromThirdParty(root.TryGetProperty("payload", out var p11) && p11.GetBoolean());
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetAutoStartMonitoringOnProtocolLaunch":
+                    SetAutoStartMonitoringOnProtocolLaunch(root.TryGetProperty("payload", out var p12) && p12.GetBoolean());
+                    return SerializeResponse("ok", null, callId);
+
+                case "SetWindowDetectionTimeout":
+                    SetWindowDetectionTimeout(root.TryGetProperty("payload", out var p13) ? p13.GetInt32() : 10);
+                    return SerializeResponse("ok", null, callId);
+
+                case "RegisterProtocol":
+                    return SerializeResponse("ok", RegisterProtocol(), callId);
+
+                case "UnregisterProtocol":
+                    return SerializeResponse("ok", UnregisterProtocol(), callId);
+
+                case "IsAssociationValid":
+                    return SerializeResponse("ok", IsAssociationValid(), callId);
+
+                case "CleanAssociation":
+                    return SerializeResponse("ok", CleanAssociation(), callId);
+
+                case "ClearLogs":
+                    ClearLogs();
+                    return SerializeResponse("ok", null, callId);
+
+                case "GetImageBase64":
+                    return SerializeResponse("ok", GetImageBase64(root.TryGetProperty("payload", out var p14) ? p14.GetString() ?? "" : ""), callId);
+
+                case "GetProcessCommandLine":
+                    return SerializeResponse("ok", GetProcessCommandLine(root.TryGetProperty("payload", out var p15) ? p15.GetString() ?? "" : ""), callId);
+
+                case "GetProcessIconBase64":
+                    return SerializeResponse("ok", GetProcessIconBase64(root.TryGetProperty("payload", out var p16) ? p16.GetString() ?? "" : ""), callId);
+
+                case "CheckProcessExists":
+                    return SerializeResponse("ok", CheckProcessExists(root.TryGetProperty("payload", out var p17) ? p17.GetString() ?? "" : ""), callId);
+
+                case "RestartAsAdmin":
+                    RestartAsAdmin();
+                    return SerializeResponse("ok", null, callId);
+
+                case "ExitApp":
+                    ExitApp();
+                    return SerializeResponse("ok", null, callId);
+
+                case "ShowAbout":
+                    ShowAbout();
+                    return SerializeResponse("ok", null, callId);
+
+                case "GetLogs":
+                    return SerializeResponse("ok", GetLogs(), callId);
+
+                default:
+                    return SerializeResponse("error", $"Unknown action: {action}", callId);
+            }
+        }
+        catch (Exception ex)
+        {
+            return SerializeResponse("error", $"Exception: {ex.Message}");
+        }
+    }
+
+    private string SerializeResponse(string status, object? result = null, string? callId = null)
+    {
+        var response = new Dictionary<string, object?>
+        {
+            ["status"] = status,
+            ["result"] = result,
+            ["callId"] = callId
+        };
+        return JsonSerializer.Serialize(response, AppJsonContext.Default.DictionaryStringObject);
+    }
+
+    private object GetInitialState()
+    {
+        return new Dictionary<string, object?>
+        {
+            ["targetProcessName"] = TargetProcessName,
+            ["isRunning"] = IsRunning,
+            ["isAdmin"] = IsAdmin,
+            ["enableTaskbarAutoHide"] = EnableTaskbarAutoHide,
+            ["enableDisplaySync"] = EnableDisplaySync,
+            ["enableBackgroundOverlay"] = EnableBackgroundOverlay,
+            ["backgroundMode"] = BackgroundMode,
+            ["currentImageFileName"] = CurrentImageFileName,
+            ["backgroundColor"] = BackgroundColor,
+            ["shouldShowExitTip"] = ShouldShowExitTip,
+            ["associatedLaunchPath"] = AssociatedLaunchPath,
+            ["launchOnAppStartup"] = LaunchOnAppStartup,
+            ["launchOnTaskStart"] = LaunchOnTaskStart,
+            ["autoStartFromThirdParty"] = AutoStartFromThirdParty,
+            ["autoStartMonitoringOnProtocolLaunch"] = AutoStartMonitoringOnProtocolLaunch,
+            ["shouldShowUacPrompt"] = ShouldShowUacPrompt,
+            ["isProtocolRegistered"] = IsProtocolRegistered,
+            ["waitingCountdown"] = WaitingCountdown,
+            ["windowDetectionTimeout"] = WindowDetectionTimeout,
+            ["logs"] = GetLogs()
+        };
     }
 
     private void OnConfigChanged(string key, object? value)
@@ -74,24 +254,10 @@ public class AppBridge(
 
     private void PushToFrontend<T>(T state, JsonTypeInfo<T> typeInfo)
     {
-        if (_webView == null) return;
         try
         {
             string json = JsonSerializer.Serialize(state, typeInfo);
-            UiDispatcher.BeginInvoke(async () => 
-            {
-                try
-                {
-                    if (_webView != null)
-                    {
-                        await _webView.ExecuteScriptAsync($"window.onStateChanged({json})");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    loggingService.AddLog($"[AppBridge] JS eval failed: {ex.Message}");
-                }
-            });
+            OnMessageSent?.Invoke(json);
         }
         catch (Exception ex)
         {
@@ -120,7 +286,7 @@ public class AppBridge(
     public int WaitingCountdown => stateManager.WaitingCountdown;
     public int WindowDetectionTimeout => configService.GetWindowDetectionTimeout();
 
-    // --- Actions called from JS ---
+    // --- Actions ---
     public void StartMonitoring(string processName)
     {
         configService.SetDefaultProcessName(processName);
@@ -163,7 +329,6 @@ public class AppBridge(
     public void SetBackgroundMode(string mode)
     {
         loggingService.AddLog($"[AppBridge] SetBackgroundMode called with: {mode}");
-        // Normalize frontend values ('color', 'image') to enum members (COLOR, IMAGE)
         BackgroundMode? targetMode = null;
         if (mode.Equals("color", StringComparison.OrdinalIgnoreCase)) targetMode = Models.BackgroundMode.COLOR;
         else if (mode.Equals("image", StringComparison.OrdinalIgnoreCase)) targetMode = Models.BackgroundMode.IMAGE;
@@ -173,13 +338,6 @@ public class AppBridge(
         {
             loggingService.AddLog($"[AppBridge] Mapping '{mode}' to enum {targetMode.Value}.");
             configService.SetBackgroundMode(targetMode.Value);
-            // Notify frontend to confirm the change
-            var status = new Dictionary<string, object?> { ["backgroundMode"] = targetMode.Value.ToString().ToLower() };
-            _webView?.PostWebMessageAsJson(JsonSerializer.Serialize(status, AppJsonContext.Default.DictionaryStringObject));
-        }
-        else
-        {
-            loggingService.AddLog($"[AppBridge] Failed to parse BackgroundMode: {mode}");
         }
     }
     public void SelectImage() => overlayImageService.SelectAndSetBackgroundImage();
@@ -202,7 +360,7 @@ public class AppBridge(
     }
 
     public void ClearLogs() => loggingService.Logs.Clear();
-    public void SaveConfig() { /* Autosaved in Setters */ }
+    public void SaveConfig() { }
 
     public string GetImageBase64(string fileName) => overlayImageService.GetImageBase64(fileName);
     public string GetProcessCommandLine(string processName) => processService.GetProcessCommandLine(processName) ?? "";
@@ -215,18 +373,17 @@ public class AppBridge(
         UiDispatcher.BeginInvoke(() => 
         {
             dialogService.ShowInfo(
-                "Responsive Window Tool\nVersion 1.2.0\n\n \n\nGitHub: https://github.com/yumiaomaio/GameWindowTool", 
+                "Responsive Window Tool\nVersion 1.2.0\n\nGitHub: https://github.com/yumiaomaio/GameWindowTool", 
                 "About");
         });
     }
 
     public string[] GetLogs() => loggingService.Logs.ToArray();
 
-    // --- Inner Helpers ---
     private bool CalculateShouldShowUacPrompt()
     {
         if (IsAdmin) return false;
-        if (!Program.IsProtocolAutoStart) return true;
+        if (!appIntegrationService.IsProtocolAutoStart) return true;
         if (AutoStartFromThirdParty)
         {
             if (AutoStartMonitoringOnProtocolLaunch)

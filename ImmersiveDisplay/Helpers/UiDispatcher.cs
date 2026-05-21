@@ -8,7 +8,7 @@ namespace ImmersiveDisplay.Helpers;
 
 public static partial class UiDispatcher
 {
-    private static IntPtr _hwnd = IntPtr.Zero;
+    private static HiddenMessageWindow? _messageWindow;
     private static readonly ConcurrentQueue<Action> Queue = new();
     private static ILoggingService? _loggingService;
     public const int WM_DISPATCH = 0x0400 + 777; // WM_USER + 777
@@ -17,24 +17,38 @@ public static partial class UiDispatcher
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
-    public static void Initialize(IntPtr hwnd, ILoggingService? loggingService = null)
+    /// <summary>
+    /// Initializes the dispatcher by creating a hidden message window on the CURRENT thread.
+    /// MUST be called from the main UI STA thread.
+    /// </summary>
+    public static void Initialize(ILoggingService? loggingService = null)
     {
-        _hwnd = hwnd;
         if (loggingService != null) _loggingService = loggingService;
         
-        if (!Queue.IsEmpty && _hwnd != IntPtr.Zero)
+        if (_messageWindow == null)
         {
-            PostMessage(_hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
+            _messageWindow = new HiddenMessageWindow();
+        }
+
+        if (!Queue.IsEmpty && _messageWindow.Hwnd != IntPtr.Zero)
+        {
+            PostMessage(_messageWindow.Hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
         }
     }
 
     public static void BeginInvoke(Action action)
     {
         Queue.Enqueue(action);
-        if (_hwnd != IntPtr.Zero)
+        if (_messageWindow != null && _messageWindow.Hwnd != IntPtr.Zero)
         {
-            PostMessage(_hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
+            PostMessage(_messageWindow.Hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);
         }
+    }
+
+    public static void Shutdown()
+    {
+        _messageWindow?.Dispose();
+        _messageWindow = null;
     }
 
     public static void InvokePending()

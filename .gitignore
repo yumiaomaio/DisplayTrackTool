@@ -1,4 +1,11 @@
-﻿/ImmersiveWindow/bin/
-/ImmersiveWindow/obj/
-# /vite-project/
+/ImmersiveDisplay/bin/
+/ImmersiveDisplay/obj/
+/immersive-cpp-wrapper/build/
+/immersive-cpp-wrapper/packages/
+/immersive-cpp-wrapper/obj/
+/immersive-rust-wrapper/target/
+/vite-project/dist/
+/vite-project/node_modules/
 /.idea/
+/immersive-cpp-wrapper/.idea/
+# /vite-project/

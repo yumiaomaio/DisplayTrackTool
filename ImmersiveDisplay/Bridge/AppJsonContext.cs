@@ -7,6 +7,10 @@ namespace ImmersiveDisplay.Bridge;
 [JsonSerializable(typeof(FrontendLogsDto))]
 [JsonSerializable(typeof(AppConfig))]
 [JsonSerializable(typeof(object))]
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(int))]
+[JsonSerializable(typeof(string[]))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, 
     DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase,
