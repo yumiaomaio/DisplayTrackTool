@@ -95,6 +95,37 @@ public static partial class ShortcutResolver
         }
     }
 
+    /// <summary>
+    /// Resolves a .url (Internet Shortcut) file by manually parsing the INI content.
+    /// </summary>
+    public static string ResolveUrl(string urlPath)
+    {
+        if (string.IsNullOrWhiteSpace(urlPath) || !File.Exists(urlPath))
+            return urlPath;
+
+        LogAction?.Invoke($"> UrlResolver: Analyzing {Path.GetFileName(urlPath)}");
+
+        try
+        {
+            // .url files are essentially INI files. We look for URL= under [InternetShortcut]
+            foreach (var line in File.ReadLines(urlPath))
+            {
+                if (line.StartsWith("URL=", StringComparison.OrdinalIgnoreCase))
+                {
+                    string target = line.Substring(4).Trim();
+                    LogAction?.Invoke($"> Url Target: {target}");
+                    return target;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LogAction?.Invoke($"> Url Error: {ex.Message}");
+        }
+
+        return urlPath;
+    }
+
     [GeneratedComInterface]
     [Guid("000214F9-0000-0000-C000-000000000046")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]

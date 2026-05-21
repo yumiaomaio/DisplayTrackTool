@@ -164,6 +164,10 @@ public class AppIntegrationService(
                 {
                     resolvedPath = ShortcutResolver.Resolve(path);
                 }
+                else if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
+                {
+                    resolvedPath = ShortcutResolver.ResolveUrl(path);
+                }
                 else
                 {
                     resolvedPath = path.Contains(' ') ? $"\"{path}\"" : path;

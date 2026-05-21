@@ -8,13 +8,15 @@ AppWindow::~AppWindow() {}
 bool AppWindow::Create(HINSTANCE hInstance, const std::wstring& title, int width, int height) {
     const wchar_t szWindowClass[] = L"ImmersiveHostWindow";
 
-    WNDCLASSEXW wcex = { sizeof(WNDCLASSEXW) };
-    wcex.style = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc = StaticWndProc;
-    wcex.hInstance = hInstance;
-    wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wcex.lpszClassName = szWindowClass;
+    WNDCLASSEXW wcex = {
+        .cbSize = sizeof(WNDCLASSEXW),
+        .style = CS_HREDRAW | CS_VREDRAW,
+        .lpfnWndProc = StaticWndProc,
+        .hInstance = hInstance,
+        .hCursor = LoadCursor(NULL, IDC_ARROW),
+        .hbrBackground = (HBRUSH)(COLOR_WINDOW + 1),
+        .lpszClassName = szWindowClass
+    };
     RegisterClassExW(&wcex);
 
     m_hWnd = CreateWindowExW(0, szWindowClass, title.c_str(), WS_OVERLAPPEDWINDOW,

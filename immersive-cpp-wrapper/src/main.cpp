@@ -1,5 +1,6 @@
 #include <windows.h>
-#include <stdio.h>
+#include <print>
+#include <format>
 #include <io.h>
 #include <fcntl.h>
 #include "AppWindow.h"
@@ -14,13 +15,32 @@ void* g_engineHandle = nullptr;
 WebViewHost g_webViewHost;
 AppWindow g_appWindow;
 
+// Helper to print truncated JSON for debugging (prevents Base64 flooding)
+void SmartPrint(std::string_view prefix, const char* json) {
+    if (!json) return;
+    std::string_view s = json;
+    
+    if (s.length() > 256) {
+        // If it looks like it contains a base64 image, truncate it heavily
+        if (size_t base64Pos = s.find("data:image/"); base64Pos != std::string::npos) {
+            std::println("{} {}... [Base64 Data Truncated] }}", prefix, s.substr(0, base64Pos + 20));
+            return;
+        }
+        // General long string truncation
+        std::println("{} {}... (truncated, total length: {})", prefix, s.substr(0, 256), s.length());
+    }
+    else {
+        std::println("{} {}", prefix, json);
+    }
+}
+
 // Bridge: C# -> C++ -> JS
 void __stdcall OnImmersiveMessage(const char* json) {
     if (json) {
-        printf("[DLL -> C++] State Push: %s\n", json);
+        SmartPrint("[DLL -> C++] State Push:", json);
         std::wstring jsonWide = InteropHelper::Utf8ToWide(json);
         if (!jsonWide.empty()) {
-            std::wstring script = L"if(window.onStateChangedFromDll) { window.onStateChangedFromDll(" + jsonWide + L"); }";
+            std::wstring script = std::format(L"if(window.onStateChangedFromDll) {{ window.onStateChangedFromDll({}); }}", jsonWide);
             g_webViewHost.ExecuteScript(script);
         }
     }
@@ -35,7 +55,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     FILE* fp;
     freopen_s(&fp, "CONOUT$", "w", stdout);
     freopen_s(&fp, "CONOUT$", "w", stderr);
-    printf("--- Immersive Display Debug Console ---\n");
+    std::println("--- Immersive Display Debug Console (C++23) ---");
 
     // 1. Initialize COM
     CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
@@ -46,7 +66,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         MessageBoxW(NULL, L"Failed to create C# Engine instance.", L"Fatal Error", MB_OK | MB_ICONERROR);
         return -1;
     }
-    printf("[C++] C# Engine created.\n");
+    std::println("[C++] C# Engine created.");
 
     // 3. Create Main Window with DPI Scaling
     UINT dpi = GetDpiForSystem();
@@ -59,12 +79,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
     // 4. Setup WebView2
     g_webViewHost.SetMessageCallback([](const std::string& utf8Msg) {
-        printf("[JS -> C++] Received: %s\n", utf8Msg.c_str());
+        SmartPrint("[JS -> C++] Received:", utf8Msg.c_str());
         
         // JS -> C++ -> C#
         const char* response = immersive_handle_message(g_engineHandle, utf8Msg.c_str());
         if (response) {
-            printf("[C# -> C++] Method Response: %s\n", response);
+            SmartPrint("[C# -> C++] Method Response:", response);
             // Push results back immediately to sync state if needed
             OnImmersiveMessage(response);
             immersive_free_string(response);
@@ -84,14 +104,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
     // 5. Initialize WebView and DLL
     g_webViewHost.Initialize(g_appWindow.GetHwnd(), []() {
-        printf("[C++] WebView2 Initialized.\n");
+        std::println("[C++] WebView2 Initialized.");
         
         // Bind C# events to our C++ handler
         immersive_initialize(g_engineHandle, OnImmersiveMessage);
 
         // Load the local UI
         std::wstring indexPath = InteropHelper::GetWebUiPath();
-        printf("[C++] Navigating to: %S\n", indexPath.c_str());
+        std::println("[C++] Navigating to: {}", InteropHelper::WideToUtf8(indexPath.c_str()));
         g_webViewHost.Navigate(InteropHelper::PathToUri(indexPath));
     });
 

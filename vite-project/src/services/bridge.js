@@ -1,72 +1,111 @@
 /**
- * Bridge service to handle communication between Vue and C# WPF (WebView2)
+ * Bridge service to handle communication between Vue and C# DLL (via C++ Native Host)
+ * Pure RPC Proxy: Case-Insensitive Edition.
  */
 
-const getBridge = () => {
-    if (window.chrome && window.chrome.webview && window.chrome.webview.hostObjects) {
-        return window.chrome.webview.hostObjects.bridge;
-    }
-    
-    // Mock for local browser development
-    console.warn("WebView2 Bridge not found. Using mock implementation.");
-    return {
-        TargetProcessName: Promise.resolve("notepad.exe"),
-        EnableTaskbarAutoHide: Promise.resolve(true),
-        EnableDisplaySync: Promise.resolve(true),
-        EnableBackgroundOverlay: Promise.resolve(true),
-        BackgroundColor: Promise.resolve("#FF2D2D30"),
-        IsAdmin: Promise.resolve(false),
-        IsRunning: Promise.resolve(false),
-        CurrentImageFileName: Promise.resolve(""),
-        ShouldShowExitTip: Promise.resolve(true),
-        AssociatedLaunchPath: Promise.resolve(""),
-        LaunchOnAppStartup: Promise.resolve(false),
-        LaunchOnTaskStart: Promise.resolve(false),
-        AutoStartFromThirdParty: Promise.resolve(false),
-        IsProtocolRegistered: Promise.resolve(false),
-        GetLogs: () => Promise.resolve(["> Mock: System initialized."]),
-        GetImageBase64: () => Promise.resolve(""),
-        SetEnableTaskbarAutoHide: (val) => console.log("Mock: SetAutoHide", val),
-        SetEnableDisplaySync: (val) => console.log("Mock: SetDisplaySync", val),
-        SetEnableBackgroundOverlay: (val) => console.log("Mock: SetOverlay", val),
-        SetBackgroundColor: (val) => console.log("Mock: SetColor", val),
-        SetTargetProcessName: (val) => console.log("Mock: SetTargetProcessName", val),
-        SetBackgroundMode: (val) => console.log("Mock: SetBackgroundMode", val),
-        SetShowExitTip: (val) => console.log("Mock: SetShowExitTip", val),
-        SetAssociatedLaunchPath: (val) => console.log("Mock: SetLaunchPath", val),
-        SetLaunchOnAppStartup: (val) => console.log("Mock: SetLaunchOnAppStartup", val),
-        SetLaunchOnTaskStart: (val) => console.log("Mock: SetLaunchOnTaskStart", val),
-        SetAutoStartFromThirdParty: (val) => console.log("Mock: SetAutoStartFromThirdParty", val),
-        SelectAssociatedProgram: () => console.log("Mock: SelectAssociatedProgram"),
-        RestartAsAdmin: () => alert("Mock: Restart as Admin"),
-        ShowAbout: () => alert("Mock: Show About"),
-        StartMonitoring: (p) => { 
-            console.log("Mock: Start Monitoring", p);
-        },
-        StopMonitoring: () => console.log("Mock: Stop Monitoring"),
-        SelectImage: () => console.log("Mock: Select Image"),
-        ClearImage: () => console.log("Mock: Clear Image"),
-        RegisterProtocol: () => { console.log("Mock: RegisterProtocol"); return Promise.resolve(true); },
-        UnregisterProtocol: () => { console.log("Mock: UnregisterProtocol"); return Promise.resolve(true); },
-        CleanAssociation: () => { console.log("Mock: CleanAssociation"); return Promise.resolve(true); },
-        GetProcessIconBase64: () => Promise.resolve(""),
-        CheckProcessExists: () => Promise.resolve(false)
-    };
-};
-
-export const bridge = getBridge();
+const pendingCalls = new Map();
 
 /**
- * Hook to listen for state changes from C#
- * @param {Function} callback 
+ * Sends a raw JSON request to the C++ host.
  */
-export let onStateChanged = (callback) => {
-    window.onStateChanged = (stateOrJson) => {
-        try {
-            const state = typeof stateOrJson === 'string' ? JSON.parse(stateOrJson) : stateOrJson;
-            callback(state);
-        } catch (e) {
-            console.error("Failed to parse state update from C#", e);
+function sendRequest(action, payload = null) {
+    return new Promise((resolve) => {
+        const callId = Math.random().toString(36).substring(7);
+        pendingCalls.set(callId, resolve);
+        
+        const message = JSON.stringify({
+            action: action.toLowerCase(), // --- Outgoing: Force Lowercase ---
+            payload: payload,
+            callId: callId
+        });
+
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage(message);
+        } else {
+            // Mock processing for browser dev
+            setTimeout(() => {
+                const resolve = pendingCalls.get(callId);
+                if (resolve) {
+                    pendingCalls.delete(callId);
+                    resolve(null);
+                }
+            }, 100);
         }
-    };
+    });
+}
+
+/**
+ * Pure Dynamic Proxy.
+ * ANY property access returns a function that triggers an RPC call.
+ */
+export const bridge = new Proxy({}, {
+    get: function(target, prop) {
+        if (typeof prop !== 'string' || prop === 'then' || prop === 'toJSON') {
+            return target[prop];
+        }
+
+        return function(payload) {
+             return sendRequest(prop, payload);
+        };
+    }
+});
+
+let stateChangeCallback = () => {};
+
+/**
+ * Creates a case-insensitive proxy for an object.
+ * Accessing obj.anyCase will return obj.anycase internally.
+ */
+function createCaseInsensitiveProxy(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+
+    const normalized = {};
+    for (const key in obj) {
+        normalized[key.toLowerCase()] = obj[key];
+    }
+
+    return new Proxy(normalized, {
+        get: (target, prop) => {
+            if (typeof prop !== 'string') return target[prop];
+            return target[prop.toLowerCase()];
+        }
+    });
+}
+
+/**
+ * Receives messages from the DLL (Responses & State Pushes).
+ */
+window.onStateChangedFromDll = function(dataOrJson) {
+    try {
+        const data = typeof dataOrJson === 'string' ? JSON.parse(dataOrJson) : dataOrJson;
+        
+        // 1. Resolve Promise for Method Calls
+        if (data.callId && pendingCalls.has(data.callId)) {
+            const resolve = pendingCalls.get(data.callId);
+            pendingCalls.delete(data.callId);
+            
+            // Methods can return objects, make them case-insensitive
+            const result = (data.result && typeof data.result === 'object') 
+                ? createCaseInsensitiveProxy(data.result) 
+                : data.result;
+            resolve(result);
+        }
+        
+        // 2. Global State Push
+        const rawUpdate = (data.status === 'ok' && data.hasOwnProperty('result')) ? data.result : data;
+        
+        if (rawUpdate && typeof rawUpdate === 'object') {
+            // Provide a Case-Insensitive Proxy to the frontend components
+            stateChangeCallback(createCaseInsensitiveProxy(rawUpdate));
+        }
+    } catch (e) {
+        console.error("[Bridge] Message Error:", e, dataOrJson);
+    }
+};
+
+/**
+ * Hook for Vue components to listen for state changes.
+ */
+export const onStateChanged = (callback) => {
+    stateChangeCallback = callback;
 };

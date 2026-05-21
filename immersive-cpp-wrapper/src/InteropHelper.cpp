@@ -1,6 +1,7 @@
 #include "InteropHelper.h"
 #include <algorithm>
 #include <vector>
+#include <ranges>
 
 namespace Immersive {
 
@@ -12,7 +13,6 @@ std::wstring InteropHelper::Utf8ToWide(const char* utf8) {
     std::vector<wchar_t> buffer(size_needed);
     MultiByteToWideChar(CP_UTF8, 0, utf8, -1, buffer.data(), size_needed);
     
-    // Explicitly exclude the null terminator from the resulting wstring
     return std::wstring(buffer.data(), size_needed - 1);
 }
 
@@ -27,18 +27,23 @@ std::string InteropHelper::WideToUtf8(LPCWSTR wide) {
     return std::string(buffer.data(), size_needed - 1);
 }
 
-std::wstring InteropHelper::PathToUri(std::wstring path) {
-    std::replace(path.begin(), path.end(), L'\\', L'/');
-    return L"file:///" + path;
+std::wstring InteropHelper::PathToUri(std::wstring_view path) {
+    // C++20/23: Use string_view and dynamic replacement
+    std::wstring result{path};
+    // C++20 Ranges example (even if simple replace is easier)
+    std::ranges::replace(result, L'\\', L'/');
+    return L"file:///" + result;
 }
 
 std::wstring InteropHelper::GetWebUiPath() {
     wchar_t path[MAX_PATH];
     GetModuleFileNameW(NULL, path, MAX_PATH);
     std::wstring fullPath(path);
-    size_t last_slash = fullPath.find_last_of(L"\\/");
-    if (last_slash != std::wstring::npos) {
-        return fullPath.substr(0, last_slash) + L"\\WebUI\\index.html";
+    
+    // C++20: string_view based search
+    std::wstring_view sv(fullPath);
+    if (auto last_slash = sv.find_last_of(L"\\/"); last_slash != std::wstring_view::npos) {
+        return std::wstring(sv.substr(0, last_slash)) + L"\\WebUI\\index.html";
     }
     return L"WebUI\\index.html";
 }

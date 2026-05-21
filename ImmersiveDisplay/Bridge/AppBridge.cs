@@ -52,7 +52,7 @@ public class AppBridge(
 
     /// <summary>
     /// Main entry point for messages coming from the frontend (via the host application).
-    /// Hardcoded router for Native AOT compatibility (avoiding Reflection).
+    /// Uses Switch Expression for high performance and conciseness (Native AOT compatible).
     /// </summary>
     public string HandleMessage(string json)
     {
@@ -64,135 +64,73 @@ public class AppBridge(
             if (!root.TryGetProperty("action", out var actionProp))
                 return SerializeResponse("error", "Missing 'action' property.");
 
-            string action = actionProp.GetString() ?? "";
+            string actionStr = actionProp.GetString() ?? "";
             string? callId = root.TryGetProperty("callId", out var cId) ? cId.GetString() : null;
+
+            // --- Case-Insensitive Enum Parsing ---
+            if (!Enum.TryParse<BridgeAction>(actionStr, true, out var action))
+                action = BridgeAction.Unknown;
             
-            // Dispatch based on action name
-            switch (action)
+            return action switch
             {
-                case "GetInitialState":
-                    return SerializeResponse("ok", GetInitialState(), callId);
+                BridgeAction.GetInitialState => SerializeResponse("ok", GetInitialState(), callId),
+                
+                // --- Action Dispatching ---
+                BridgeAction.StartMonitoring => Run(() => StartMonitoring(PString(root)), callId),
+                BridgeAction.StopMonitoring  => Run(StopMonitoring, callId),
+                
+                BridgeAction.SetBackgroundColor      => Run(() => SetBackgroundColor(PString(root)), callId),
+                BridgeAction.SetTargetProcessName    => Run(() => SetTargetProcessName(PString(root)), callId),
+                BridgeAction.SetAssociatedLaunchPath => Run(() => SetAssociatedLaunchPath(PString(root)), callId),
+                BridgeAction.SetBackgroundMode       => Run(() => SetBackgroundMode(PString(root)), callId),
+                BridgeAction.SetWindowDetectionTimeout => Run(() => SetWindowDetectionTimeout(PInt(root, 10)), callId),
+                
+                BridgeAction.SetEnableTaskbarAutoHide   => Run(() => SetEnableTaskbarAutoHide(PBool(root)), callId),
+                BridgeAction.SetEnableDisplaySync       => Run(() => SetEnableDisplaySync(PBool(root)), callId),
+                BridgeAction.SetEnableBackgroundOverlay => Run(() => SetEnableBackgroundOverlay(PBool(root)), callId),
+                BridgeAction.SetLaunchOnAppStartup      => Run(() => SetLaunchOnAppStartup(PBool(root)), callId),
+                BridgeAction.SetLaunchOnTaskStart       => Run(() => SetLaunchOnTaskStart(PBool(root)), callId),
+                BridgeAction.SetAutoStartFromThirdParty => Run(() => SetAutoStartFromThirdParty(PBool(root)), callId),
+                BridgeAction.SetAutoStartMonitoringOnProtocolLaunch => Run(() => SetAutoStartMonitoringOnProtocolLaunch(PBool(root)), callId),
+                BridgeAction.SetShowExitTip             => Run(() => SetShowExitTip(PBool(root)), callId),
 
-                case "StartMonitoring":
-                    StartMonitoring(root.TryGetProperty("payload", out var p1) ? p1.GetString() ?? "" : "");
-                    return SerializeResponse("ok", null, callId);
+                BridgeAction.SelectImage             => Run(SelectImage, callId),
+                BridgeAction.ClearImage              => Run(ClearImage, callId),
+                BridgeAction.SelectAssociatedProgram => Run(SelectAssociatedProgram, callId),
+                BridgeAction.ClearLogs               => Run(ClearLogs, callId),
+                BridgeAction.RestartAsAdmin          => Run(RestartAsAdmin, callId),
+                BridgeAction.ExitApp                 => Run(ExitApp, callId),
+                BridgeAction.ShowAbout               => Run(ShowAbout, callId),
 
-                case "StopMonitoring":
-                    StopMonitoring();
-                    return SerializeResponse("ok", null, callId);
+                // --- Value Returning Actions ---
+                BridgeAction.ShouldShowUacPrompt => SerializeResponse("ok", ShouldShowUacPrompt, callId),
+                BridgeAction.RegisterProtocol   => SerializeResponse("ok", RegisterProtocol(), callId),
+                BridgeAction.UnregisterProtocol => SerializeResponse("ok", UnregisterProtocol(), callId),
+                BridgeAction.IsProtocolRegistered => SerializeResponse("ok", IsProtocolRegistered, callId),
+                BridgeAction.IsAssociationValid => SerializeResponse("ok", IsAssociationValid(), callId),
+                BridgeAction.CleanAssociation   => SerializeResponse("ok", CleanAssociation(), callId),
+                BridgeAction.HandleAppProtocol  => Run(() => HandleAppProtocol(PString(root)), callId),
 
-                case "SetBackgroundColor":
-                    SetBackgroundColor(root.TryGetProperty("payload", out var p2) ? p2.GetString() ?? "" : "");
-                    return SerializeResponse("ok", null, callId);
+                BridgeAction.GetImageBase64         => SerializeResponse("ok", GetImageBase64(PString(root)), callId),
+                BridgeAction.GetProcessCommandLine  => SerializeResponse("ok", GetProcessCommandLine(PString(root)), callId),
+                BridgeAction.GetProcessIconBase64   => SerializeResponse("ok", GetProcessIconBase64(PString(root)), callId),
+                BridgeAction.CheckProcessExists     => SerializeResponse("ok", CheckProcessExists(PString(root)), callId),
+                BridgeAction.GetLogs                => SerializeResponse("ok", GetLogs(), callId),
 
-                case "SetTargetProcessName":
-                    SetTargetProcessName(root.TryGetProperty("payload", out var p3) ? p3.GetString() ?? "" : "");
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetAssociatedLaunchPath":
-                    SetAssociatedLaunchPath(root.TryGetProperty("payload", out var p4) ? p4.GetString() ?? "" : "");
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetEnableTaskbarAutoHide":
-                    SetEnableTaskbarAutoHide(root.TryGetProperty("payload", out var p5) && p5.GetBoolean());
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetEnableDisplaySync":
-                    SetEnableDisplaySync(root.TryGetProperty("payload", out var p6) && p6.GetBoolean());
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetEnableBackgroundOverlay":
-                    SetEnableBackgroundOverlay(root.TryGetProperty("payload", out var p7) && p7.GetBoolean());
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetBackgroundMode":
-                    SetBackgroundMode(root.TryGetProperty("payload", out var p8) ? p8.GetString() ?? "" : "");
-                    return SerializeResponse("ok", null, callId);
-
-                case "SelectImage":
-                    SelectImage();
-                    return SerializeResponse("ok", null, callId);
-
-                case "ClearImage":
-                    ClearImage();
-                    return SerializeResponse("ok", null, callId);
-
-                case "SelectAssociatedProgram":
-                    SelectAssociatedProgram();
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetLaunchOnAppStartup":
-                    SetLaunchOnAppStartup(root.TryGetProperty("payload", out var p9) && p9.GetBoolean());
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetLaunchOnTaskStart":
-                    SetLaunchOnTaskStart(root.TryGetProperty("payload", out var p10) && p10.GetBoolean());
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetAutoStartFromThirdParty":
-                    SetAutoStartFromThirdParty(root.TryGetProperty("payload", out var p11) && p11.GetBoolean());
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetAutoStartMonitoringOnProtocolLaunch":
-                    SetAutoStartMonitoringOnProtocolLaunch(root.TryGetProperty("payload", out var p12) && p12.GetBoolean());
-                    return SerializeResponse("ok", null, callId);
-
-                case "SetWindowDetectionTimeout":
-                    SetWindowDetectionTimeout(root.TryGetProperty("payload", out var p13) ? p13.GetInt32() : 10);
-                    return SerializeResponse("ok", null, callId);
-
-                case "RegisterProtocol":
-                    return SerializeResponse("ok", RegisterProtocol(), callId);
-
-                case "UnregisterProtocol":
-                    return SerializeResponse("ok", UnregisterProtocol(), callId);
-
-                case "IsAssociationValid":
-                    return SerializeResponse("ok", IsAssociationValid(), callId);
-
-                case "CleanAssociation":
-                    return SerializeResponse("ok", CleanAssociation(), callId);
-
-                case "ClearLogs":
-                    ClearLogs();
-                    return SerializeResponse("ok", null, callId);
-
-                case "GetImageBase64":
-                    return SerializeResponse("ok", GetImageBase64(root.TryGetProperty("payload", out var p14) ? p14.GetString() ?? "" : ""), callId);
-
-                case "GetProcessCommandLine":
-                    return SerializeResponse("ok", GetProcessCommandLine(root.TryGetProperty("payload", out var p15) ? p15.GetString() ?? "" : ""), callId);
-
-                case "GetProcessIconBase64":
-                    return SerializeResponse("ok", GetProcessIconBase64(root.TryGetProperty("payload", out var p16) ? p16.GetString() ?? "" : ""), callId);
-
-                case "CheckProcessExists":
-                    return SerializeResponse("ok", CheckProcessExists(root.TryGetProperty("payload", out var p17) ? p17.GetString() ?? "" : ""), callId);
-
-                case "RestartAsAdmin":
-                    RestartAsAdmin();
-                    return SerializeResponse("ok", null, callId);
-
-                case "ExitApp":
-                    ExitApp();
-                    return SerializeResponse("ok", null, callId);
-
-                case "ShowAbout":
-                    ShowAbout();
-                    return SerializeResponse("ok", null, callId);
-
-                case "GetLogs":
-                    return SerializeResponse("ok", GetLogs(), callId);
-
-                default:
-                    return SerializeResponse("error", $"Unknown action: {action}", callId);
-            }
+                _ => SerializeResponse("error", $"Unknown action: {actionStr}", callId)
+            };
         }
         catch (Exception ex)
         {
             return SerializeResponse("error", $"Exception: {ex.Message}");
         }
     }
+
+    // --- Dispatch Helpers ---
+    private string Run(Action act, string? callId) { act(); return SerializeResponse("ok", null, callId); }
+    private string PString(JsonElement root) => root.TryGetProperty("payload", out var p) ? p.GetString() ?? "" : "";
+    private bool PBool(JsonElement root) => root.TryGetProperty("payload", out var p) && p.GetBoolean();
+    private int PInt(JsonElement root, int def) => root.TryGetProperty("payload", out var p) ? p.GetInt32() : def;
 
     private string SerializeResponse(string status, object? result = null, string? callId = null)
     {
@@ -347,6 +285,7 @@ public class AppBridge(
     public void SetLaunchOnTaskStart(bool enable) => configService.SetLaunchOnTaskStart(enable);
     public void SetAutoStartFromThirdParty(bool enable) => configService.SetAutoStartFromThirdParty(enable);
     public void SetAutoStartMonitoringOnProtocolLaunch(bool enable) => configService.SetAutoStartMonitoringOnProtocolLaunch(enable);
+    public void SetShowExitTip(bool show) => configService.SetShowExitTip(show);
     public void SetWindowDetectionTimeout(int seconds) => configService.SetWindowDetectionTimeout(seconds);
     public bool RegisterProtocol() => protocolService.Register();
     public bool UnregisterProtocol() => protocolService.Unregister();
@@ -379,7 +318,75 @@ public class AppBridge(
     }
 
     public string[] GetLogs() => loggingService.Logs.ToArray();
+    
+    public void HandleAppProtocol(string uri)
+    {
+        loggingService.AddLog($"[AppBridge] App Protocol trigger received: {uri}");
+        
+        try 
+        {
+            if (string.IsNullOrEmpty(uri)) return;
 
+            var uriObj = new Uri(uri);
+            string scheme = uriObj.Scheme.ToLowerInvariant();
+            string path = Uri.UnescapeDataString(uriObj.AbsolutePath).Trim();
+
+            // 1. 处理 file:/// 协议
+            if (scheme == "file")
+            {
+                if (!path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) && 
+                    !path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    loggingService.AddLog("[AppBridge] Non-executable file protocol ignored.");
+                    return; // 3. 其它 file 直接丢弃
+                }
+
+                string finalPath = path;
+
+                // 1. file 并且是 .lnk 就调用 ShortcutResolver.Resolve 解析
+                if (path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                {
+                    finalPath = ShortcutResolver.Resolve(path);
+                    loggingService.AddLog($"[AppBridge] Resolved LNK to: {finalPath}");
+                    
+                    if (string.IsNullOrEmpty(finalPath) || !finalPath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                    {
+                        loggingService.AddLog("[AppBridge] Resolved LNK does not point to a valid EXE. Discarding.");
+                        return;
+                    }
+                }
+
+                // 2. file 并且是 .exe 就保存路径
+                SetAssociatedLaunchPath(finalPath);
+                
+                // 1, 2 调用 SetTargetProcessName
+                string processName = Path.GetFileNameWithoutExtension(finalPath);
+                if (!string.IsNullOrEmpty(processName))
+                {
+                    SetTargetProcessName(processName);
+                    StartMonitoring(processName);
+                }
+            }
+            // 4. 如果是任意自定义协议（如 steam://）或者 http(s):// 就直接保存
+            else if (scheme.StartsWith("http") || scheme != "file")
+            {
+                loggingService.AddLog($"[AppBridge] Saving URI launch path: {uri}");
+                SetAssociatedLaunchPath(uri);
+                
+                // 注意：URI 通常无法直接推断进程名，除非有额外配置
+            }
+            else
+            {
+                loggingService.AddLog($"[AppBridge] Unsupported scheme: {scheme}");
+            }
+        }
+        catch (Exception ex)
+        {
+            loggingService.AddLog($"[AppBridge] Protocol handling failed: {ex.Message}");
+        }
+    }
+    // ... existing code ...
+    
     private bool CalculateShouldShowUacPrompt()
     {
         if (IsAdmin) return false;

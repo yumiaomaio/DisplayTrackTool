@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <wrl.h>
 #include "WebView2.h"
+#include "CoroTask.h"
 #include <string>
 #include <functional>
 
@@ -12,7 +13,10 @@ public:
     WebViewHost();
     ~WebViewHost();
 
-    // Initialize the WebView2 environment and controller
+    // Initialize using C++20 Coroutines (Fire and Forget)
+    AsyncVoid InitializeAsync(HWND parentHwnd, std::function<void()> onReady);
+
+    // Entry point from main
     HRESULT Initialize(HWND parentHwnd, std::function<void()> onReady);
 
     // Navigate to a URL
@@ -31,8 +35,7 @@ private:
     Microsoft::WRL::ComPtr<ICoreWebView2Controller> m_controller;
     Microsoft::WRL::ComPtr<ICoreWebView2> m_webView;
     std::function<void(const std::string&)> m_messageCallback;
-
-    std::wstring GetShimScript();
+    bool m_firstNavigationPerformed = false;
 };
 
 } // namespace Immersive

@@ -30,6 +30,12 @@ public static partial class UiDispatcher
             _messageWindow = new HiddenMessageWindow();
         }
 
+        // Install SynchronizationContext for the current (UI) thread
+        if (SynchronizationContext.Current == null)
+        {
+            SynchronizationContext.SetSynchronizationContext(new UiSynchronizationContext());
+        }
+
         if (!Queue.IsEmpty && _messageWindow.Hwnd != IntPtr.Zero)
         {
             PostMessage(_messageWindow.Hwnd, WM_DISPATCH, IntPtr.Zero, IntPtr.Zero);

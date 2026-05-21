@@ -96,7 +96,7 @@ const onLaunchOnTaskStartChange = (e) => {
 const onAutoStartFromThirdPartyChange = async () => {
     if (!props.autoStartFromThirdParty) {
         // When turning ON: Check if already registered in system
-        const isRegistered = await bridge.IsProtocolRegistered;
+        const isRegistered = await bridge.IsProtocolRegistered();
         if (isRegistered) {
             // Already registered, just enable the logic flag
             bridge.SetAutoStartFromThirdParty(true);

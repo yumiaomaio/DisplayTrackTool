@@ -59,11 +59,19 @@ const modal = ref({
 
 // Watch for countdown to show modal
 watch(waitingCountdown, (newVal) => {
-  if (newVal > 0) {
+  const val = Number(newVal);
+  if (isRunning.value) {
+    if (modal.value.show && modal.value.title === i18n.t.waitingTitle) {
+      modal.value.show = false;
+    }
+    return;
+  }
+
+  if (val > 0) {
     modal.value = {
       show: true,
       title: i18n.t.waitingTitle,
-      message: `${i18n.t.waitingMessage} (${newVal}${i18n.t.seconds})`,
+      message: `${i18n.t.waitingMessage} (${val}${i18n.t.seconds})`,
       buttonText: i18n.t.protocolCancel,
       allowClose: false,
       type: 'info',
@@ -72,9 +80,9 @@ watch(waitingCountdown, (newVal) => {
         modal.value.show = false;
       }
     };
-  } else if (newVal === 0 && modal.value.title === i18n.t.waitingTitle) {
+  } else if (val === 0 && modal.value.title === i18n.t.waitingTitle) {
     modal.value.show = false;
-  } else if (newVal === -1) {
+  } else if (val === -1) {
     modal.value = {
       show: true,
       title: 'TIMEOUT',
@@ -172,7 +180,7 @@ const onAbout = () => {
 }
 
 const checkUAC = async () => {
-  const shouldShow = await bridge.ShouldShowUacPrompt;
+  const shouldShow = await bridge.ShouldShowUacPrompt();
   if (shouldShow) {
     modal.value = {
       show: true,
@@ -194,44 +202,46 @@ const checkUAC = async () => {
 }
 
 async function init() {
-  // Initial Data Fetch
-  processName.value = await bridge.TargetProcessName;
+  // Call the C# backend to get the full state object via one RPC call
+  const state = await bridge.GetInitialState();
+  if (!state) return;
+
+  // Map state to reactive refs
+  processName.value = state.targetProcessName || '';
   if (processName.value) {
-    processIcon.value = await bridge.GetProcessIconBase64(processName.value);
+    bridge.GetProcessIconBase64(processName.value).then(icon => {
+      if (icon) processIcon.value = icon;
+    });
   }
   
-  autoHideTaskbar.value = await bridge.EnableTaskbarAutoHide;
-  enableDisplaySync.value = await bridge.EnableDisplaySync;
-  enableOverlay.value = await bridge.EnableBackgroundOverlay;
-  associatedLaunchPath.value = await bridge.AssociatedLaunchPath;
-  launchOnAppStartup.value = await bridge.LaunchOnAppStartup;
-  launchOnTaskStart.value = await bridge.LaunchOnTaskStart;
-  autoStartFromThirdParty.value = await bridge.AutoStartFromThirdParty;
-  autoStartMonitoringOnProtocolLaunch.value = await bridge.AutoStartMonitoringOnProtocolLaunch;
-  isRunning.value = await bridge.IsRunning;
-  shouldShowExitTip.value = await bridge.ShouldShowExitTip;
-  waitingCountdown.value = await bridge.WaitingCountdown;
+  autoHideTaskbar.value = state.enableTaskbarAutoHide;
+  enableDisplaySync.value = state.enableDisplaySync;
+  enableOverlay.value = state.enableBackgroundOverlay;
+  associatedLaunchPath.value = state.associatedLaunchPath;
+  launchOnAppStartup.value = state.launchOnAppStartup;
+  launchOnTaskStart.value = state.launchOnTaskStart;
+  autoStartFromThirdParty.value = state.autoStartFromThirdParty;
+  autoStartMonitoringOnProtocolLaunch.value = state.autoStartMonitoringOnProtocolLaunch;
+  isRunning.value = state.isRunning;
+  shouldShowExitTip.value = state.shouldShowExitTip;
+  waitingCountdown.value = state.waitingCountdown;
 
   // Handle Background Mode
-  const mode = await bridge.BackgroundMode;
-  if (mode === 'image') bgMode.value = 'image';
-  else bgMode.value = 'color';
+  bgMode.value = state.backgroundMode === 'image' ? 'image' : 'color';
   
   // Handle Logs
-  const initialLogs = await bridge.GetLogs();
-  logs.value = initialLogs;
+  logs.value = state.logs || [];
 
   // Handle Color (C# #AARRGGBB to CSS #RRGGBB)
-  const bgColor = await bridge.BackgroundColor;
-  if (bgColor && bgColor.startsWith('#')) {
-    selectedColor.value = '#' + bgColor.substring(bgColor.length - 6);
+  if (state.backgroundColor && state.backgroundColor.startsWith('#')) {
+    selectedColor.value = '#' + state.backgroundColor.substring(state.backgroundColor.length - 6);
   }
 
   // Handle Image
-  const currentImg = await bridge.CurrentImageFileName;
-  if (currentImg) {
-    const base64 = await bridge.GetImageBase64(currentImg);
-    if (base64) bgImage.value = base64;
+  if (state.currentImageFileName) {
+    bridge.GetImageBase64(state.currentImageFileName).then(b64 => {
+      if (b64) bgImage.value = b64;
+    });
   }
 
   checkUAC();
@@ -245,6 +255,10 @@ onMounted(() => {
   onStateChanged((state) => {
     if (state.isRunning !== undefined) {
       isRunning.value = state.isRunning;
+      // If we transition to running, ensure the waiting modal is dismissed
+      if (state.isRunning && modal.value.title === i18n.t.waitingTitle) {
+          modal.value.show = false;
+      }
       if (state.isRunning && processName.value) {
         bridge.GetProcessIconBase64(processName.value).then(icon => {
            if (icon) processIcon.value = icon;
