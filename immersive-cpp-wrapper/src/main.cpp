@@ -57,13 +57,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
     // 0.1 Attach to parent console (cmd/PowerShell) if available
     bool hasConsole = AttachConsole(ATTACH_PARENT_PROCESS);
+    FILE* fp{};
     if (hasConsole) {
-        FILE* fp{};
         freopen_s(&fp, "CONOUT$", "w", stdout);
         freopen_s(&fp, "CONOUT$", "w", stderr);
-        (void)fp;
         std::println("--- Immersive Display Debug Console (C++23) ---");
+    } else {
+        // Redirect to nul to keep std::println safe when launched from Explorer
+        freopen_s(&fp, "nul", "w", stdout);
+        freopen_s(&fp, "nul", "w", stderr);
     }
+    (void)fp;
 
     // 1. Initialize COM
     CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);

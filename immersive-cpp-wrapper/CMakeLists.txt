@@ -42,6 +42,7 @@ set(SOURCES
     src/AppWindow.cpp 
     src/WebViewHost.cpp 
     src/InteropHelper.cpp
+    resource.rc
     app.manifest
 )
 

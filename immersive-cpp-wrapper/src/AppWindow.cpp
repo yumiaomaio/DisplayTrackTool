@@ -1,4 +1,5 @@
 #include "AppWindow.h"
+#include "resource.h"
 
 namespace Immersive {
 
@@ -15,10 +16,15 @@ bool AppWindow::Create(HINSTANCE hInstance, const std::wstring& title, int width
             .cbSize = sizeof(WNDCLASSEXW),
             .style = CS_HREDRAW | CS_VREDRAW,
             .lpfnWndProc = StaticWndProc,
+            .cbClsExtra = 0,
+            .cbWndExtra = 0,
             .hInstance = hInstance,
+            .hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAIN_ICON)),
             .hCursor = LoadCursor(NULL, IDC_ARROW),
             .hbrBackground = (HBRUSH)(COLOR_WINDOW + 1),
-            .lpszClassName = szWindowClass
+            .lpszMenuName = NULL,
+            .lpszClassName = szWindowClass,
+            .hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAIN_ICON))
         };
         if (!RegisterClassExW(&wcex)) return false;
         classRegistered = true;
