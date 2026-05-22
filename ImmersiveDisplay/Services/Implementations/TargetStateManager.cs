@@ -16,7 +16,7 @@ public enum WindowOrientation
 
 public class TargetStateManager(
     IWindowQueryService queryService,
-    OverlayHost overlayHost,
+    IWindowMonitorService windowMonitor,
     IWindowLayoutManager layoutManager,
     IOverlayService overlayService,
     IConfigService configService,
@@ -179,10 +179,10 @@ public class TargetStateManager(
         }
 
         // --- 监控启动 ---
-        overlayHost.WindowStateChanged += OnWindowStateChanged;
-        overlayHost.MonitorChanged += OnMonitorChanged;
-        overlayHost.WindowDestroyed += OnWindowDestroyed;
-        overlayHost.StartWindowMonitoring(_targetHwnd);
+        windowMonitor.WindowStateChanged += OnWindowStateChanged;
+        windowMonitor.MonitorChanged += OnMonitorChanged;
+        windowMonitor.WindowDestroyed += OnWindowDestroyed;
+        windowMonitor.StartMonitoring(_targetHwnd);
 
         // --- 初始布局应用 ---
         AddLog("Applying initial portrait layout and monitor settings.");
@@ -239,10 +239,10 @@ public class TargetStateManager(
         AddLog("Stopping service and restoring original states...");
 
         // 1. 停止监控
-        overlayHost.StopWindowMonitoring();
-        overlayHost.WindowStateChanged -= OnWindowStateChanged;
-        overlayHost.MonitorChanged -= OnMonitorChanged;
-        overlayHost.WindowDestroyed -= OnWindowDestroyed;
+        windowMonitor.StopMonitoring();
+        windowMonitor.WindowStateChanged -= OnWindowStateChanged;
+        windowMonitor.MonitorChanged -= OnMonitorChanged;
+        windowMonitor.WindowDestroyed -= OnWindowDestroyed;
 
         var lastHwnd = _targetHwnd;
 

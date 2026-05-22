@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace ImmersiveDisplay.Native;
+namespace ImmersiveDisplay;
 
 internal static class NativeHost
 {

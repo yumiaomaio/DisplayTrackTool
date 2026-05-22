@@ -3,7 +3,7 @@ using ImmersiveDisplay.Helpers;
 namespace ImmersiveDisplay.Services.Implementations;
 
 public class AppIntegrationService(
-    OverlayHost overlayHost,
+    IKeyboardHookService keyboardHook,
     ITargetStateManager stateManager,
     IConfigService configService,
     ILoggingService loggingService,
@@ -20,8 +20,8 @@ public class AppIntegrationService(
         // Global shortcut log redirection
         ShortcutResolver.LogAction = (msg) => loggingService.AddLog(msg);
 
-        // Subscribe to keyboard hooks via OverlayHost
-        overlayHost.KeyPressed += (vkCode) =>
+        // Subscribe to keyboard hooks
+        keyboardHook.KeyPressed += (vkCode) =>
         {
             const int vkF9 = 0x78;
             const int vkF12 = 0x7B;
