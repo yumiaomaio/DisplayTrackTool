@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Services;
 
-namespace ImmersiveDisplay.Helpers;
+namespace ImmersiveDisplay.Engine;
 
 /// <summary>
 /// Dedicated STA thread with a Win32 message pump.

@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using ImmersiveDisplay.Helpers;
+using ImmersiveDisplay.Engine;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Enums;
 using ImmersiveDisplay.Interop.Structs;

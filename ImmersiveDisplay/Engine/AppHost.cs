@@ -1,11 +1,11 @@
+using System.Runtime.CompilerServices;
 using ImmersiveDisplay.Bridge;
-using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Services;
 using Microsoft.Extensions.DependencyInjection;
 
-[assembly: System.Runtime.CompilerServices.DisableRuntimeMarshalling]
+[assembly: DisableRuntimeMarshalling]
 
-namespace ImmersiveDisplay;
+namespace ImmersiveDisplay.Engine;
 
 public class AppHost : IDisposable
 {

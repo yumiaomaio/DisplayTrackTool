@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using ImmersiveDisplay.Engine;
 
 namespace ImmersiveDisplay;
 
@@ -59,7 +61,7 @@ public sealed class HostBridge : IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[HostBridge] OnJsMessage error: {ex.Message}");
+            Debug.WriteLine($"[HostBridge] OnJsMessage error: {ex.Message}");
         }
     }
 

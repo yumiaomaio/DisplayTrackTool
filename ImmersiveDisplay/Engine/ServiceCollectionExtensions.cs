@@ -1,10 +1,9 @@
 using ImmersiveDisplay.Bridge;
-using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Services;
 using ImmersiveDisplay.Services.Implementations;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ImmersiveDisplay;
+namespace ImmersiveDisplay.Engine;
 
 public static class ServiceCollectionExtensions
 {

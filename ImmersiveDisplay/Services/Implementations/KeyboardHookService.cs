@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using ImmersiveDisplay.Helpers;
+using ImmersiveDisplay.Engine;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Structs;
 
