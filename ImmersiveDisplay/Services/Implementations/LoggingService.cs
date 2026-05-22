@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using ImmersiveDisplay.Helpers;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
@@ -12,6 +11,7 @@ public class LoggingService : ILoggingService
 
     private bool _fileLoggingEnabled;
     private readonly Lock _fileLock = new();
+    private readonly Lock _logLock = new();
 
     public void EnableFileLogging(bool enable)
     {
@@ -28,7 +28,7 @@ public class LoggingService : ILoggingService
 
             string fileName = $"log_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
             LogFilePath = Path.Combine(logsDir, fileName);
-            
+
             // Initial marker
             WriteToFile($"--- Log Started: {DateTime.Now} ---");
         }
@@ -44,15 +44,15 @@ public class LoggingService : ILoggingService
         string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
         string logEntry = $"[{timestamp}] {message}";
 
-        // UI Update
-        UiDispatcher.BeginInvoke(() =>
+        // Thread-safe collection update (ObservableCollection is not thread-safe)
+        lock (_logLock)
         {
             Logs.Insert(0, logEntry);
             while (Logs.Count > 100)
             {
                 Logs.RemoveAt(Logs.Count - 1);
             }
-        });
+        }
 
         // Debug Output
         Debug.WriteLine(logEntry);

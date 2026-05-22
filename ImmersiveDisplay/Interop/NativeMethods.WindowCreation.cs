@@ -66,6 +66,7 @@ internal static partial class NativeMethods
     public const uint WM_CLOSE = 0x0010;
     public const uint WM_ERASEBKGND = 0x0014;
     public const uint WM_NCCREATE = 0x0081;
+    public const uint WM_USER = 0x0400;
     
     // Window Styles
     public const uint WS_OVERLAPPEDWINDOW = 0x00CF0000;

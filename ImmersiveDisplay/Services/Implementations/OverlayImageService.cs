@@ -1,4 +1,3 @@
-using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Models;
 
 namespace ImmersiveDisplay.Services.Implementations;
@@ -33,30 +32,27 @@ public class OverlayImageService(
 
     public void SelectAndSetBackgroundImage()
     {
-        UiDispatcher.BeginInvoke(() => 
-        {
-            var path = dialogService.ShowOpenFileDialog(
-                "Select a Background Image",
-                "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files (*.*)|*.*");
+        var path = dialogService.ShowOpenFileDialog(
+            "Select a Background Image",
+            "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files (*.*)|*.*");
 
-            if (path != null)
+        if (path != null)
+        {
+            string fileName = Path.GetFileName(path);
+            string backgroundsDir = Path.Combine(AppContext.BaseDirectory, "Backgrounds");
+            Directory.CreateDirectory(backgroundsDir);
+            string destPath = Path.Combine(backgroundsDir, fileName);
+            try
             {
-                string fileName = Path.GetFileName(path);
-                string backgroundsDir = Path.Combine(AppContext.BaseDirectory, "Backgrounds");
-                Directory.CreateDirectory(backgroundsDir);
-                string destPath = Path.Combine(backgroundsDir, fileName);
-                try
-                {
-                    File.Copy(path, destPath, true);
-                    configService.SetBackgroundMode(BackgroundMode.IMAGE);
-                    configService.SetBackgroundImageFileName(fileName);
-                }
-                catch (Exception ex)
-                {
-                    dialogService.ShowError($"Error copying file: {ex.Message}");
-                }
+                File.Copy(path, destPath, true);
+                configService.SetBackgroundMode(BackgroundMode.IMAGE);
+                configService.SetBackgroundImageFileName(fileName);
             }
-        });
+            catch (Exception ex)
+            {
+                dialogService.ShowError($"Error copying file: {ex.Message}");
+            }
+        }
     }
 
     public void ClearImage()

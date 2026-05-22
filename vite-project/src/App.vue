@@ -101,6 +101,23 @@ const toggleTheme = () => {
   document.body.classList.toggle('light', isLightMode.value)
 }
 
+const tryStart = async () => {
+  const exists = await bridge.CheckProcessExists(processName.value);
+  if (exists === false) {
+    modal.value = {
+      show: true,
+      title: 'PROCESS NOT FOUND',
+      message: i18n.t.processNotFound,
+      buttonText: 'OK',
+      allowClose: true,
+      type: 'warning',
+      onAction: () => { modal.value.show = false; }
+    };
+    return;
+  }
+  bridge.StartMonitoring(processName.value);
+};
+
 const toggleRunState = () => {
   if (!isRunning.value) {
     if (!processName.value) return;
@@ -120,12 +137,12 @@ const toggleRunState = () => {
             bridge.SetShowExitTip(false);
             shouldShowExitTip.value = false;
           }
-          bridge.StartMonitoring(processName.value);
+          tryStart();
           modal.value.show = false;
         }
       }
     } else {
-      bridge.StartMonitoring(processName.value);
+      tryStart();
     }
   } else {
     bridge.StopMonitoring();

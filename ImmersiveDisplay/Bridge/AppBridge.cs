@@ -3,6 +3,7 @@
 using System.Collections.Specialized;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
+
 using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Models;
 using ImmersiveDisplay.Services;
@@ -228,7 +229,7 @@ public class AppBridge(
     public void StartMonitoring(string processName)
     {
         configService.SetDefaultProcessName(processName);
-        UiDispatcher.BeginInvoke(async () => 
+        _ = Task.Run(async () =>
         {
             try
             {
@@ -244,7 +245,7 @@ public class AppBridge(
 
     public void StopMonitoring()
     {
-        UiDispatcher.BeginInvoke(async () => 
+        _ = Task.Run(async () =>
         {
             try
             {
@@ -309,12 +310,9 @@ public class AppBridge(
     public void ExitApp() => Environment.Exit(0);
     public void ShowAbout()
     {
-        UiDispatcher.BeginInvoke(() => 
-        {
-            dialogService.ShowInfo(
-                "Responsive Window Tool\nVersion 1.2.0\n\nGitHub: https://github.com/yumiaomaio/GameWindowTool", 
-                "About");
-        });
+        dialogService.ShowInfo(
+            "Responsive Window Tool\nVersion 1.2.0\n\nGitHub: https://github.com/yumiaomaio/GameWindowTool",
+            "About");
     }
 
     public string[] GetLogs() => loggingService.Logs.ToArray();

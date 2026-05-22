@@ -1,18 +1,16 @@
-// File: Services/Implementations/AppIntegrationService.cs
-
 using ImmersiveDisplay.Helpers;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
 public class AppIntegrationService(
-    IKeyboardHookService keyboardHookService,
+    OverlayHost overlayHost,
     ITargetStateManager stateManager,
     IConfigService configService,
     ILoggingService loggingService,
     IProtocolService protocolService,
     ILaunchService launchService,
     IPrivilegeService privilegeService,
-    IDialogService dialogService) 
+    IDialogService dialogService)
     : IAppIntegrationService
 {
     public bool IsProtocolAutoStart { get; set; }
@@ -22,9 +20,8 @@ public class AppIntegrationService(
         // Global shortcut log redirection
         ShortcutResolver.LogAction = (msg) => loggingService.AddLog(msg);
 
-        // Subscribing to Keyboard Hooks
-        keyboardHookService.Start();
-        keyboardHookService.KeyPressed += (vkCode) => 
+        // Subscribe to keyboard hooks via OverlayHost
+        overlayHost.KeyPressed += (vkCode) =>
         {
             const int vkF9 = 0x78;
             const int vkF12 = 0x7B;
@@ -35,7 +32,7 @@ public class AppIntegrationService(
                 if (!stateManager.IsRunning && !string.IsNullOrWhiteSpace(processName))
                 {
                     loggingService.AddLog("F9 key pressed. Starting...");
-                    UiDispatcher.BeginInvoke(async () => 
+                    _ = Task.Run(async () =>
                     {
                         try
                         {
@@ -53,7 +50,7 @@ public class AppIntegrationService(
                 if (stateManager.IsRunning)
                 {
                     loggingService.AddLog("F12 key pressed. Shutting down...");
-                    UiDispatcher.BeginInvoke(async () => 
+                    _ = Task.Run(async () =>
                     {
                         try
                         {
@@ -73,7 +70,7 @@ public class AppIntegrationService(
     public void ExecuteStartupLogic()
     {
         bool autoStartedByThirdParty = false;
-        
+
         // Check for path updates if feature is enabled
         protocolService.UpdateIfNecessary();
 
@@ -81,15 +78,15 @@ public class AppIntegrationService(
         {
             loggingService.AddLog($"[Startup] Third-party launcher detected via protocol. Auto-launching target program.");
             autoStartedByThirdParty = true;
-            
+
             // 1. Launch associated program
             var path = configService.GetAssociatedLaunchPath();
             if (!string.IsNullOrWhiteSpace(path))
             {
                 launchService.Launch(path);
             }
-            
-            // 2. Start monitoring task conditionally based on "自动开始控制" and UAC rules
+
+            // 2. Start monitoring task conditionally
             if (configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
             {
                 bool isExe = IsAssociatedPathExe();
@@ -98,10 +95,10 @@ public class AppIntegrationService(
                 if (isExe || isAdmin)
                 {
                     loggingService.AddLog($"[Startup] Auto-start monitoring active. (Bypass UAC or Admin confirmed). Starting monitoring.");
-                    UiDispatcher.BeginInvoke(async () => 
+                    var targetProc = configService.GetDefaultProcessName();
+                    if (!stateManager.IsRunning && !string.IsNullOrWhiteSpace(targetProc))
                     {
-                        var targetProc = configService.GetDefaultProcessName();
-                        if (!stateManager.IsRunning && !string.IsNullOrWhiteSpace(targetProc))
+                        _ = Task.Run(async () =>
                         {
                             try
                             {
@@ -111,8 +108,8 @@ public class AppIntegrationService(
                             {
                                 loggingService.AddLog($"Startup monitoring failed: {ex.Message}");
                             }
-                        }
-                    });
+                        });
+                    }
                 }
                 else
                 {
@@ -140,40 +137,37 @@ public class AppIntegrationService(
     {
         var path = configService.GetAssociatedLaunchPath()?.Trim();
         if (string.IsNullOrWhiteSpace(path)) return false;
-        
+
         var cleanPath = path.Trim('\"').Trim();
         if (cleanPath.Contains("://") || cleanPath.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
         {
-            return false; // Case B: URL launch
+            return false;
         }
-        return true; // Case A: EXE launch (any local program/shortcut/command)
+        return true;
     }
 
     public void SelectAssociatedProgram()
     {
-        UiDispatcher.BeginInvoke(() => 
-        {
-            var path = dialogService.ShowOpenFileDialog(
-                "Select Application or Shortcut",
-                "Applications & Shortcuts|*.exe;*.lnk;*.url|All files (*.*)|*.*");
+        var path = dialogService.ShowOpenFileDialog(
+            "Select Application or Shortcut",
+            "Applications & Shortcuts|*.exe;*.lnk;*.url|All files (*.*)|*.*");
 
-            if (path != null)
+        if (path != null)
+        {
+            string resolvedPath;
+            if (path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
             {
-                string resolvedPath;
-                if (path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
-                {
-                    resolvedPath = ShortcutResolver.Resolve(path);
-                }
-                else if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
-                {
-                    resolvedPath = ShortcutResolver.ResolveUrl(path);
-                }
-                else
-                {
-                    resolvedPath = path.Contains(' ') ? $"\"{path}\"" : path;
-                }
-                configService.SetAssociatedLaunchPath(resolvedPath);
+                resolvedPath = ShortcutResolver.Resolve(path);
             }
-        });
+            else if (path.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
+            {
+                resolvedPath = ShortcutResolver.ResolveUrl(path);
+            }
+            else
+            {
+                resolvedPath = path.Contains(' ') ? $"\"{path}\"" : path;
+            }
+            configService.SetAssociatedLaunchPath(resolvedPath);
+        }
     }
 }

@@ -1,17 +1,15 @@
-using System.Runtime.CompilerServices;
 using ImmersiveDisplay.Bridge;
-using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Services;
 using ImmersiveDisplay.Services.Implementations;
 using Microsoft.Extensions.DependencyInjection;
 
-[assembly: DisableRuntimeMarshalling]
+[assembly: System.Runtime.CompilerServices.DisableRuntimeMarshalling]
 
 namespace ImmersiveDisplay;
 
 /// <summary>
-/// The main entry point for the Immersive Display Library.
-/// Pure C# interface, decoupled from WebView2 and COM.
+/// The main engine for the Immersive Display application.
+/// Sets up DI, creates the OverlayHost thread, and orchestrates service initialization.
 /// </summary>
 public class ImmersiveEngine : IDisposable
 {
@@ -19,16 +17,27 @@ public class ImmersiveEngine : IDisposable
     private bool _isInitialized;
 
     /// <summary>
-    /// Gets the AppBridge instance to interact with the frontend.
-    /// Available after calling Initialize().
+    /// Gets the OverlayHost managing the overlay thread (HWND operations, hooks).
+    /// Available after Initialize().
+    /// </summary>
+    public OverlayHost? OverlayHost { get; private set; }
+
+    /// <summary>
+    /// Optional callback for forwarding Bridge state pushes to the host.
+    /// Set this BEFORE calling Initialize() so state pushes during init are captured.
+    /// </summary>
+    public Action<string>? OnStatePush { get; set; }
+
+    /// <summary>
+    /// Gets the AppBridge for frontend communication.
+    /// Available after Initialize().
     /// </summary>
     public AppBridge? Bridge { get; private set; }
 
     public bool IsProtocolAutoStart { get; set; }
 
     /// <summary>
-    /// Initializes the Immersive Display logic.
-    /// MUST be called on the main UI STA thread to setup message pumps.
+    /// Initializes DI, the overlay thread, and all services.
     /// </summary>
     public void Initialize()
     {
@@ -39,15 +48,19 @@ public class ImmersiveEngine : IDisposable
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
 
-        // 2. Initialize UI Dispatcher with the internal hidden window
-        var loggingService = _serviceProvider.GetRequiredService<ILoggingService>();
-        UiDispatcher.Initialize(loggingService);
+        // 2. Start OverlayHost (dedicated thread with message pump)
+        OverlayHost = _serviceProvider.GetRequiredService<OverlayHost>();
+        OverlayHost.Start();
+        OverlayHost.InstallKeyboardHook();
 
-        // 3. Setup Bridge
+        // 3. Setup Bridge and wire up state forwarding BEFORE any service logic runs
         Bridge = _serviceProvider.GetRequiredService<AppBridge>();
+        if (OnStatePush != null)
+            Bridge.OnMessageSent += OnStatePush;
         Bridge.Initialize();
 
-        // 4. Initialize Core Hooks and Startup Logic
+        // 4. Initialize hooks and startup logic
+        var loggingService = _serviceProvider.GetRequiredService<ILoggingService>();
         var appIntegrationService = _serviceProvider.GetRequiredService<IAppIntegrationService>();
         appIntegrationService.IsProtocolAutoStart = IsProtocolAutoStart;
         appIntegrationService.InitializeHooksAndTriggers();
@@ -59,7 +72,7 @@ public class ImmersiveEngine : IDisposable
 
     private void ConfigureServices(IServiceCollection services)
     {
-        // Core STATEFUL services
+        // Core services
         services.AddSingleton<ITaskbarService, TaskbarService>();
         services.AddSingleton<IProcessService, ProcessService>();
         services.AddSingleton<IPrivilegeService, PrivilegeService>();
@@ -67,16 +80,17 @@ public class ImmersiveEngine : IDisposable
         services.AddSingleton<IWindowQueryService, WindowQueryService>();
         services.AddSingleton<IOverlayService, OverlayService>();
         services.AddSingleton<IWindowLayoutManager, WindowLayoutManager>();
-        services.AddSingleton<IWindowMonitorService, WindowMonitorService>();
         services.AddSingleton<ITargetStateManager, TargetStateManager>();
         services.AddSingleton<IDisplayService, DisplayService>();
         services.AddSingleton<IConfigService, ConfigService>();
         services.AddSingleton<ILaunchService, LaunchService>();
-        services.AddSingleton<IKeyboardHookService, KeyboardHookService>();
         services.AddSingleton<IProtocolService, ProtocolService>();
         services.AddSingleton<IDialogService, NativeDialogService>();
         services.AddSingleton<IOverlayImageService, OverlayImageService>();
         services.AddSingleton<IAppIntegrationService, AppIntegrationService>();
+
+        // OverlayHost (DI injects IConfigService + ILoggingService)
+        services.AddSingleton<OverlayHost>();
 
         // Logic Bridge
         services.AddSingleton<AppBridge>();
@@ -86,19 +100,24 @@ public class ImmersiveEngine : IDisposable
     {
         if (!_isInitialized) return;
 
+        // Unsubscribe state forwarding
+        if (Bridge != null && OnStatePush != null)
+            Bridge.OnMessageSent -= OnStatePush;
+
         Bridge?.Dispose();
         Bridge = null;
 
-        var keyboardHook = _serviceProvider?.GetService<IKeyboardHookService>();
-        keyboardHook?.Stop();
-
-        var monitorService = _serviceProvider?.GetService<IWindowMonitorService>();
-        monitorService?.StopMonitoring();
+        // Stop overlay thread (cleans up hooks + overlay window)
+        OverlayHost?.StopWindowMonitoring();
+        OverlayHost?.UninstallKeyboardHook();
 
         var overlayService = _serviceProvider?.GetService<IOverlayService>();
         overlayService?.Hide();
 
-        UiDispatcher.Shutdown();
+        OverlayHost?.Stop();
+        OverlayHost?.Dispose();
+        OverlayHost = null;
+
         _serviceProvider?.Dispose();
         _isInitialized = false;
     }
