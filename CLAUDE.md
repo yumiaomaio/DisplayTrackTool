@@ -6,18 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Full Build (CMake orchestrates all three tiers)
 ```powershell
-cd immersive-cpp-wrapper
+cd webview-wrapper
 mkdir -p build
 cd build
 cmake ..
 cmake --build . --config Release
 ```
-Output lands in `immersive-cpp-wrapper/build/Release/`.
+Output lands in `webview-wrapper/build/Release/`.
 
 ### Individual Component Builds
 - **Frontend only**: `cd vite-project && npm install && npm run build`
 - **C# AOT only**: `cd ImmersiveDisplay && dotnet publish -c Release -r win-x64 --self-contained`
-- **C++ only (skip frontend/C# rebuild)**: `cd immersive-cpp-wrapper/build && cmake .. -DBUILD_CPP_ONLY=ON && cmake --build . --config Release`
+- **C++ only (skip frontend/C# rebuild)**: `cd webview-wrapper/build && cmake .. -DBUILD_CPP_ONLY=ON && cmake --build . --config Release`
 
 ### Dev Server (frontend)
 ```powershell
@@ -28,7 +28,7 @@ npm run dev
 
 ## Architecture (Three-Tier)
 
-### 1. C++ Native Host (`immersive-cpp-wrapper/src/`)
+### 1. C++ Native Host (`webview-wrapper/src/`)
 Win32 app hosting WebView2. Entry point is `main.cpp`. Manages:
 - `AppWindow` - Win32 window lifecycle
 - `WebViewHost` - WebView2 control setup (async via C++20 coroutines), message routing, navigation interception

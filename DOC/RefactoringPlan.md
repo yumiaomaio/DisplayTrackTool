@@ -326,8 +326,8 @@ Merge `main.cpp` + `AppWindow.cpp` + `WebViewHost.cpp` into a DLL:
 <!-- Add C++ build step -->
 <Target Name="BuildNativeHost" BeforeTargets="Build">
     <Exec Command="cl.exe /LD /EHsc /Fe:host.dll
-        ../immersive-cpp-wrapper/src/*.cpp
-        /I ../immersive-cpp-wrapper/include
+        ../webview-wrapper/src/*.cpp
+        /I ../webview-wrapper/include
         /I packages/WebView2/build/native/include
         User32.lib Shell32.lib Ole32.lib Shlwapi.lib
         WebView2Loader.dll.lib" />

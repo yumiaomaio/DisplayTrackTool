@@ -15,7 +15,7 @@
 
 1.  **Frontend (Vue 3 + Vite)**: 位于 `/vite-project`。负责所有 UI 交互，通过 JSON 指令与后端通信。
 2.  **Core Logic (C# .NET 10)**: 位于 `/ImmersiveDisplay`。核心业务代码，通过 **Native AOT** 编译为原生的 `ImmersiveDisplay.dll`。彻底去除了 COM 依赖，实现高性能、零运行时的逻辑驱动。
-3.  **Native Host (C++ Win32)**: 位于 `/immersive-cpp-wrapper`。极简的 C++ 宿主程序，负责创建 Win32 窗口、托管 WebView2 控件并作为前端与 C# DLL 之间的透明网关。
+3.  **Native Host (C++ Win32)**: 位于 `/webview-wrapper`。极简的 C++ 宿主程序，负责创建 Win32 窗口、托管 WebView2 控件并作为前端与 C# DLL 之间的透明网关。
 
 ## 🛠️ 编译环境要求
 - **Visual Studio 2022/2025/2026**: 包含 C++ 桌面开发组件及 MSVC 编译器。
@@ -35,7 +35,7 @@ cd DisplayTrackTool
 我们已经将整个流水线（NPM -> .NET AOT -> C++）集成到了 CMake 中：
 
 ```bash
-cd immersive-cpp-wrapper
+cd webview-wrapper
 mkdir build
 cd build
 cmake ..
@@ -43,7 +43,7 @@ cmake --build . --config Release
 ```
 
 ### 3. 运行程序
-编译产物位于 `immersive-cpp-wrapper/build/Release/` 目录下：
+编译产物位于 `webview-wrapper/build/Release/` 目录下：
 ```bash
 cd Release
 ./immersive-cpp.exe
@@ -51,7 +51,7 @@ cd Release
 
 ## 📂 目录结构
 - `/ImmersiveDisplay`: C# 核心逻辑库，包含窗口监控、显示器控制等 Service。
-- `/immersive-cpp-wrapper`: C++ 宿主项目，包含 Win32 窗口管理和 WebView2 集成。
+- `/webview-wrapper`: C++ 宿主项目，包含 Win32 窗口管理和 WebView2 集成。
 - `/vite-project`: Vue 前端项目源码。
 - `/DOC`: 项目相关文档及说明。
 
