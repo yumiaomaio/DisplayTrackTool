@@ -12,52 +12,6 @@ internal static partial class NativeMethods
     // Window Procedure Delegate
     public delegate IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct WNDCLASSEX
-    {
-        public uint cbSize;
-        public uint style;
-        public IntPtr lpfnWndProc;
-        public int cbClsExtra;
-        public int cbWndExtra;
-        public IntPtr hInstance;
-        public IntPtr hIcon;
-        public IntPtr hCursor;
-        public IntPtr hbrBackground;
-        public IntPtr lpszMenuName;
-        public IntPtr lpszClassName;
-        public IntPtr hIconSm;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct MSG
-    {
-        public IntPtr hwnd;
-        public uint message;
-        public IntPtr wParam;
-        public IntPtr lParam;
-        public uint time;
-        public Point pt;
-        public uint lPrivate;
-    }
-
-    [InlineArray(32)]
-    public struct Byte32Buffer
-    {
-        private byte _element0;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct PAINTSTRUCT
-    {
-        public IntPtr hdc;
-        public int fErase;
-        public Rect rcPaint;
-        public int fRestore;
-        public int fIncUpdate;
-        public Byte32Buffer rgbReserved;
-    }
-
     // Windows Messages
     public const uint WM_CREATE = 0x0001;
     public const uint WM_DESTROY = 0x0002;

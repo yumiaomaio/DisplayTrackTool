@@ -1,5 +1,3 @@
-// File: Bridge/AppBridge.cs
-
 using System.Collections.Specialized;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -17,13 +15,8 @@ public class AppBridge(
     ITargetStateManager stateManager,
     IConfigService configService,
     ILoggingService loggingService,
-    IProcessService processService,
-    IProtocolService protocolService,
     ILaunchService launchService,
-    IPrivilegeService privilegeService,
-    IDialogService dialogService,
-    IAppIntegrationService appIntegrationService,
-    IOverlayImageService overlayImageService)
+    IAppIntegrationService appIntegrationService)
     : IDisposable
 {
     /// <summary>
@@ -206,7 +199,7 @@ public class AppBridge(
     // --- Stateless Properties mapping directly to Services ---
     public string TargetProcessName => configService.GetDefaultProcessName() ?? "";
     public bool IsRunning => stateManager.IsRunning;
-    public bool IsAdmin => privilegeService.IsAdministrator();
+    public bool IsAdmin => PrivilegeHelper.IsAdministrator();
     public bool EnableTaskbarAutoHide => configService.IsTaskbarAutoHideEnabled();
     public bool EnableDisplaySync => configService.IsDisplaySyncEnabled();
     public bool EnableBackgroundOverlay => configService.IsBackgroundOverlayEnabled();
@@ -220,7 +213,7 @@ public class AppBridge(
     public bool AutoStartFromThirdParty => configService.IsAutoStartFromThirdPartyEnabled();
     public bool AutoStartMonitoringOnProtocolLaunch => configService.IsAutoStartMonitoringOnProtocolLaunchEnabled();
     public bool ShouldShowUacPrompt => CalculateShouldShowUacPrompt();
-    public bool IsProtocolRegistered => protocolService.IsRegistered();
+    public bool IsProtocolRegistered => ProtocolHelper.IsRegistered();
     public int WaitingCountdown => stateManager.WaitingCountdown;
     public int WindowDetectionTimeout => configService.GetWindowDetectionTimeout();
 
@@ -237,7 +230,7 @@ public class AppBridge(
             catch (Exception ex)
             {
                 loggingService.AddLog($"Failed to start monitoring: {ex.Message}");
-                dialogService.ShowError($"An error occurred: {ex.Message}");
+                NativeDialogHelper.ShowError($"An error occurred: {ex.Message}");
             }
         });
     }
@@ -278,8 +271,29 @@ public class AppBridge(
             configService.SetBackgroundMode(targetMode.Value);
         }
     }
-    public void SelectImage() => overlayImageService.SelectAndSetBackgroundImage();
-    public void ClearImage() => overlayImageService.ClearImage();
+
+    public void SelectImage()
+    {
+        var path = NativeDialogHelper.ShowOpenFileDialog(
+            "Select a Background Image",
+            "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files (*.*)|*.*");
+
+        if (path != null)
+        {
+            string? fileName = OverlayImageHelper.CopyToBackgrounds(path);
+            if (fileName != null)
+            {
+                configService.SetBackgroundMode(Models.BackgroundMode.IMAGE);
+                configService.SetBackgroundImageFileName(fileName);
+            }
+            else
+            {
+                NativeDialogHelper.ShowError("Failed to copy image to backgrounds folder.");
+            }
+        }
+    }
+
+    public void ClearImage() => configService.SetBackgroundImageFileName(null);
     public void SelectAssociatedProgram() => appIntegrationService.SelectAssociatedProgram();
     public void SetLaunchOnAppStartup(bool enable) => configService.SetLaunchOnAppStartup(enable);
     public void SetLaunchOnTaskStart(bool enable) => configService.SetLaunchOnTaskStart(enable);
@@ -287,13 +301,13 @@ public class AppBridge(
     public void SetAutoStartMonitoringOnProtocolLaunch(bool enable) => configService.SetAutoStartMonitoringOnProtocolLaunch(enable);
     public void SetShowExitTip(bool show) => configService.SetShowExitTip(show);
     public void SetWindowDetectionTimeout(int seconds) => configService.SetWindowDetectionTimeout(seconds);
-    public bool RegisterProtocol() => protocolService.Register();
-    public bool UnregisterProtocol() => protocolService.Unregister();
-    public bool IsAssociationValid() => protocolService.IsAssociationValid();
+    public bool RegisterProtocol() => ProtocolHelper.Register();
+    public bool UnregisterProtocol() => ProtocolHelper.Unregister();
+    public bool IsAssociationValid() => ProtocolHelper.IsAssociationValid();
     
     public bool CleanAssociation()
     {
-        bool success = protocolService.Unregister();
+        bool success = ProtocolHelper.Unregister();
         configService.SetAutoStartFromThirdParty(false);
         return success;
     }
@@ -301,15 +315,34 @@ public class AppBridge(
     public void ClearLogs() => loggingService.Logs.Clear();
     public void SaveConfig() { }
 
-    public string GetImageBase64(string fileName) => overlayImageService.GetImageBase64(fileName);
-    public string GetProcessCommandLine(string processName) => processService.GetProcessCommandLine(processName) ?? "";
-    public string GetProcessIconBase64(string processName) => processService.GetProcessIconBase64(processName);
-    public bool CheckProcessExists(string processName) => processService.GetProcessExecutablePath(processName) != null;
-    public void RestartAsAdmin() => privilegeService.RestartAsAdministrator();
+    public string GetImageBase64(string fileName) => OverlayImageHelper.GetImageBase64(fileName);
+
+    public string GetProcessCommandLine(string processName)
+    {
+        string? commandLine = ProcessHelper.GetProcessCommandLine(processName, out bool permissionDenied);
+        
+        if (permissionDenied)
+        {
+            loggingService.AddLog($"[AppBridge] Command line detection failed (Permission Denied) for '{processName}'.");
+            NativeDialogHelper.ShowWarning(
+                "权限不足，无法获取目标进程的启动命令行参数（Launch Arguments）。\n\n" +
+                "当前已自动降级为仅获取程序执行文件路径。若要抓取完整的启动参数（如 Steam 或 Epic 游戏的特殊启动参数），请以【管理员身份】重新运行本工具。\n\n" +
+                "-----------------------------------------\n\n" +
+                "Insufficient permissions to capture process startup arguments.\n\n" +
+                "Falling back to executable path only. To capture complete launch parameters (e.g. for Steam/Epic games), please restart this tool as Administrator.",
+                "权限提示 / Permission Warning");
+        }
+
+        return commandLine ?? "";
+    }
+
+    public string GetProcessIconBase64(string processName) => ProcessHelper.GetProcessIconBase64(processName);
+    public bool CheckProcessExists(string processName) => ProcessHelper.GetProcessExecutablePath(processName) != null;
+    public void RestartAsAdmin() => PrivilegeHelper.RestartAsAdministrator();
     public void ExitApp() => Environment.Exit(0);
     public void ShowAbout()
     {
-        dialogService.ShowInfo(
+        NativeDialogHelper.ShowInfo(
             "Responsive Window Tool\nVersion 1.2.0\n\nGitHub: https://github.com/yumiaomaio/GameWindowTool",
             "About");
     }

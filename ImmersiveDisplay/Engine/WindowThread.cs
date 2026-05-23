@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
+using ImmersiveDisplay.Interop.Structs;
 using ImmersiveDisplay.Services;
 
 namespace ImmersiveDisplay.Engine;
@@ -98,9 +99,9 @@ public class WindowThread : IDisposable
 
     private void RegisterWindowClass()
     {
-        var wndClass = new NativeMethods.WNDCLASSEX
+        var wndClass = new WNDCLASSEX
         {
-            cbSize = (uint)Marshal.SizeOf<NativeMethods.WNDCLASSEX>(),
+            cbSize = (uint)Marshal.SizeOf<WNDCLASSEX>(),
             lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_wndProcDelegate),
             hInstance = NativeMethods.GetModuleHandle(null!),
             lpszClassName = Marshal.StringToHGlobalUni(ClassName)

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
+using ImmersiveDisplay.Interop.Structs;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
@@ -14,9 +15,9 @@ public class TaskbarService : ITaskbarService
 
     public bool IsAutoHideEnabled()
     {
-        var appBarData = new NativeMethods.Appbardata
+        var appBarData = new Appbardata
         {
-            cbSize = Marshal.SizeOf<NativeMethods.Appbardata>(),
+            cbSize = Marshal.SizeOf<Appbardata>(),
             hWnd = NativeMethods.FindWindow("Shell_TrayWnd", null)
         };
 
@@ -26,9 +27,9 @@ public class TaskbarService : ITaskbarService
 
     public void SetAutoHide(bool enable)
     {
-        var appBarData = new NativeMethods.Appbardata
+        var appBarData = new Appbardata
         {
-            cbSize = Marshal.SizeOf<NativeMethods.Appbardata>(),
+            cbSize = Marshal.SizeOf<Appbardata>(),
             hWnd = NativeMethods.FindWindow("Shell_TrayWnd", null),
             lParam = (IntPtr)(enable ? NativeMethods.ABS_AUTOHIDE : NativeMethods.ABS_ALWAYSONTOP)
         };

@@ -66,3 +66,23 @@ public struct Devmode
     public uint dmPanningHeight;
     public uint dmDisplayOrientation;
 }
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+public struct Monitorinfo
+{
+    public int cbSize;
+    public Rect rcMonitor;
+    public Rect rcWork;
+    public uint dwFlags;
+}
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+public struct MonitorinfoEx
+{
+    public int cbSize;
+    public Rect rcMonitor;
+    public Rect rcWork;
+    public uint dwFlags;
+
+    public Char32Buffer szDevice;
+}

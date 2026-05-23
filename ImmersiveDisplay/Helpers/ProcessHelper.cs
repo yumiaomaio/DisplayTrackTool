@@ -1,23 +1,23 @@
-// File: Services/Implementations/ProcessService.cs
+// File: Helpers/ProcessHelper.cs
 
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
+using ImmersiveDisplay.Interop.Structs;
 
-namespace ImmersiveDisplay.Services.Implementations;
+namespace ImmersiveDisplay.Helpers;
 
-public class ProcessService(ILoggingService loggingService, IDialogService dialogService) : IProcessService
+public static class ProcessHelper
 {
-    public string GetProcessIconBase64(string processName)
+    public static string GetProcessIconBase64(string processName)
     {
         try
         {
             string? filePath = GetProcessExecutablePath(processName);
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return "";
 
-            // 1. 尝试提取 256x256 高清图标
             IntPtr[] phicon = [IntPtr.Zero];
             uint[] piconid = [0];
             uint extractedCount = NativeMethods.PrivateExtractIcons(filePath, 0, 256, 256, phicon, piconid, 1, 0);
@@ -29,8 +29,7 @@ public class ProcessService(ILoggingService loggingService, IDialogService dialo
             }
             else
             {
-                // 2. 兜底:使用 ShellInfo (通常为 32x32)
-                var shinfo = new NativeMethods.Shfileinfo();
+                Shfileinfo shinfo = default;
                 NativeMethods.SHGetFileInfo(filePath, 0, ref shinfo, (uint)Marshal.SizeOf(shinfo), NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_LARGEICON);
                 hIcon = shinfo.hIcon;
             }
@@ -39,33 +38,30 @@ public class ProcessService(ILoggingService loggingService, IDialogService dialo
 
             try
             {
-                using (var icon = Icon.FromHandle(hIcon))
-                using (var bitmap = icon.ToBitmap())
-                using (var ms = new MemoryStream())
-                {
-                    bitmap.Save(ms, ImageFormat.Png);
-                    byte[] iconBytes = ms.ToArray();
-                    return "data:image/png;base64," + Convert.ToBase64String(iconBytes);
-                }
+                using var icon = Icon.FromHandle(hIcon);
+                using var bitmap = icon.ToBitmap();
+                using var ms = new MemoryStream();
+                bitmap.Save(ms, ImageFormat.Png);
+                byte[] iconBytes = ms.ToArray();
+                return "data:image/png;base64," + Convert.ToBase64String(iconBytes);
             }
             finally
             {
                 NativeMethods.DestroyIcon(hIcon);
             }
         }
-        catch (Exception ex)
+        catch
         {
-            loggingService.AddLog($"[ProcessService] Error extracting icon for '{processName}': {ex.Message}");
             return "";
         }
     }
 
-    public string? GetProcessExecutablePath(string processName)
+    public static string? GetProcessExecutablePath(string processName)
     {
         if (string.IsNullOrEmpty(processName)) return null;
 
         string searchName = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-            ? processName.Substring(0, processName.Length - 4)
+            ? processName[..^4]
             : processName;
 
         var process = Process.GetProcessesByName(searchName).FirstOrDefault();
@@ -107,12 +103,13 @@ public class ProcessService(ILoggingService loggingService, IDialogService dialo
         return null;
     }
 
-    public string? GetProcessCommandLine(string processName)
+    public static string? GetProcessCommandLine(string processName, out bool permissionDenied)
     {
+        permissionDenied = false;
         if (string.IsNullOrEmpty(processName)) return null;
 
         string searchName = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-            ? processName.Substring(0, processName.Length - 4)
+            ? processName[..^4]
             : processName;
 
         var process = Process.GetProcessesByName(searchName).FirstOrDefault();
@@ -121,30 +118,20 @@ public class ProcessService(ILoggingService loggingService, IDialogService dialo
         string? commandLine = GetCommandLineViaKernelQuery(process);
         if (!string.IsNullOrEmpty(commandLine))
         {
-            loggingService.AddLog($"[ProcessService] Successfully detected command line for '{processName}'.");
             return commandLine;
         }
 
         string? path = GetProcessExecutablePath(processName);
         if (path != null)
         {
-            loggingService.AddLog($"[ProcessService] Command line detection failed, using executable path fallback for '{processName}'.");
-
-            dialogService.ShowWarning(
-                "权限不足，无法获取目标进程的启动命令行参数（Launch Arguments）。\n\n" +
-                "当前已自动降级为仅获取程序执行文件路径。若要抓取完整的启动参数（如 Steam 或 Epic 游戏的特殊启动参数），请以【管理员身份】重新运行本工具。\n\n" +
-                "-----------------------------------------\n\n" +
-                "Insufficient permissions to capture process startup arguments.\n\n" +
-                "Falling back to executable path only. To capture complete launch parameters (e.g. for Steam/Epic games), please restart this tool as Administrator.",
-                "权限提示 / Permission Warning");
-
+            permissionDenied = true;
             return path.Contains(' ') ? $"\"{path}\"" : path;
         }
 
         return null;
     }
 
-    private string? GetCommandLineViaKernelQuery(Process process)
+    private static string? GetCommandLineViaKernelQuery(Process process)
     {
         IntPtr hProcess = NativeMethods.OpenProcess(NativeMethods.PROCESS_QUERY_INFORMATION, false, process.Id);
         if (hProcess == IntPtr.Zero) return null;
@@ -152,7 +139,6 @@ public class ProcessService(ILoggingService loggingService, IDialogService dialo
         try
         {
             int status = NativeMethods.NtQueryInformationProcess(hProcess, NativeMethods.PROCESS_COMMAND_LINE_INFORMATION, IntPtr.Zero, 0, out int length);
-            
             if (length == 0) return null;
 
             IntPtr buffer = Marshal.AllocHGlobal(length);
@@ -175,9 +161,9 @@ public class ProcessService(ILoggingService loggingService, IDialogService dialo
                 Marshal.FreeHGlobal(buffer);
             }
         }
-        catch (Exception ex)
+        catch
         {
-            loggingService.AddLog($"[ProcessService] Kernel command line query failed: {ex.Message}");
+            // Ignored
         }
         finally
         {

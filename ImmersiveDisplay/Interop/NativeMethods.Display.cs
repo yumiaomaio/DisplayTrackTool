@@ -18,9 +18,6 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool EnumDisplaySettings(string? lpszDeviceName, int iModeNum, ref Devmode lpDevMode);
 
-    [LibraryImport("user32.dll", EntryPoint = "ChangeDisplaySettingsExW", StringMarshalling = StringMarshalling.Utf16)]
-    public static partial int ChangeDisplaySettingsEx(string? lpszDeviceName, ref Devmode lpDevMode, IntPtr hwnd, uint dwflags, IntPtr lParam);
-
     [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW", StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetMonitorInfo(IntPtr hMonitor, ref MonitorinfoEx lpmi);
@@ -36,4 +33,11 @@ internal static partial class NativeMethods
 
     [LibraryImport("user32.dll")]
     public static partial int DisplayConfigGetDeviceInfo(ref DisplayconfigSourceDeviceName requestPacket);
+
+    [LibraryImport("user32.dll")]
+    public static partial IntPtr MonitorFromWindow(IntPtr hwnd, MonitorOptions dwFlags);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetMonitorInfo(IntPtr hMonitor, ref Monitorinfo lpmi);
 }

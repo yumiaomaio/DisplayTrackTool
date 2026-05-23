@@ -1,10 +1,10 @@
-// File: Services/Implementations/NativeDialogService.cs
+// File: Helpers/NativeDialogHelper.cs
 
 using System.Runtime.InteropServices;
 
-namespace ImmersiveDisplay.Services.Implementations;
+namespace ImmersiveDisplay.Helpers;
 
-public partial class NativeDialogService : IDialogService
+public static partial class NativeDialogHelper
 {
     [LibraryImport("user32.dll")]
     private static partial IntPtr GetActiveWindow();
@@ -18,7 +18,7 @@ public partial class NativeDialogService : IDialogService
         public int lStructSize;
         public IntPtr hwndOwner;
         public IntPtr hInstance;
-        public IntPtr lpstrFilter; // Use IntPtr instead of string to preserve embedded null characters
+        public IntPtr lpstrFilter;
         public IntPtr lpstrCustomFilter;
         public int nMaxCustFilter;
         public int nFilterIndex;
@@ -51,25 +51,23 @@ public partial class NativeDialogService : IDialogService
     private const int OFN_FILEMUSTEXIST = 0x00001000;
     private const int OFN_PATHMUSTEXIST = 0x00000800;
 
-    public void ShowInfo(string message, string title = "Info")
+    public static void ShowInfo(string message, string title = "Info")
     {
         MessageBox(GetActiveWindow(), message, title, MB_OK | MB_ICONINFORMATION);
     }
 
-    public void ShowWarning(string message, string title = "Warning")
+    public static void ShowWarning(string message, string title = "Warning")
     {
         MessageBox(GetActiveWindow(), message, title, MB_OK | MB_ICONWARNING);
     }
 
-    public void ShowError(string message, string title = "Error")
+    public static void ShowError(string message, string title = "Error")
     {
         MessageBox(GetActiveWindow(), message, title, MB_OK | MB_ICONERROR);
     }
 
-    public string? ShowOpenFileDialog(string title, string filter)
+    public static string? ShowOpenFileDialog(string title, string filter)
     {
-        // Translate filter format: "Executables (*.exe)|*.exe|All Files (*.*)|*.*"
-        // to null-separated string: "Executables (*.exe)\0*.exe\0All Files (*.*)\0*.*\0\0"
         string nullFilter = filter.Replace('|', '\0') + "\0\0";
         
         var ofn = new OPENFILENAME();
@@ -77,14 +75,12 @@ public partial class NativeDialogService : IDialogService
         ofn.hwndOwner = GetActiveWindow();
         ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
         
-        // Allocate a buffer for the selected file path
         const int maxFileLength = 2048;
         IntPtr fileBuffer = Marshal.AllocHGlobal(maxFileLength * sizeof(char));
-        IntPtr filterBuffer = Marshal.StringToHGlobalUni(nullFilter); // Manually marshal to preserve internal nulls
+        IntPtr filterBuffer = Marshal.StringToHGlobalUni(nullFilter);
         IntPtr titleBuffer = Marshal.StringToHGlobalUni(title);
         try
         {
-            // Zero-init the file buffer
             byte[] zeros = new byte[maxFileLength * sizeof(char)];
             Marshal.Copy(zeros, 0, fileBuffer, zeros.Length);
             

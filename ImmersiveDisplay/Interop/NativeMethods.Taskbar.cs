@@ -7,17 +7,6 @@ namespace ImmersiveDisplay.Interop;
 
 internal static partial class NativeMethods
 {
-    [StructLayout(LayoutKind.Sequential)]
-    public struct Appbardata
-    {
-        public int cbSize;
-        public IntPtr hWnd;
-        public uint uCallbackMessage;
-        public uint uEdge;
-        public Rect rc;
-        public IntPtr lParam;
-    }
-
     [LibraryImport("shell32.dll")]
     public static partial uint SHAppBarMessage(uint dwMessage, ref Appbardata pData);
 

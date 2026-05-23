@@ -1,6 +1,7 @@
 // File: Interop/NativeMethods.Process.cs
 
 using System.Runtime.InteropServices;
+using ImmersiveDisplay.Interop.Structs;
 
 namespace ImmersiveDisplay.Interop;
 
@@ -22,17 +23,6 @@ internal static partial class NativeMethods
 
     [LibraryImport("ntdll.dll")]
     public static partial int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, IntPtr processInformation, int processInformationLength, out int returnLength);
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct ProcessBasicInformation
-    {
-        public IntPtr ExitStatus;
-        public IntPtr PebBaseAddress;
-        public IntPtr AffinityMask;
-        public IntPtr BasePriority;
-        public UIntPtr UniqueProcessId;
-        public IntPtr InheritedFromUniqueProcessId;
-    }
 
     public const uint PROCESS_QUERY_INFORMATION = 0x0400;
     public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;

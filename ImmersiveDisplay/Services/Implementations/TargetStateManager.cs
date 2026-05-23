@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Enums;
 using ImmersiveDisplay.Interop.Structs;
@@ -15,7 +17,6 @@ public enum WindowOrientation
 }
 
 public class TargetStateManager(
-    IWindowQueryService queryService,
     IWindowMonitorService windowMonitor,
     IWindowLayoutManager layoutManager,
     IOverlayService overlayService,
@@ -23,8 +24,7 @@ public class TargetStateManager(
     ILoggingService loggingService,
     ITaskbarService taskbarService,
     IDisplayService displayService,
-    ILaunchService launchService,
-    IDialogService dialogService)
+    ILaunchService launchService)
     : ITargetStateManager, IDisposable
 {
     // State
@@ -92,7 +92,7 @@ public class TargetStateManager(
         }
 
         // --- 2. 首次瞬时探测 ---
-        _targetHwnd = queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero;
+        _targetHwnd = FindWindowByProcessName(processName);
 
         // --- 3. 结果判断与倒计时分流 ---
         if (_targetHwnd == IntPtr.Zero)
@@ -119,7 +119,7 @@ public class TargetStateManager(
 
                 WaitingCountdown = i;
                 
-                _targetHwnd = await Task.Run(() => queryService.FindWindowByProcessName(processName) ?? IntPtr.Zero);
+                _targetHwnd = await Task.Run(() => FindWindowByProcessName(processName));
                 
                 if (_targetHwnd != IntPtr.Zero)
                 {
@@ -205,7 +205,7 @@ public class TargetStateManager(
             await StopAsync();
             
             // 弹窗提示可能需要管理员权限
-            dialogService.ShowWarning(
+            NativeDialogHelper.ShowWarning(
                 $"""
                 无法修改目标窗口样式。
 
@@ -416,7 +416,7 @@ public class TargetStateManager(
                             var exStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
                             var dpi = NativeMethods.GetDpiForWindow(hwnd);
                             
-                            var placement = new NativeMethods.WINDOWPLACEMENT();
+                            var placement = new WINDOWPLACEMENT();
                             placement.length = Marshal.SizeOf(placement);
                             NativeMethods.GetWindowPlacement(hwnd, ref placement);
 
@@ -454,16 +454,18 @@ public class TargetStateManager(
         }
     }
 
+    private static IntPtr FindWindowByProcessName(string processName)
+    {
+        var processes = Process.GetProcessesByName(processName);
+        var process = processes.FirstOrDefault(p => p.MainWindowHandle != IntPtr.Zero);
+        return process?.MainWindowHandle ?? IntPtr.Zero;
+    }
+
     private void AddLog(string message)
     {
         loggingService.AddLog(message);
     }
-
-    private void AddLogs(params ReadOnlySpan<string> messages)
-    {
-        loggingService.AddLogs(messages);
-    }
-
+    
     public void Dispose()
     {
         _ = StopAsync();

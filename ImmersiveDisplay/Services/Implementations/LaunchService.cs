@@ -149,7 +149,6 @@ public class LaunchService(ILoggingService loggingService) : ILaunchService
                     // 某些系统进程或高权限进程无法读取 MainModule，直接忽略
                 }
             }
-            
             // 如果有同名进程运行，这里默认返回 true (即使用户权限不够读不到完整路径)
             return true; 
         }

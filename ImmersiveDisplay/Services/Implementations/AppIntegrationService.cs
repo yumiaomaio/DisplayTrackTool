@@ -7,10 +7,7 @@ public class AppIntegrationService(
     ITargetStateManager stateManager,
     IConfigService configService,
     ILoggingService loggingService,
-    IProtocolService protocolService,
-    ILaunchService launchService,
-    IPrivilegeService privilegeService,
-    IDialogService dialogService)
+    ILaunchService launchService)
     : IAppIntegrationService
 {
     public bool IsProtocolAutoStart { get; set; }
@@ -72,7 +69,17 @@ public class AppIntegrationService(
         bool autoStartedByThirdParty = false;
 
         // Check for path updates if feature is enabled
-        protocolService.UpdateIfNecessary();
+        if (configService.IsAutoStartFromThirdPartyEnabled())
+        {
+            if (!ProtocolHelper.IsAssociationValid())
+            {
+                loggingService.AddLog("[ProtocolHelper] Association invalid or Start Menu shortcut missing. Restoring associations...");
+                if (ProtocolHelper.Register())
+                    loggingService.AddLog("[ProtocolHelper] Protocol and shortcuts registered.");
+                else
+                    loggingService.AddLog("[ProtocolHelper] Failed to register protocol.");
+            }
+        }
 
         if (configService.IsAutoStartFromThirdPartyEnabled() && IsProtocolAutoStart)
         {
@@ -90,7 +97,7 @@ public class AppIntegrationService(
             if (configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
             {
                 bool isExe = IsAssociatedPathExe();
-                bool isAdmin = privilegeService.IsAdministrator();
+                bool isAdmin = PrivilegeHelper.IsAdministrator();
 
                 if (isExe || isAdmin)
                 {
@@ -148,7 +155,7 @@ public class AppIntegrationService(
 
     public void SelectAssociatedProgram()
     {
-        var path = dialogService.ShowOpenFileDialog(
+        var path = NativeDialogHelper.ShowOpenFileDialog(
             "Select Application or Shortcut",
             "Applications & Shortcuts|*.exe;*.lnk;*.url|All files (*.*)|*.*");
 

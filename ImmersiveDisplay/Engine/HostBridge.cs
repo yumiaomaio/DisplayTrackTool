@@ -1,9 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using ImmersiveDisplay.Engine;
 
-namespace ImmersiveDisplay;
+namespace ImmersiveDisplay.Engine;
 
 /// <summary>
 /// Manages the bidirectional bridge between the C# engine and the C++ host process.

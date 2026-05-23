@@ -27,7 +27,7 @@ public class AppHost : IDisposable
         if (_isInitialized) return;
 
         // 1. Setup DI
-        var services = new ServiceCollection();
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
         services.AddImmersiveServices();
         _serviceProvider = services.BuildServiceProvider();
 

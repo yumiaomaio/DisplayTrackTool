@@ -3,6 +3,7 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
+using ImmersiveDisplay.Interop.Structs;
 using ImmersiveDisplay.Services;
 
 namespace ImmersiveDisplay.Views;
@@ -49,7 +50,7 @@ public class OverlayWindowShell : IDisposable
     {
         if (_classRegistered) return;
 
-        var wndClass = new NativeMethods.WNDCLASSEX();
+        var wndClass = new WNDCLASSEX();
         wndClass.cbSize = (uint)Marshal.SizeOf(wndClass);
         wndClass.style = 0;
         wndClass.lpfnWndProc = Marshal.GetFunctionPointerForDelegate(StaticWndProcDelegate);
