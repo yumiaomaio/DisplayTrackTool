@@ -1,4 +1,4 @@
-﻿#include "WebViewHost.h"
+#include "WebViewHost.h"
 #include "InteropHelper.h"
 #include <print>
 #include <wrl.h>
@@ -16,11 +16,19 @@ struct WebView2Awaiter {
 
     bool await_ready() const { return false; }
     void await_suspend(std::coroutine_handle<> handle) {
-        m_starter([this, handle](HRESULT hr, TInterface* res) {
+        HRESULT hrSync = m_starter([this, handle](HRESULT hr, TInterface* res) {
             m_hr = hr;
             m_result = res;
             handle.resume();
         });
+        
+        // If the WebView2 initialization fails synchronously (e.g. WebView2 Runtime not installed),
+        // the callback will never be invoked. Resume immediately with the error code to prevent infinite hang.
+        if (FAILED(hrSync)) {
+            m_hr = hrSync;
+            m_result = nullptr;
+            handle.resume();
+        }
     }
     std::pair<HRESULT, ComPtr<TInterface>> await_resume() { return { m_hr, m_result }; }
 };
@@ -65,15 +73,16 @@ AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> on
     // Initial size & Settings
     Resize(parentHwnd);
     ComPtr<ICoreWebView2Settings> settings;
-    m_webView->get_Settings(&settings);
-    settings->put_IsScriptEnabled(TRUE);
-    settings->put_IsWebMessageEnabled(TRUE);
-    
-    // Security & UI Lockdown
-    settings->put_AreDefaultContextMenusEnabled(FALSE); 
-    settings->put_AreDevToolsEnabled(FALSE);            
-    settings->put_IsZoomControlEnabled(FALSE);          
-    settings->put_IsStatusBarEnabled(FALSE);            
+    if (SUCCEEDED(m_webView->get_Settings(&settings)) && settings) {
+        settings->put_IsScriptEnabled(TRUE);
+        settings->put_IsWebMessageEnabled(TRUE);
+        
+        // Security & UI Lockdown (Modified: Enabled Context Menus and DevTools for debugging)
+        settings->put_AreDefaultContextMenusEnabled(TRUE); 
+        settings->put_AreDevToolsEnabled(TRUE);            
+        settings->put_IsZoomControlEnabled(FALSE);          
+        settings->put_IsStatusBarEnabled(FALSE);            
+    }
 
     // --- Navigation Interception (拦截所有导航) ---
     m_webView->add_NavigationStarting(Callback<ICoreWebView2NavigationStartingEventHandler>(

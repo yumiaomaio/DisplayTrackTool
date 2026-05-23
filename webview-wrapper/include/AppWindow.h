@@ -25,6 +25,9 @@ public:
     // Set a destroy callback
     void SetDestroyCallback(std::function<void()> callback);
 
+    // Set a custom message callback
+    void SetCustomMessageCallback(std::function<void(UINT, WPARAM, LPARAM)> callback);
+
 private:
     static LRESULT CALLBACK StaticWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -32,6 +35,7 @@ private:
     HWND m_hWnd;
     std::function<void()> m_resizeCallback;
     std::function<void()> m_destroyCallback;
+    std::function<void(UINT, WPARAM, LPARAM)> m_customMessageCallback;
 };
 
 } // namespace Immersive

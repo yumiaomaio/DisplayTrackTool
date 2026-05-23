@@ -58,6 +58,10 @@ void AppWindow::SetDestroyCallback(std::function<void()> callback) {
     m_destroyCallback = callback;
 }
 
+void AppWindow::SetCustomMessageCallback(std::function<void(UINT, WPARAM, LPARAM)> callback) {
+    m_customMessageCallback = callback;
+}
+
 LRESULT CALLBACK AppWindow::StaticWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     AppWindow* pThis = nullptr;
     if (message == WM_NCCREATE) {
@@ -84,6 +88,9 @@ LRESULT CALLBACK AppWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
         PostQuitMessage(0);
         break;
     default:
+        if (m_customMessageCallback) {
+            m_customMessageCallback(message, wParam, lParam);
+        }
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;

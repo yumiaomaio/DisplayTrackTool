@@ -7,6 +7,8 @@
 #include "WebViewHost.h"
 #include "InteropHelper.h"
 
+#define WM_EXECUTE_SCRIPT (WM_USER + 1)
+
 using namespace Immersive;
 
 struct HostContext {
@@ -60,6 +62,16 @@ __declspec(dllexport) void __stdcall Host_Start(
         if (ctx->onMessage) ctx->onMessage(utf8Msg.c_str());
     });
 
+    ctx->appWindow.SetCustomMessageCallback([ctx](UINT msg, WPARAM wp, LPARAM lp) {
+        if (msg == WM_EXECUTE_SCRIPT) {
+            auto* scriptPtr = reinterpret_cast<std::wstring*>(lp);
+            if (scriptPtr) {
+                ctx->webViewHost.ExecuteScript(*scriptPtr);
+                delete scriptPtr;
+            }
+        }
+    });
+
     ctx->appWindow.SetResizeCallback([ctx, onResized]() {
         ctx->webViewHost.Resize(ctx->appWindow.GetHwnd());
         if (ctx->appWindow.GetHwnd()) {
@@ -91,13 +103,21 @@ __declspec(dllexport) void __stdcall Host_Start(
 __declspec(dllexport) void __stdcall Host_PostMessage(void* ctx, const char* jsonUtf8)
 {
     if (!ctx || !jsonUtf8) return;
+    
+    // Print the raw JSON received from C# to the C++ console
+    std::println("[C++ Host] Received State Push from C#: {}", jsonUtf8);
+
     auto* host = static_cast<HostContext*>(ctx);
     std::wstring jsonWide = InteropHelper::Utf8ToWide(jsonUtf8);
     if (!jsonWide.empty()) {
         std::wstring script = std::format(
             L"if(window.onStateChangedFromDll) {{ window.onStateChangedFromDll({}); }}",
             jsonWide);
-        host->webViewHost.ExecuteScript(script);
+        
+        auto* scriptPtr = new std::wstring(script);
+        if (!PostMessageW(host->appWindow.GetHwnd(), WM_EXECUTE_SCRIPT, 0, reinterpret_cast<LPARAM>(scriptPtr))) {
+            delete scriptPtr;
+        }
     }
 }
 
