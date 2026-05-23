@@ -85,9 +85,9 @@ watch(waitingCountdown, (newVal) => {
   } else if (val === -1) {
     modal.value = {
       show: true,
-      title: 'TIMEOUT',
+      title: i18n.t.timeoutTitle,
       message: i18n.t.processNotFound,
-      buttonText: 'OK',
+      buttonText: i18n.t.menu.close,
       allowClose: true,
       type: 'warning',
       onAction: () => { modal.value.show = false; }
@@ -102,18 +102,23 @@ const toggleTheme = () => {
 }
 
 const tryStart = async () => {
-  const exists = await bridge.CheckProcessExists(processName.value);
-  if (exists === false) {
-    modal.value = {
-      show: true,
-      title: 'PROCESS NOT FOUND',
-      message: i18n.t.processNotFound,
-      buttonText: 'OK',
-      allowClose: true,
-      type: 'warning',
-      onAction: () => { modal.value.show = false; }
-    };
-    return;
+  if (!processName.value) return;
+
+  // Skip frontend check when associated launch is enabled — let backend handle it
+  if (!launchOnTaskStart.value) {
+    const exists = await bridge.CheckProcessExists(processName.value);
+    if (exists === false) {
+      modal.value = {
+        show: true,
+        title: i18n.t.timeoutTitle,
+        message: i18n.t.processNotFound,
+        buttonText: i18n.t.menu.close,
+        allowClose: true,
+        type: 'warning',
+        onAction: () => { modal.value.show = false; }
+      };
+      return;
+    }
   }
   bridge.StartMonitoring(processName.value);
 };
