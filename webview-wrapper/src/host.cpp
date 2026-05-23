@@ -3,6 +3,9 @@
 #include <format>
 #include <io.h>
 #include <fcntl.h>
+#include <fstream>
+#include <string>
+#include <algorithm>
 #include "AppWindow.h"
 #include "WebViewHost.h"
 #include "InteropHelper.h"
@@ -10,6 +13,45 @@
 #define WM_EXECUTE_SCRIPT (WM_USER + 1)
 
 using namespace Immersive;
+
+// Check if profiles.json has "enableFileLogging": true
+bool IsDebugModeEnabled() {
+    std::wstring exePath = InteropHelper::GetWebUiPath();
+    auto pos = exePath.find_last_of(L"\\/");
+    if (pos == std::wstring::npos) return false;
+    
+    std::wstring configPath = exePath.substr(0, pos) + L"\\..\\profiles.json";
+    
+    std::ifstream file(configPath);
+    if (!file.is_open()) return false;
+    
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    
+    // Strip spaces, tabs, and newlines to eliminate formatting differences
+    content.erase(std::remove_if(content.begin(), content.end(), [](unsigned char x) {
+        return ::isspace(x);
+    }), content.end());
+    
+    return content.find("\"enableFileLogging\":true") != std::string::npos;
+}
+
+// Helper to truncate massive base64 data in logs
+std::string FilterBase64(std::string_view original) {
+    std::string s(original);
+    size_t startPos = 0;
+    while ((startPos = s.find("data:image/", startPos)) != std::string::npos) {
+        size_t commaPos = s.find("base64,", startPos);
+        if (commaPos != std::string::npos) {
+            size_t endQuote = s.find('\"', commaPos);
+            if (endQuote != std::string::npos) {
+                // Replace the massive base64 data with a short placeholder
+                s.replace(commaPos + 7, endQuote - (commaPos + 7), "...<base64 omitted>...");
+            }
+        }
+        startPos += 11; // move past "data:image/"
+    }
+    return s;
+}
 
 struct HostContext {
     WebViewHost webViewHost;
@@ -28,13 +70,27 @@ __declspec(dllexport) void __stdcall Host_Start(
     void (*onResized)(int, int),
     void (*onReady)(void*))
 {
-    bool hasConsole = AttachConsole(ATTACH_PARENT_PROCESS);
     FILE* fp{};
-    if (hasConsole) {
-        freopen_s(&fp, "CONOUT$", "w", stdout);
-        freopen_s(&fp, "CONOUT$", "w", stderr);
-        std::println("--- Immersive Display Host DLL ---");
+    bool hasConsole = false;
+    
+    // Check if we need to enable debug mode console
+    if (IsDebugModeEnabled()) {
+        // Try to attach to parent terminal console first, if fails then allocate a standalone console
+        if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+            hasConsole = true;
+        } else if (AllocConsole()) {
+            hasConsole = true;
+        }
+        
+        if (hasConsole) {
+            freopen_s(&fp, "CONOUT$", "w", stdout);
+            freopen_s(&fp, "CONOUT$", "w", stderr);
+            std::println("=================================================");
+            std::println("--- Immersive Display Host DEBUG CONSOLE ---");
+            std::println("=================================================");
+        }
     } else {
+        // Normal mode: run silently, redirecting standard output to null
         freopen_s(&fp, "nul", "w", stdout);
         freopen_s(&fp, "nul", "w", stderr);
     }
@@ -59,6 +115,9 @@ __declspec(dllexport) void __stdcall Host_Start(
     }
 
     ctx->webViewHost.SetMessageCallback([ctx](const std::string& utf8Msg) {
+        // Print the raw message sent from JS/C++ to C# (with base64 filtered)
+        std::println("[C++ Host] Sent Message to C# (from JS): {}", FilterBase64(utf8Msg));
+        
         if (ctx->onMessage) ctx->onMessage(utf8Msg.c_str());
     });
 
@@ -104,8 +163,8 @@ __declspec(dllexport) void __stdcall Host_PostMessage(void* ctx, const char* jso
 {
     if (!ctx || !jsonUtf8) return;
     
-    // Print the raw JSON received from C# to the C++ console
-    std::println("[C++ Host] Received State Push from C#: {}", jsonUtf8);
+    // Print the raw JSON (with base64 truncated) to the C++ console
+    std::println("[C++ Host] Received State Push from C#: {}", FilterBase64(jsonUtf8));
 
     auto* host = static_cast<HostContext*>(ctx);
     std::wstring jsonWide = InteropHelper::Utf8ToWide(jsonUtf8);

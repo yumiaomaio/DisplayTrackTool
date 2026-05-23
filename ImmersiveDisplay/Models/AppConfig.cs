@@ -39,7 +39,7 @@ public class AppConfig
             EnableTaskbarAutoHide = true,
             EnableDisplaySync = true,
             BackgroundMode = BackgroundMode.COLOR,
-            BackgroundColor = "#FF000000",
+            BackgroundColor = "#FF8C00",
             ShowExitTip = true,
             LaunchOnAppStartup = false,
             LaunchOnTaskStart = false,
