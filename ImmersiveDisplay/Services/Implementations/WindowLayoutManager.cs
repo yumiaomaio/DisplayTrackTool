@@ -46,25 +46,15 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
         loggingService.AddLog($"[WindowLayoutManager] Applying profile '{profile.Name}' to HWND {hwnd}.");
 
         // 1. Apply styles with failure detection
+        Marshal.SetLastPInvokeError(0);
         int result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
-        if (result == 0)
-        {
-            int error = Marshal.GetLastWin32Error();
-            if (error != 0)
-            {
-                throw new Win32Exception(error, $"Failed to set window style GWL_STYLE. System Error Code: {error}");
-            }
-        }
+        if (result == 0 && Marshal.GetLastWin32Error() != 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), $"Failed to set window style GWL_STYLE. System Error Code: {Marshal.GetLastWin32Error()}");
 
+        Marshal.SetLastPInvokeError(0);
         result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
-        if (result == 0)
-        {
-            int error = Marshal.GetLastWin32Error();
-            if (error != 0)
-            {
-                throw new Win32Exception(error, $"Failed to set window ex-style GWL_EXSTYLE. System Error Code: {error}");
-            }
-        }
+        if (result == 0 && Marshal.GetLastWin32Error() != 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), $"Failed to set window ex-style GWL_EXSTYLE. System Error Code: {Marshal.GetLastWin32Error()}");
 
         // 2. Calculate size and position
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
@@ -129,25 +119,15 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
         }
 
         // --- 2. Apply Styles with failure detection ---
+        Marshal.SetLastPInvokeError(0);
         int result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)profile.Styles);
-        if (result == 0)
-        {
-            int error = Marshal.GetLastWin32Error();
-            if (error != 0)
-            {
-                throw new Win32Exception(error, $"Failed to set aggressive window style GWL_STYLE. System Error Code: {error}");
-            }
-        }
+        if (result == 0 && Marshal.GetLastWin32Error() != 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), $"Failed to set aggressive window style GWL_STYLE. System Error Code: {Marshal.GetLastWin32Error()}");
 
+        Marshal.SetLastPInvokeError(0);
         result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)profile.ExStyles);
-        if (result == 0)
-        {
-            int error = Marshal.GetLastWin32Error();
-            if (error != 0)
-            {
-                throw new Win32Exception(error, $"Failed to set aggressive window ex-style GWL_EXSTYLE. System Error Code: {error}");
-            }
-        }
+        if (result == 0 && Marshal.GetLastWin32Error() != 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), $"Failed to set aggressive window ex-style GWL_EXSTYLE. System Error Code: {Marshal.GetLastWin32Error()}");
 
         // --- 3. Get Monitor Info ---
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
@@ -218,15 +198,10 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
 
         loggingService.AddLog($"[WindowLayoutManager] Patching HWND {hwnd} to add WS_EX_TOPMOST.");
         var newExStyle = currentExStyle | WindowExStyles.WS_EX_TOPMOST;
+        Marshal.SetLastPInvokeError(0);
         int result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)newExStyle);
-        if (result == 0)
-        {
-            int error = Marshal.GetLastWin32Error();
-            if (error != 0)
-            {
-                throw new Win32Exception(error, $"Failed to set GWL_EXSTYLE for EnsureTopmost. System Error Code: {error}");
-            }
-        }
+        if (result == 0 && Marshal.GetLastWin32Error() != 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), $"Failed to set GWL_EXSTYLE for EnsureTopmost. System Error Code: {Marshal.GetLastWin32Error()}");
         
         var topmostHwnd = new IntPtr(-1);
         bool posResult = NativeMethods.SetWindowPos(hwnd, topmostHwnd, 0, 0, 0, 0,
@@ -247,8 +222,14 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
 
         loggingService.AddLog($"[WindowLayoutManager] Restoring HWND {hwnd} to original styles and position.");
 
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)_originalSnapshot.Style);
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)_originalSnapshot.ExStyle);
+        Marshal.SetLastPInvokeError(0);
+        if (NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_STYLE, (int)_originalSnapshot.Style) == 0
+            && Marshal.GetLastWin32Error() != 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to restore window style GWL_STYLE.");
+        Marshal.SetLastPInvokeError(0);
+        if (NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)_originalSnapshot.ExStyle) == 0
+            && Marshal.GetLastWin32Error() != 0)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to restore window ex-style GWL_EXSTYLE.");
 
         int width = _originalSnapshot.Rect.Right - _originalSnapshot.Rect.Left;
         int height = _originalSnapshot.Rect.Bottom - _originalSnapshot.Rect.Top;

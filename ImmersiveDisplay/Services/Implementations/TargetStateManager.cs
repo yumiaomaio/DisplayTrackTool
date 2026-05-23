@@ -31,6 +31,8 @@ public class TargetStateManager(
     private IntPtr _targetHwnd = IntPtr.Zero;
     private WindowOrientation _lastOrientation = WindowOrientation.UNKNOWN;
     private CancellationTokenSource? _startCts;
+    private readonly SemaphoreSlim _opLock = new(1, 1);
+    private CancellationTokenSource? _runCts;
 
     public bool IsRunning
     {
@@ -69,14 +71,16 @@ public class TargetStateManager(
             return;
         }
 
-        if (_startCts != null)
-        {
-            _startCts.Cancel();
-            _startCts.Dispose();
-        }
+        _startCts?.Cancel();
+        _startCts?.Dispose();
         _startCts = new CancellationTokenSource();
         var token = _startCts.Token;
-        AddLog($"Attempting to start for process: {processName}...");
+
+        await _opLock.WaitAsync(token);
+        var lockHeld = true;
+        try
+        {
+            AddLog($"Attempting to start for process: {processName}...");
         
         bool didLaunchAssociated = false;
 
@@ -178,12 +182,6 @@ public class TargetStateManager(
             AddLog("Taskbar auto-hide enabled.");
         }
 
-        // --- 监控启动 ---
-        windowMonitor.WindowStateChanged += OnWindowStateChanged;
-        windowMonitor.MonitorChanged += OnMonitorChanged;
-        windowMonitor.WindowDestroyed += OnWindowDestroyed;
-        windowMonitor.StartMonitoring(_targetHwnd);
-
         // --- 初始布局应用 ---
         AddLog("Applying initial portrait layout and monitor settings.");
         var profile = configService.GetPortraitProfile();
@@ -201,7 +199,9 @@ public class TargetStateManager(
         {
             AddLog($"[TargetStateManager] Failed to apply initial window layout: {ex.Message}. Exiting control process.");
             
-            // 退出控制流程并执行清理
+            // 退出控制流程并执行清理（先释放锁避免 StopAsync 死锁）
+            _opLock.Release();
+            lockHeld = false;
             await StopAsync();
             
             // 弹窗提示可能需要管理员权限
@@ -222,64 +222,93 @@ public class TargetStateManager(
         
         _lastOrientation = WindowOrientation.PORTRAIT;
 
+        // --- 监控启动（在布局稳定后才开始监听）---
+        _runCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        windowMonitor.WindowStateChanged += OnWindowStateChanged;
+        windowMonitor.MonitorChanged += OnMonitorChanged;
+        windowMonitor.WindowDestroyed += OnWindowDestroyed;
+        windowMonitor.StartMonitoring(_targetHwnd);
+
         AddLog("Service started. Press F12 to stop.");
+        }
+        finally
+        {
+            if (lockHeld) _opLock.Release();
+        }
     }
 
     public async Task StopAsync()
     {
-        if (_startCts != null)
+        // 先发取消信号（不加锁），让 StartAsync 的倒计时循环能退出
+        _startCts?.Cancel();
+        _runCts?.Cancel();
+
+        await _opLock.WaitAsync();
+        try
         {
-            _startCts.Cancel();
-            _startCts.Dispose();
+            if (!IsRunning)
+            {
+                _startCts?.Dispose();
+                _startCts = null;
+                _runCts?.Dispose();
+                _runCts = null;
+                return;
+            }
+
+            AddLog("Stopping service and restoring original states...");
+
+            // 1. 停止监控
+            windowMonitor.StopMonitoring();
+            windowMonitor.WindowStateChanged -= OnWindowStateChanged;
+            windowMonitor.MonitorChanged -= OnMonitorChanged;
+            windowMonitor.WindowDestroyed -= OnWindowDestroyed;
+
+            var lastHwnd = _targetHwnd;
+
+            // 2. 依次还原各模块状态
+            if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
+            {
+                layoutManager.RestoreOriginalState(lastHwnd);
+            }
+
+            if (configService.IsDisplaySyncEnabled())
+            {
+                if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
+                    displayService.RestoreOriginalState(lastHwnd);
+                await Task.Delay(500);
+            }
+
+            if (configService.IsTaskbarAutoHideEnabled())
+            {
+                taskbarService.RestoreOriginalState();
+            }
+
+            if (configService.IsBackgroundOverlayEnabled())
+            {
+                overlayService.Hide();
+            }
+
+            // 3. 清理状态
+            _targetHwnd = IntPtr.Zero;
+            IsRunning = false;
+            _startCts?.Dispose();
             _startCts = null;
+            _runCts?.Dispose();
+            _runCts = null;
+
+            AddLog("Service stopped.");
         }
-        
-        if (!IsRunning) return;
-
-        AddLog("Stopping service and restoring original states...");
-
-        // 1. 停止监控
-        windowMonitor.StopMonitoring();
-        windowMonitor.WindowStateChanged -= OnWindowStateChanged;
-        windowMonitor.MonitorChanged -= OnMonitorChanged;
-        windowMonitor.WindowDestroyed -= OnWindowDestroyed;
-
-        var lastHwnd = _targetHwnd;
-
-        // 2. 依次还原各模块状态
-        if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
+        finally
         {
-            layoutManager.RestoreOriginalState(lastHwnd);
+            _opLock.Release();
         }
-
-        if (configService.IsDisplaySyncEnabled())
-        {
-            displayService.RestoreOriginalState(lastHwnd);
-            await Task.Delay(500);
-        }
-
-        if (configService.IsTaskbarAutoHideEnabled())
-        {
-            taskbarService.RestoreOriginalState();
-        }
-
-        if (configService.IsBackgroundOverlayEnabled())
-        {
-            overlayService.Hide();
-        }
-
-        // 3. 清理状态
-        _targetHwnd = IntPtr.Zero;
-        IsRunning = false;
-
-        AddLog("Service stopped.");
     }
 
     private async void OnWindowDestroyed(IntPtr hwnd)
     {
         try
         {
-            if (hwnd == _targetHwnd)
+            if (hwnd == _targetHwnd && IsRunning)
             {
                 AddLog("Target window was closed. Shutting down automatically.");
                 await StopAsync();
@@ -303,8 +332,11 @@ public class TargetStateManager(
     {
         if (hwnd != _targetHwnd || !IsRunning) return;
 
+        await _opLock.WaitAsync();
+        var lockHeld = true;
         try
         {
+            if (hwnd != _targetHwnd || !IsRunning) return;
             var currentOrientation = newRect.Width > newRect.Height
                 ? WindowOrientation.LANDSCAPE
                 : WindowOrientation.PORTRAIT;
@@ -325,7 +357,7 @@ public class TargetStateManager(
                             await Task.Delay(500);
                         }
                         layoutManager.ApplyLayout(_targetHwnd, portraitProfile);
-                        _ = VerifyAndRetryLayoutAsync(_targetHwnd, portraitProfile);
+                        _ = VerifyAndRetryLayoutAsync(_targetHwnd, portraitProfile, _runCts!.Token);
                         break;
                     case WindowOrientation.LANDSCAPE:
                         AddLog("Applying Landscape layout and monitor settings...");
@@ -336,7 +368,7 @@ public class TargetStateManager(
                             await Task.Delay(500);
                         }
                         layoutManager.ApplyLayout(_targetHwnd, landscapeProfile);
-                        _ = VerifyAndRetryLayoutAsync(_targetHwnd, landscapeProfile);
+                        _ = VerifyAndRetryLayoutAsync(_targetHwnd, landscapeProfile, _runCts!.Token);
                         break;
                 }
 
@@ -359,7 +391,7 @@ public class TargetStateManager(
                 {
                     var profile = configService.GetPortraitProfile();
                     layoutManager.ApplyLayout(_targetHwnd, profile);
-                    _ = VerifyAndRetryLayoutAsync(_targetHwnd, profile);
+                    _ = VerifyAndRetryLayoutAsync(_targetHwnd, profile, _runCts!.Token);
                 }
                 else if (_lastOrientation == WindowOrientation.LANDSCAPE)
                 {
@@ -370,11 +402,17 @@ public class TargetStateManager(
         catch (Win32Exception ex)
         {
             AddLog($"[TargetStateManager] Win32 error in orientation change handler: {ex.Message}. Stopping service.");
+            _opLock.Release();
+            lockHeld = false;
             await StopAsync();
         }
         catch (Exception ex)
         {
             AddLog($"[TargetStateManager] Unexpected error in orientation change handler: {ex.Message}");
+        }
+        finally
+        {
+            if (lockHeld) _opLock.Release();
         }
     }
 
@@ -382,12 +420,15 @@ public class TargetStateManager(
     /// Verifies if the window actually reached the expected size/position.
     /// If not (common with virtual displays or DPI changes), retries after a delay.
     /// </summary>
-    private async Task VerifyAndRetryLayoutAsync(IntPtr hwnd, LayoutProfile profile)
+    private async Task VerifyAndRetryLayoutAsync(IntPtr hwnd, LayoutProfile profile, CancellationToken token)
     {
+        if (token.IsCancellationRequested) return;
         try
         {
             // Wait a bit for OS/drivers to settle
-            await Task.Delay(300);
+            await Task.Delay(300, token);
+
+            if (token.IsCancellationRequested) return;
 
             if (hwnd == IntPtr.Zero || !NativeMethods.IsWindow(hwnd) || !IsRunning) return;
 
@@ -442,6 +483,10 @@ public class TargetStateManager(
                     }
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled by StopAsync — silently exit
         }
         catch (Win32Exception ex)
         {

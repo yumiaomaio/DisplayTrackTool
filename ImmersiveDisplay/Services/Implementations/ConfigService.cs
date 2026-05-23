@@ -1,5 +1,6 @@
 // File: Services/Implementations/ConfigService.cs
 
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using ImmersiveDisplay.Bridge;
@@ -24,10 +25,11 @@ public class ConfigService : IConfigService
         _loggingService.EnableFileLogging(_config.EnableFileLogging);
     }
 
-    private void Update(Action<AppConfig> action)
+    private void Update(Action<AppConfig> action, [CallerMemberName] string caller = "")
     {
+        var configName = caller.StartsWith("Set") ? caller[3..] : caller;
         action(_config);
-        _loggingService.AddLog("[ConfigService] Config updated, saving...");
+        _loggingService.AddLog($"[ConfigService] Saving config: {configName}");
         SaveConfig();
         NotifyConfigChanged();
     }

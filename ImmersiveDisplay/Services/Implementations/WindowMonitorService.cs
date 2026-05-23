@@ -14,6 +14,7 @@ public class WindowMonitorService : IWindowMonitorService
     private IntPtr _lifecycleHookHandle = IntPtr.Zero;
     private readonly NativeMethods.WinEventDelegate _eventDelegate;
     private Timer? _debounceTimer;
+    private readonly object _timerLock = new();
     private IntPtr _targetHwnd = IntPtr.Zero;
     private IntPtr _currentMonitor = IntPtr.Zero;
 
@@ -73,10 +74,13 @@ public class WindowMonitorService : IWindowMonitorService
     {
         if (idObject != 0 || hwnd != _targetHwnd) return;
 
-        if (_debounceTimer == null)
-            _debounceTimer = new Timer(DebounceTimerTick, null, 150, Timeout.Infinite);
-        else
-            _debounceTimer.Change(150, Timeout.Infinite);
+        lock (_timerLock)
+        {
+            if (_debounceTimer == null)
+                _debounceTimer = new Timer(DebounceTimerTick, null, 150, Timeout.Infinite);
+            else
+                _debounceTimer.Change(150, Timeout.Infinite);
+        }
     }
 
     private void DebounceTimerTick(object? state)
@@ -119,7 +123,8 @@ public class WindowMonitorService : IWindowMonitorService
         }
         _targetHwnd = IntPtr.Zero;
         _currentMonitor = IntPtr.Zero;
-        _debounceTimer?.Dispose();
-        _debounceTimer = null;
+        Timer? timer;
+        lock (_timerLock) { timer = _debounceTimer; _debounceTimer = null; }
+        timer?.Dispose();
     }
 }

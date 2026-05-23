@@ -43,10 +43,10 @@ public class OverlayService : IOverlayService
 
     public void UpdatePosition(IntPtr targetHwnd)
     {
-        if (_overlayWindow?.Hwnd == IntPtr.Zero) return;
-        _loggingService.AddLog("[OverlayService] Orientation change detected. Re-syncing overlay window...");
         _windowThread.Post(() =>
         {
+            if (_overlayWindow?.Hwnd == IntPtr.Zero) return;
+            _loggingService.AddLog("[OverlayService] Orientation change detected. Re-syncing overlay window...");
             HideInternal();
             ShowInternal(targetHwnd);
         });
