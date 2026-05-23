@@ -12,6 +12,20 @@ public class AppIntegrationService(
 {
     public bool IsProtocolAutoStart { get; set; }
 
+    public bool ShouldShowUacPrompt
+    {
+        get
+        {
+            if (PrivilegeHelper.IsAdministrator()) return false;
+            if (!IsProtocolAutoStart) return true;
+            if (configService.IsAutoStartFromThirdPartyEnabled() &&
+                configService.IsAutoStartMonitoringOnProtocolLaunchEnabled() &&
+                IsAssociatedPathExe())
+                return false;
+            return true;
+        }
+    }
+
     public void InitializeHooksAndTriggers()
     {
         // Global shortcut log redirection

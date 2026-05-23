@@ -72,43 +72,43 @@ public class AppBridge(
                 BridgeAction.StartMonitoring => Run(() => StartMonitoring(PString(root)), callId),
                 BridgeAction.StopMonitoring  => Run(StopMonitoring, callId),
                 
-                BridgeAction.SetBackgroundColor      => Run(() => SetBackgroundColor(PString(root)), callId),
-                BridgeAction.SetTargetProcessName    => Run(() => SetTargetProcessName(PString(root)), callId),
-                BridgeAction.SetAssociatedLaunchPath => Run(() => SetAssociatedLaunchPath(PString(root)), callId),
+                BridgeAction.SetBackgroundColor      => Run(() => configService.SetBackgroundColor(PString(root)), callId),
+                BridgeAction.SetTargetProcessName    => Run(() => configService.SetDefaultProcessName(PString(root)), callId),
+                BridgeAction.SetAssociatedLaunchPath => Run(() => configService.SetAssociatedLaunchPath(PString(root)), callId),
                 BridgeAction.SetBackgroundMode       => Run(() => SetBackgroundMode(PString(root)), callId),
-                BridgeAction.SetWindowDetectionTimeout => Run(() => SetWindowDetectionTimeout(PInt(root, 10)), callId),
-                
-                BridgeAction.SetEnableTaskbarAutoHide   => Run(() => SetEnableTaskbarAutoHide(PBool(root)), callId),
-                BridgeAction.SetEnableDisplaySync       => Run(() => SetEnableDisplaySync(PBool(root)), callId),
-                BridgeAction.SetEnableBackgroundOverlay => Run(() => SetEnableBackgroundOverlay(PBool(root)), callId),
-                BridgeAction.SetLaunchOnAppStartup      => Run(() => SetLaunchOnAppStartup(PBool(root)), callId),
-                BridgeAction.SetLaunchOnTaskStart       => Run(() => SetLaunchOnTaskStart(PBool(root)), callId),
-                BridgeAction.SetAutoStartFromThirdParty => Run(() => SetAutoStartFromThirdParty(PBool(root)), callId),
-                BridgeAction.SetAutoStartMonitoringOnProtocolLaunch => Run(() => SetAutoStartMonitoringOnProtocolLaunch(PBool(root)), callId),
-                BridgeAction.SetShowExitTip             => Run(() => SetShowExitTip(PBool(root)), callId),
+                BridgeAction.SetWindowDetectionTimeout => Run(() => configService.SetWindowDetectionTimeout(PInt(root, 10)), callId),
+
+                BridgeAction.SetEnableTaskbarAutoHide   => Run(() => configService.SetEnableTaskbarAutoHide(PBool(root)), callId),
+                BridgeAction.SetEnableDisplaySync       => Run(() => configService.SetEnableDisplaySync(PBool(root)), callId),
+                BridgeAction.SetEnableBackgroundOverlay => Run(() => configService.SetEnableBackgroundOverlay(PBool(root)), callId),
+                BridgeAction.SetLaunchOnAppStartup      => Run(() => configService.SetLaunchOnAppStartup(PBool(root)), callId),
+                BridgeAction.SetLaunchOnTaskStart       => Run(() => configService.SetLaunchOnTaskStart(PBool(root)), callId),
+                BridgeAction.SetAutoStartFromThirdParty => Run(() => configService.SetAutoStartFromThirdParty(PBool(root)), callId),
+                BridgeAction.SetAutoStartMonitoringOnProtocolLaunch => Run(() => configService.SetAutoStartMonitoringOnProtocolLaunch(PBool(root)), callId),
+                BridgeAction.SetShowExitTip             => Run(() => configService.SetShowExitTip(PBool(root)), callId),
 
                 BridgeAction.SelectImage             => Run(SelectImage, callId),
-                BridgeAction.ClearImage              => Run(ClearImage, callId),
-                BridgeAction.SelectAssociatedProgram => Run(SelectAssociatedProgram, callId),
-                BridgeAction.ClearLogs               => Run(ClearLogs, callId),
-                BridgeAction.RestartAsAdmin          => Run(RestartAsAdmin, callId),
-                BridgeAction.ExitApp                 => Run(ExitApp, callId),
+                BridgeAction.ClearImage              => Run(() => configService.SetBackgroundImageFileName(null), callId),
+                BridgeAction.SelectAssociatedProgram => Run(appIntegrationService.SelectAssociatedProgram, callId),
+                BridgeAction.ClearLogs               => Run(() => loggingService.Logs.Clear(), callId),
+                BridgeAction.RestartAsAdmin          => Run(PrivilegeHelper.RestartAsAdministrator, callId),
+                BridgeAction.ExitApp                 => Run(() => Environment.Exit(0), callId),
                 BridgeAction.ShowAbout               => Run(ShowAbout, callId),
 
                 // --- Value Returning Actions ---
-                BridgeAction.ShouldShowUacPrompt => SerializeResponse("ok", ShouldShowUacPrompt, callId),
-                BridgeAction.RegisterProtocol   => SerializeResponse("ok", RegisterProtocol(), callId),
-                BridgeAction.UnregisterProtocol => SerializeResponse("ok", UnregisterProtocol(), callId),
-                BridgeAction.IsProtocolRegistered => SerializeResponse("ok", IsProtocolRegistered, callId),
-                BridgeAction.IsAssociationValid => SerializeResponse("ok", IsAssociationValid(), callId),
+                BridgeAction.ShouldShowUacPrompt => SerializeResponse("ok", appIntegrationService.ShouldShowUacPrompt, callId),
+                BridgeAction.RegisterProtocol   => SerializeResponse("ok", ProtocolHelper.Register(), callId),
+                BridgeAction.UnregisterProtocol => SerializeResponse("ok", ProtocolHelper.Unregister(), callId),
+                BridgeAction.IsProtocolRegistered => SerializeResponse("ok", ProtocolHelper.IsRegistered(), callId),
+                BridgeAction.IsAssociationValid => SerializeResponse("ok", ProtocolHelper.IsAssociationValid(), callId),
                 BridgeAction.CleanAssociation   => SerializeResponse("ok", CleanAssociation(), callId),
                 BridgeAction.HandleAppProtocol  => Run(() => HandleAppProtocol(PString(root)), callId),
 
-                BridgeAction.GetImageBase64         => SerializeResponse("ok", GetImageBase64(PString(root)), callId),
+                BridgeAction.GetImageBase64         => SerializeResponse("ok", OverlayImageHelper.GetImageBase64(PString(root)), callId),
                 BridgeAction.GetProcessCommandLine  => SerializeResponse("ok", GetProcessCommandLine(PString(root)), callId),
-                BridgeAction.GetProcessIconBase64   => SerializeResponse("ok", GetProcessIconBase64(PString(root)), callId),
-                BridgeAction.CheckProcessExists     => SerializeResponse("ok", CheckProcessExists(PString(root)), callId),
-                BridgeAction.GetLogs                => SerializeResponse("ok", GetLogs(), callId),
+                BridgeAction.GetProcessIconBase64   => SerializeResponse("ok", ProcessHelper.GetProcessIconBase64(PString(root)), callId),
+                BridgeAction.CheckProcessExists     => SerializeResponse("ok", ProcessHelper.GetProcessExecutablePath(PString(root)) != null, callId),
+                BridgeAction.GetLogs                => SerializeResponse("ok", loggingService.Logs.TakeLast(50).ToArray(), callId),
 
                 _ => SerializeResponse("error", $"Unknown action: {actionStr}", callId)
             };
@@ -138,34 +138,34 @@ public class AppBridge(
 
     private object GetInitialState()
     {
-        return new Dictionary<string, object?>
+        return new InitialState
         {
-            ["targetProcessName"] = TargetProcessName,
-            ["isRunning"] = IsRunning,
-            ["isAdmin"] = IsAdmin,
-            ["enableTaskbarAutoHide"] = EnableTaskbarAutoHide,
-            ["enableDisplaySync"] = EnableDisplaySync,
-            ["enableBackgroundOverlay"] = EnableBackgroundOverlay,
-            ["backgroundMode"] = BackgroundMode,
-            ["currentImageFileName"] = CurrentImageFileName,
-            ["backgroundColor"] = BackgroundColor,
-            ["shouldShowExitTip"] = ShouldShowExitTip,
-            ["associatedLaunchPath"] = AssociatedLaunchPath,
-            ["launchOnAppStartup"] = LaunchOnAppStartup,
-            ["launchOnTaskStart"] = LaunchOnTaskStart,
-            ["autoStartFromThirdParty"] = AutoStartFromThirdParty,
-            ["autoStartMonitoringOnProtocolLaunch"] = AutoStartMonitoringOnProtocolLaunch,
-            ["shouldShowUacPrompt"] = ShouldShowUacPrompt,
-            ["isProtocolRegistered"] = IsProtocolRegistered,
-            ["waitingCountdown"] = WaitingCountdown,
-            ["windowDetectionTimeout"] = WindowDetectionTimeout,
-            ["logs"] = GetLogs()
+            TargetProcessName = configService.GetDefaultProcessName() ?? "",
+            IsRunning = stateManager.IsRunning,
+            IsAdmin = PrivilegeHelper.IsAdministrator(),
+            EnableTaskbarAutoHide = configService.IsTaskbarAutoHideEnabled(),
+            EnableDisplaySync = configService.IsDisplaySyncEnabled(),
+            EnableBackgroundOverlay = configService.IsBackgroundOverlayEnabled(),
+            BackgroundMode = configService.GetBackgroundMode().ToString().ToLower(),
+            CurrentImageFileName = configService.GetBackgroundImageFileName() ?? "",
+            BackgroundColor = configService.GetBackgroundColor(),
+            ShouldShowExitTip = configService.ShouldShowExitTip(),
+            AssociatedLaunchPath = configService.GetAssociatedLaunchPath() ?? "",
+            LaunchOnAppStartup = configService.IsLaunchOnAppStartupEnabled(),
+            LaunchOnTaskStart = configService.IsLaunchOnTaskStartEnabled(),
+            AutoStartFromThirdParty = configService.IsAutoStartFromThirdPartyEnabled(),
+            AutoStartMonitoringOnProtocolLaunch = configService.IsAutoStartMonitoringOnProtocolLaunchEnabled(),
+            ShouldShowUacPrompt = appIntegrationService.ShouldShowUacPrompt,
+            IsProtocolRegistered = ProtocolHelper.IsRegistered(),
+            WaitingCountdown = stateManager.WaitingCountdown,
+            WindowDetectionTimeout = configService.GetWindowDetectionTimeout(),
+            Logs = loggingService.Logs.ToArray()
         };
     }
 
-    private void OnConfigChanged(string key, object? value)
+    private void OnConfigChanged(AppConfig config)
     {
-        PushToFrontend(new Dictionary<string, object?> { { key, value } }, AppJsonContext.Default.DictionaryStringObject);
+        PushToFrontend(config, AppJsonContext.Default.AppConfig);
     }
 
     private void OnIsRunningChanged(bool isRunning)
@@ -197,25 +197,8 @@ public class AppBridge(
     }
 
     // --- Stateless Properties mapping directly to Services ---
-    public string TargetProcessName => configService.GetDefaultProcessName() ?? "";
     public bool IsRunning => stateManager.IsRunning;
-    public bool IsAdmin => PrivilegeHelper.IsAdministrator();
-    public bool EnableTaskbarAutoHide => configService.IsTaskbarAutoHideEnabled();
-    public bool EnableDisplaySync => configService.IsDisplaySyncEnabled();
-    public bool EnableBackgroundOverlay => configService.IsBackgroundOverlayEnabled();
-    public string BackgroundMode => configService.GetBackgroundMode().ToString().ToLower();
-    public string CurrentImageFileName => configService.GetBackgroundImageFileName() ?? "";
-    public string BackgroundColor => configService.GetBackgroundColor();
-    public bool ShouldShowExitTip => configService.ShouldShowExitTip();
-    public string AssociatedLaunchPath => configService.GetAssociatedLaunchPath() ?? "";
-    public bool LaunchOnAppStartup => configService.IsLaunchOnAppStartupEnabled();
-    public bool LaunchOnTaskStart => configService.IsLaunchOnTaskStartEnabled();
-    public bool AutoStartFromThirdParty => configService.IsAutoStartFromThirdPartyEnabled();
-    public bool AutoStartMonitoringOnProtocolLaunch => configService.IsAutoStartMonitoringOnProtocolLaunchEnabled();
-    public bool ShouldShowUacPrompt => CalculateShouldShowUacPrompt();
-    public bool IsProtocolRegistered => ProtocolHelper.IsRegistered();
     public int WaitingCountdown => stateManager.WaitingCountdown;
-    public int WindowDetectionTimeout => configService.GetWindowDetectionTimeout();
 
     // --- Actions ---
     public void StartMonitoring(string processName)
@@ -251,12 +234,6 @@ public class AppBridge(
         });
     }
 
-    public void SetBackgroundColor(string color) => configService.SetBackgroundColor(color);
-    public void SetTargetProcessName(string processName) => configService.SetDefaultProcessName(processName);
-    public void SetAssociatedLaunchPath(string path) => configService.SetAssociatedLaunchPath(path);
-    public void SetEnableTaskbarAutoHide(bool enable) => configService.SetEnableTaskbarAutoHide(enable);
-    public void SetEnableDisplaySync(bool enable) => configService.SetEnableDisplaySync(enable);
-    public void SetEnableBackgroundOverlay(bool enable) => configService.SetEnableBackgroundOverlay(enable);
     public void SetBackgroundMode(string mode)
     {
         loggingService.AddLog($"[AppBridge] SetBackgroundMode called with: {mode}");
@@ -293,29 +270,12 @@ public class AppBridge(
         }
     }
 
-    public void ClearImage() => configService.SetBackgroundImageFileName(null);
-    public void SelectAssociatedProgram() => appIntegrationService.SelectAssociatedProgram();
-    public void SetLaunchOnAppStartup(bool enable) => configService.SetLaunchOnAppStartup(enable);
-    public void SetLaunchOnTaskStart(bool enable) => configService.SetLaunchOnTaskStart(enable);
-    public void SetAutoStartFromThirdParty(bool enable) => configService.SetAutoStartFromThirdParty(enable);
-    public void SetAutoStartMonitoringOnProtocolLaunch(bool enable) => configService.SetAutoStartMonitoringOnProtocolLaunch(enable);
-    public void SetShowExitTip(bool show) => configService.SetShowExitTip(show);
-    public void SetWindowDetectionTimeout(int seconds) => configService.SetWindowDetectionTimeout(seconds);
-    public bool RegisterProtocol() => ProtocolHelper.Register();
-    public bool UnregisterProtocol() => ProtocolHelper.Unregister();
-    public bool IsAssociationValid() => ProtocolHelper.IsAssociationValid();
-    
     public bool CleanAssociation()
     {
         bool success = ProtocolHelper.Unregister();
         configService.SetAutoStartFromThirdParty(false);
         return success;
     }
-
-    public void ClearLogs() => loggingService.Logs.Clear();
-    public void SaveConfig() { }
-
-    public string GetImageBase64(string fileName) => OverlayImageHelper.GetImageBase64(fileName);
 
     public string GetProcessCommandLine(string processName)
     {
@@ -335,19 +295,13 @@ public class AppBridge(
 
         return commandLine ?? "";
     }
-
-    public string GetProcessIconBase64(string processName) => ProcessHelper.GetProcessIconBase64(processName);
-    public bool CheckProcessExists(string processName) => ProcessHelper.GetProcessExecutablePath(processName) != null;
-    public void RestartAsAdmin() => PrivilegeHelper.RestartAsAdministrator();
-    public void ExitApp() => Environment.Exit(0);
+    
     public void ShowAbout()
     {
         NativeDialogHelper.ShowInfo(
             "Responsive Window Tool\nVersion 1.2.0\n\nGitHub: https://github.com/yumiaomaio/GameWindowTool",
             "About");
     }
-
-    public string[] GetLogs() => loggingService.Logs.ToArray();
     
     public void HandleAppProtocol(string uri)
     {
@@ -387,18 +341,18 @@ public class AppBridge(
                 }
 
                 // 2. file 并且是 .exe 就保存路径
-                SetAssociatedLaunchPath(finalPath);
-                
+                configService.SetAssociatedLaunchPath(finalPath);
+
                 // 1, 2 调用 SetTargetProcessName
                 string processName = Path.GetFileNameWithoutExtension(finalPath);
-                if (!string.IsNullOrEmpty(processName)){ SetTargetProcessName(processName); }
+                if (!string.IsNullOrEmpty(processName)){ configService.SetDefaultProcessName(processName); }
                 
             }
             // 4. 如果是 app:// 或者 http(s):// 就直接保存
             else if (scheme == "app" || scheme.StartsWith("http"))
             {
                 loggingService.AddLog($"[AppBridge] Saving URI launch path: {uri}");
-                SetAssociatedLaunchPath(uri);
+                configService.SetAssociatedLaunchPath(uri);
                 // 注意：URI 通常无法直接推断进程名，除非有额外配置
             }
             else
@@ -410,35 +364,5 @@ public class AppBridge(
         {
             loggingService.AddLog($"[AppBridge] Protocol handling failed: {ex.Message}");
         }
-    }
-    // ... existing code ...
-    
-    private bool CalculateShouldShowUacPrompt()
-    {
-        if (IsAdmin) return false;
-        if (!appIntegrationService.IsProtocolAutoStart) return true;
-        if (AutoStartFromThirdParty)
-        {
-            if (AutoStartMonitoringOnProtocolLaunch)
-            {
-                if (IsAssociatedPathExe())
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    private bool IsAssociatedPathExe()
-    {
-        var path = AssociatedLaunchPath?.Trim();
-        if (string.IsNullOrWhiteSpace(path)) return false;
-        var cleanPath = path.Trim('\"').Trim();
-        if (cleanPath.Contains("://") || cleanPath.EndsWith(".url", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-        return true;
     }
 }

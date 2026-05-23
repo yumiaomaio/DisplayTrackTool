@@ -10,7 +10,7 @@ namespace ImmersiveDisplay.Services.Implementations;
 
 public class ConfigService : IConfigService
 {
-    public event Action<string, object?>? ConfigChanged;
+    public event Action<AppConfig>? ConfigChanged;
     private const string ConfigFileName = "profiles.json";
     private AppConfig _config;
     private readonly ILoggingService _loggingService;
@@ -30,7 +30,7 @@ public class ConfigService : IConfigService
         if (_config.TargetProcessName == processName) return;
         _config = _config with { TargetProcessName = processName };
         SaveConfig();
-        ConfigChanged?.Invoke("TargetProcessName", processName);
+        NotifyConfigChanged();
     }
     public string? GetBackgroundImageFileName() => _config.BackgroundImageFileName;
 
@@ -42,9 +42,11 @@ public class ConfigService : IConfigService
         if (_config.BackgroundImageFileName == fileName) return;
         _config = _config with { BackgroundImageFileName = fileName };
         SaveConfig();
-        ConfigChanged?.Invoke("CurrentImageFileName", fileName);
+        NotifyConfigChanged();
     }
     
+    private void NotifyConfigChanged() => ConfigChanged?.Invoke(_config);
+
     private void SaveConfig()
     {
         string configPath = Path.Combine(AppContext.BaseDirectory, ConfigFileName);
@@ -113,7 +115,7 @@ public class ConfigService : IConfigService
         if (_config.BackgroundMode == mode) return;
         _config = _config with { BackgroundMode = mode };
         SaveConfig();
-        ConfigChanged?.Invoke("BackgroundMode", mode.ToString().ToLower());
+        NotifyConfigChanged();
     }
 
     public void SetBackgroundColor(string color)
@@ -122,7 +124,7 @@ public class ConfigService : IConfigService
         if (string.Equals(_config.BackgroundColor, color, StringComparison.InvariantCultureIgnoreCase)) return;
         _config = _config with { BackgroundColor = color };
         SaveConfig();
-        ConfigChanged?.Invoke("BackgroundColor", color);
+        NotifyConfigChanged();
     }
 
     public bool IsBackgroundOverlayEnabled() => _config.EnableBackgroundOverlay;
@@ -132,7 +134,7 @@ public class ConfigService : IConfigService
         if (_config.EnableBackgroundOverlay == enabled) return;
         _config = _config with { EnableBackgroundOverlay = enabled };
         SaveConfig();
-        ConfigChanged?.Invoke("EnableBackgroundOverlay", enabled);
+        NotifyConfigChanged();
     }
 
     public bool IsTaskbarAutoHideEnabled() => _config.EnableTaskbarAutoHide;
@@ -142,7 +144,7 @@ public class ConfigService : IConfigService
         if (_config.EnableTaskbarAutoHide == enabled) return;
         _config = _config with { EnableTaskbarAutoHide = enabled };
         SaveConfig();
-        ConfigChanged?.Invoke("EnableTaskbarAutoHide", enabled);
+        NotifyConfigChanged();
     }
 
     public bool IsDisplaySyncEnabled() => _config.EnableDisplaySync;
@@ -152,7 +154,7 @@ public class ConfigService : IConfigService
         if (_config.EnableDisplaySync == enabled) return;
         _config = _config with { EnableDisplaySync = enabled };
         SaveConfig();
-        ConfigChanged?.Invoke("EnableDisplaySync", enabled);
+        NotifyConfigChanged();
     }
 
     public bool ShouldShowExitTip() => _config.ShowExitTip;
@@ -162,7 +164,7 @@ public class ConfigService : IConfigService
         if (_config.ShowExitTip == show) return;
         _config = _config with { ShowExitTip = show };
         SaveConfig();
-        ConfigChanged?.Invoke("ShouldShowExitTip", show);
+        NotifyConfigChanged();
     }
 
     public string? GetAssociatedLaunchPath() => _config.AssociatedLaunchPath;
@@ -171,7 +173,7 @@ public class ConfigService : IConfigService
         if (_config.AssociatedLaunchPath == path) return;
         _config = _config with { AssociatedLaunchPath = path };
         SaveConfig();
-        ConfigChanged?.Invoke("AssociatedLaunchPath", path);
+        NotifyConfigChanged();
     }
 
     public bool IsLaunchOnAppStartupEnabled() => _config.LaunchOnAppStartup;
@@ -180,7 +182,7 @@ public class ConfigService : IConfigService
         if (_config.LaunchOnAppStartup == enabled) return;
         _config = _config with { LaunchOnAppStartup = enabled };
         SaveConfig();
-        ConfigChanged?.Invoke("LaunchOnAppStartup", enabled);
+        NotifyConfigChanged();
     }
 
     public bool IsLaunchOnTaskStartEnabled() => _config.LaunchOnTaskStart;
@@ -189,7 +191,7 @@ public class ConfigService : IConfigService
         if (_config.LaunchOnTaskStart == enabled) return;
         _config = _config with { LaunchOnTaskStart = enabled };
         SaveConfig();
-        ConfigChanged?.Invoke("LaunchOnTaskStart", enabled);
+        NotifyConfigChanged();
     }
 
     public bool IsAutoStartFromThirdPartyEnabled() => _config.AutoStartFromThirdParty;
@@ -198,7 +200,7 @@ public class ConfigService : IConfigService
         if (_config.AutoStartFromThirdParty == enabled) return;
         _config = _config with { AutoStartFromThirdParty = enabled };
         SaveConfig();
-        ConfigChanged?.Invoke("AutoStartFromThirdParty", enabled);
+        NotifyConfigChanged();
     }
 
     public bool IsAutoStartMonitoringOnProtocolLaunchEnabled() => _config.AutoStartMonitoringOnProtocolLaunch;
@@ -207,7 +209,7 @@ public class ConfigService : IConfigService
         if (_config.AutoStartMonitoringOnProtocolLaunch == enabled) return;
         _config = _config with { AutoStartMonitoringOnProtocolLaunch = enabled };
         SaveConfig();
-        ConfigChanged?.Invoke("AutoStartMonitoringOnProtocolLaunch", enabled);
+        NotifyConfigChanged();
     }
 
     public int GetWindowDetectionTimeout() => _config.WindowDetectionTimeout;
@@ -216,7 +218,7 @@ public class ConfigService : IConfigService
         if (_config.WindowDetectionTimeout == seconds) return;
         _config = _config with { WindowDetectionTimeout = seconds };
         SaveConfig();
-        ConfigChanged?.Invoke("WindowDetectionTimeout", seconds);
+        NotifyConfigChanged();
     }
 
     private T ParseEnum<T>(ReadOnlySpan<string> values) where T : struct

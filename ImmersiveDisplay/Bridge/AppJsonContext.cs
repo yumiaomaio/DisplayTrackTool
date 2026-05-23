@@ -5,6 +5,7 @@ namespace ImmersiveDisplay.Bridge;
 
 [JsonSerializable(typeof(Dictionary<string, object?>))]
 [JsonSerializable(typeof(FrontendLogsDto))]
+[JsonSerializable(typeof(InitialState))]
 [JsonSerializable(typeof(AppConfig))]
 [JsonSerializable(typeof(object))]
 [JsonSerializable(typeof(string))]

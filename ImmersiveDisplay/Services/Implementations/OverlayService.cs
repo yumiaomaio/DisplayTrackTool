@@ -118,25 +118,10 @@ public class OverlayService : IOverlayService
         }
     }
 
-    private void OnConfigChanged(string key, object? value)
+    private void OnConfigChanged(AppConfig config)
     {
         if (_lastTargetHwnd == IntPtr.Zero) return;
-
-        switch (key)
-        {
-            case "EnableBackgroundOverlay":
-                bool enabled = value is bool b && b;
-                _loggingService.AddLog($"[OverlayService] Toggle Overlay: {enabled}");
-                if (enabled) Show(_lastTargetHwnd);
-                else Hide();
-                break;
-
-            case "BackgroundMode":
-            case "BackgroundColor":
-            case "CurrentImageFileName":
-                _loggingService.AddLog($"[OverlayService] Config '{key}' changed. Refreshing overlay...");
-                Show(_lastTargetHwnd);
-                break;
-        }
+        _loggingService.AddLog("[OverlayService] Config changed. Refreshing overlay...");
+        Show(_lastTargetHwnd);
     }
 }
