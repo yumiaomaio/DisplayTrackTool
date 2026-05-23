@@ -1,5 +1,3 @@
-// File: Models/AppConfig.cs
-
 using System.Text.Json.Serialization;
 
 namespace ImmersiveDisplay.Models;
@@ -10,61 +8,28 @@ public enum BackgroundMode
     IMAGE
 }
 
-public record AppConfig
+public class AppConfig
 {
-    [JsonPropertyName("targetProcessName")]
-    public string TargetProcessName { get; init; } = string.Empty;
-    
-    [JsonPropertyName("enableBackgroundOverlay")]
-    public bool EnableBackgroundOverlay { get; init; }
+    public string TargetProcessName { get; set; } = string.Empty;
+    public bool EnableBackgroundOverlay { get; set; }
+    public bool EnableTaskbarAutoHide { get; set; }
+    public bool EnableDisplaySync { get; set; }
 
-    [JsonPropertyName("enableTaskbarAutoHide")]
-    public bool EnableTaskbarAutoHide { get; init; }
-
-    [JsonPropertyName("enableDisplaySync")]
-    public bool EnableDisplaySync { get; init; }
-
-    [JsonPropertyName("backgroundMode")]
     [JsonConverter(typeof(JsonStringEnumConverter<BackgroundMode>))]
-    public BackgroundMode BackgroundMode { get; init; }
+    public BackgroundMode BackgroundMode { get; set; }
 
-    [JsonPropertyName("backgroundColor")]
-    public string BackgroundColor { get; init; } = string.Empty;
+    public string BackgroundColor { get; set; } = string.Empty;
+    public string? BackgroundImageFileName { get; set; }
+    public bool ShowExitTip { get; set; }
+    public string? AssociatedLaunchPath { get; set; }
+    public bool LaunchOnAppStartup { get; set; }
+    public bool LaunchOnTaskStart { get; set; }
+    public bool AutoStartFromThirdParty { get; set; }
+    public bool AutoStartMonitoringOnProtocolLaunch { get; set; }
+    public int WindowDetectionTimeout { get; set; }
+    public bool EnableFileLogging { get; set; }
+    public ProfileCollection Profiles { get; set; } = new();
 
-    [JsonPropertyName("backgroundImageFileName")]
-    public string? BackgroundImageFileName { get; init; }
-
-    [JsonPropertyName("showExitTip")]
-    public bool ShowExitTip { get; init; }
-
-    [JsonPropertyName("associatedLaunchPath")]
-    public string? AssociatedLaunchPath { get; init; }
-
-    [JsonPropertyName("launchOnAppStartup")]
-    public bool LaunchOnAppStartup { get; init; }
-
-    [JsonPropertyName("launchOnTaskStart")]
-    public bool LaunchOnTaskStart { get; init; }
-
-    [JsonPropertyName("autoStartFromThirdParty")]
-    public bool AutoStartFromThirdParty { get; init; }
-
-    [JsonPropertyName("autoStartMonitoringOnProtocolLaunch")]
-    public bool AutoStartMonitoringOnProtocolLaunch { get; init; }
-
-    [JsonPropertyName("windowDetectionTimeout")]
-    public int WindowDetectionTimeout { get; init; }
-
-    [JsonPropertyName("enableFileLogging")]
-    public bool EnableFileLogging { get; init; }
-
-    [JsonPropertyName("profiles")]
-    public ProfileCollection Profiles { get; init; } = new();
-
-    /// <summary>
-    /// Static factory to create a default configuration.
-    /// Acts as the single source of truth for all initial values.
-    /// </summary>
     public static AppConfig CreateDefault()
     {
         return new AppConfig
@@ -81,7 +46,7 @@ public record AppConfig
             AutoStartFromThirdParty = false,
             AutoStartMonitoringOnProtocolLaunch = false,
             WindowDetectionTimeout = 10,
-            EnableFileLogging = false, // Default is OFF as requested
+            EnableFileLogging = false,
             Profiles = new ProfileCollection
             {
                 Portrait = new ProfileDefinition
@@ -91,7 +56,7 @@ public record AppConfig
                     ExStyles = ["WS_EX_TOPMOST"],
                     Sizing = SizingMode.FULLSCREEN,
                     Positioning = PositioningMode.TOP_LEFT,
-                    Display = new DisplayProfile { Orientation = 1 } // 90 Degrees
+                    Display = new DisplayProfile { Orientation = 1 }
                 },
                 Landscape = new ProfileDefinition
                 {
@@ -100,53 +65,37 @@ public record AppConfig
                     ExStyles = ["WS_EX_TOPMOST"],
                     Sizing = SizingMode.FULLSCREEN,
                     Positioning = PositioningMode.TOP_LEFT,
-                    Display = new DisplayProfile { Orientation = 0 } // Default
+                    Display = new DisplayProfile { Orientation = 0 }
                 }
             }
         };
     }
 }
 
-public record ProfileCollection
+public class ProfileCollection
 {
-    [JsonPropertyName("portrait")]
-    public ProfileDefinition Portrait { get; init; } = new();
-
-    [JsonPropertyName("landscape")]
-    public ProfileDefinition Landscape { get; init; } = new();
+    public ProfileDefinition Portrait { get; set; } = new();
+    public ProfileDefinition Landscape { get; set; } = new();
 }
 
-public record DisplayProfile
+public class DisplayProfile
 {
-    [JsonPropertyName("width")]
-    public int? Width { get; init; }
-
-    [JsonPropertyName("height")]
-    public int? Height { get; init; }
-
-    [JsonPropertyName("orientation")]
-    public int? Orientation { get; init; } // 0=Default, 1=90, 2=180, 3=270
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+    public int? Orientation { get; set; }
 }
 
-public record ProfileDefinition
+public class ProfileDefinition
 {
-    [JsonPropertyName("name")]
-    public string Name { get; init; } = "Unnamed";
+    public string Name { get; set; } = "Unnamed";
+    public List<string> Styles { get; set; } = new();
+    public List<string> ExStyles { get; set; } = new();
 
-    [JsonPropertyName("styles")]
-    public List<string> Styles { get; init; } = new();
-    
-    [JsonPropertyName("exStyles")]
-    public List<string> ExStyles { get; init; } = new();
-
-    [JsonPropertyName("sizing")]
     [JsonConverter(typeof(JsonStringEnumConverter<SizingMode>))]
-    public SizingMode Sizing { get; init; }
+    public SizingMode Sizing { get; set; }
 
-    [JsonPropertyName("positioning")]
     [JsonConverter(typeof(JsonStringEnumConverter<PositioningMode>))]
-    public PositioningMode Positioning { get; init; }
+    public PositioningMode Positioning { get; set; }
 
-    [JsonPropertyName("display")]
-    public DisplayProfile? Display { get; init; }
+    public DisplayProfile? Display { get; set; }
 }

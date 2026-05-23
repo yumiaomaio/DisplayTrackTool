@@ -14,6 +14,7 @@ set(WEBVIEW2_VERSION "1.0.3967.48")
 FetchContent_Declare(
     webview2
     URL "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/${WEBVIEW2_VERSION}"
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(webview2)
 message(STATUS "WebView2 SDK: ${webview2_SOURCE_DIR}")

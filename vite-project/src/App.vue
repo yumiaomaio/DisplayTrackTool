@@ -255,8 +255,8 @@ async function init() {
   }
 
   // Handle Image
-  if (state.currentImageFileName) {
-    bridge.GetImageBase64(state.currentImageFileName).then(b64 => {
+  if (state.backgroundImageFileName) {
+    bridge.GetImageBase64(state.backgroundImageFileName).then(b64 => {
       if (b64) bgImage.value = b64;
     });
   }
@@ -290,14 +290,14 @@ onMounted(() => {
       });
     }
     if (state.backgroundMode !== undefined) {
-      bgMode.value = state.backgroundMode;
+      bgMode.value = String(state.backgroundMode).toLowerCase();
     }
     if (state.propertyErrors !== undefined) {
       propertyErrors.value = { ...propertyErrors.value, ...state.propertyErrors };
     }
-    if (state.currentImageFileName !== undefined) {
-      if (state.currentImageFileName) {
-        bridge.GetImageBase64(state.currentImageFileName).then(b64 => {
+    if (state.backgroundImageFileName !== undefined) {
+      if (state.backgroundImageFileName) {
+        bridge.GetImageBase64(state.backgroundImageFileName).then(b64 => {
           bgImage.value = b64;
         });
       } else {
