@@ -130,6 +130,23 @@ __declspec(dllexport) void __stdcall Host_Start(
         return;
     }
 
+    // Set window icon from WebUI/favicon.ico
+    {
+        std::wstring webUiPath = InteropHelper::GetWebUiPath();
+        auto lastSep = webUiPath.find_last_of(L"\\/");
+        if (lastSep != std::wstring::npos) {
+            std::wstring iconPath = webUiPath.substr(0, lastSep) + L"\\favicon.ico";
+            HICON hIcon = (HICON)LoadImageW(NULL, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+            if (hIcon) {
+                SendMessageW(ctx->appWindow.GetHwnd(), WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+                SendMessageW(ctx->appWindow.GetHwnd(), WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
+                std::println("[Host] Window icon loaded: WebUI/favicon.ico");
+            } else {
+                std::println("[Host] favicon.ico not found, skipping custom icon.");
+            }
+        }
+    }
+
     ctx->webViewHost.SetMessageCallback([ctx](const std::string& utf8Msg) {
         // Print the raw message sent from JS/C++ to C# (with base64 filtered)
         std::println("[C++ Host] Sent Message to C# (from JS): {}", FilterBase64(utf8Msg));

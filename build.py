@@ -305,6 +305,14 @@ def main():
     elif args.skip_frontend:
         print("[WARN] --skip-frontend 但未找到前端产物，跳过 WebUI 部署。")
 
+    # 复制 app.ico 到 WebUI/favicon.ico（供 host.dll 运行时加载窗口图标）
+    app_ico = CSHARP_DIR / "app.ico"
+    webui_dir = DOTNET_PUBLISH_DIR / "WebUI"
+    if app_ico.exists():
+        webui_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(app_ico, webui_dir / "favicon.ico")
+        log(f"复制: app.ico → {webui_dir / 'favicon.ico'}")
+
     deploy_cpp_to_csharp()
     verify()
 

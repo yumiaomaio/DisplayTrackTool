@@ -1,5 +1,8 @@
 #include "AppWindow.h"
 #include "resource.h"
+#include <dwmapi.h>
+#include <print>
+#pragma comment(lib, "dwmapi.lib")
 
 namespace Immersive {
 
@@ -34,6 +37,17 @@ bool AppWindow::Create(HINSTANCE hInstance, const std::wstring& title, int width
         CW_USEDEFAULT, CW_USEDEFAULT, width, height, NULL, NULL, hInstance, this);
 
     if (!m_hWnd) return false;
+
+    // Apply Acrylic backdrop material (Win11 22H2+)
+    int backdrop = 3; // DWMSBT_TRANSIENTWINDOW = Acrylic
+    HRESULT hr = DwmSetWindowAttribute(m_hWnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &backdrop, sizeof(backdrop));
+    if (SUCCEEDED(hr)) {
+        int actual = 0;
+        DwmGetWindowAttribute(m_hWnd, 38, &actual, sizeof(actual));
+        std::println("[DWM] Backdrop type set: {} (actual: {})", backdrop, actual);
+    } else {
+        std::println("[DWM] Backdrop not supported (0x{:08X}), falling back to plain window.", (unsigned int)hr);
+    }
 
     ShowWindow(m_hWnd, SW_SHOW);
     UpdateWindow(m_hWnd);
