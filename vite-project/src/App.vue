@@ -7,6 +7,7 @@ import SetupView from './components/SetupView.vue'
 import RunningView from './components/RunningView.vue'
 import LogsView from './components/LogsView.vue'
 import OverlayModal from './components/OverlayModal.vue'
+import IconRegistration from './components/IconRegistration.vue'
 
 // --- State ---
 const isRunning = ref(false)
@@ -41,6 +42,9 @@ const waitingCountdown = ref(0)
 
 // Validation State
 const propertyErrors = ref({})
+
+// Registration page state
+const showRegistration = ref(false)
 
 // Modal State
 const modal = ref({
@@ -160,6 +164,26 @@ const openAbout = () => {
 
 const onCleanAssociation = () => {
   bridge.CleanAssociation();
+}
+
+const onRegisterAssociation = () => {
+  modal.value = {
+    show: true,
+    title: i18n.t.registerModal.title,
+    message: i18n.t.registerModal.message,
+    buttonText: i18n.t.registerModal.yes,
+    secondaryButtonText: i18n.t.registerModal.no,
+    allowClose: true,
+    type: 'info',
+    onAction: () => {
+      showRegistration.value = true
+      modal.value.show = false
+    },
+    onSecondaryAction: async () => {
+      await bridge.QuickRegisterAssociation()
+      modal.value.show = false
+    }
+  }
 }
 
 const showProtocolModal = () => {
@@ -342,17 +366,24 @@ onMounted(() => {
     '--debug-glow-opacity': debugParams.glowOpacity
   }">
     <div class="modal-container">
-      <AppHeader 
-        :is-running="isRunning" 
+      <AppHeader
+        :is-running="isRunning"
         :is-light-mode="isLightMode"
         @toggle-theme="toggleTheme"
         @show-about="onAbout"
+        @register-association="onRegisterAssociation"
         @clean-association="onCleanAssociation"
       />
 
 
       <div class="scroll-wrapper">
-        <SetupView 
+        <IconRegistration
+          v-if="showRegistration"
+          @back="showRegistration = false"
+          @complete="showRegistration = false"
+        />
+        <template v-else>
+        <SetupView
           v-if="!isRunning"
           v-model:processName="processName"
           v-model:autoHideTaskbar="autoHideTaskbar"
@@ -379,9 +410,10 @@ onMounted(() => {
         <LogsView :logs="logs" :isRunning="isRunning" />
 
         <div class="spacer"></div>
+        </template>
       </div>
 
-      <div class="bottom-float-area">
+      <div class="bottom-float-area" v-if="!showRegistration">
         <button v-if="!isRunning" class="btn-primary" @click="toggleRunState">
           {{ i18n.t.initialize }}
         </button>

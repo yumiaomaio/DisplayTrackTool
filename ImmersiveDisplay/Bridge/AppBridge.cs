@@ -104,6 +104,14 @@ public class AppBridge(
                 BridgeAction.CleanAssociation   => SerializeResponse("ok", CleanAssociation(), callId),
                 BridgeAction.HandleAppProtocol  => Run(() => HandleAppProtocol(PString(root)), callId),
 
+                // --- Icon & URL Registration ---
+                BridgeAction.SelectIconFile         => SerializeTypedResponse("ok", IconHelper.SelectAndCopyIcon(), callId, AppJsonContext.Default.IconImportResult),
+                BridgeAction.ImportDroppedIcon      => SerializeTypedResponse("ok", ImportDroppedIcon(root), callId, AppJsonContext.Default.IconImportResult),
+                BridgeAction.CreateAssociationUrls  => Run(() => CreateAssociationUrls(PString(root)), callId),
+                BridgeAction.QuickRegisterAssociation => SerializeResponse("ok", QuickRegisterAssociation(), callId),
+                BridgeAction.CleanAllAssociationUrls => SerializeResponse("ok", CleanAllAssociationUrls(), callId),
+                BridgeAction.CreateDesktopShortcut  => SerializeResponse("ok", CreateShareShortcut(), callId),
+
                 BridgeAction.GetImageBase64         => SerializeResponse("ok", OverlayImageHelper.GetImageBase64(PString(root)), callId),
                 BridgeAction.GetProcessCommandLine  => SerializeResponse("ok", GetProcessCommandLine(PString(root)), callId),
                 BridgeAction.GetProcessIconBase64   => SerializeResponse("ok", ProcessHelper.GetProcessIconBase64(PString(root)), callId),
@@ -134,6 +142,13 @@ public class AppBridge(
             ["callId"] = callId
         };
         return JsonSerializer.Serialize(response, AppJsonContext.Default.DictionaryStringObject);
+    }
+
+    private string SerializeTypedResponse<T>(string status, T? result, string? callId, JsonTypeInfo<T> typeInfo)
+    {
+        string resultJson = result is null ? "null" : JsonSerializer.Serialize(result, typeInfo);
+        string callIdJson = callId is null ? "null" : JsonSerializer.Serialize(callId, AppJsonContext.Default.String);
+        return $"{{\"status\":{JsonSerializer.Serialize(status, AppJsonContext.Default.String)},\"result\":{resultJson},\"callId\":{callIdJson}}}";
     }
 
     private object GetInitialState()
@@ -272,9 +287,68 @@ public class AppBridge(
 
     public bool CleanAssociation()
     {
-        bool success = ProtocolHelper.Unregister();
+        bool cleaned = ProtocolHelper.CleanAllAssociationUrls();
         configService.SetAutoStartFromThirdParty(false);
-        return success;
+        return cleaned;
+    }
+
+    private IconImportResult? ImportDroppedIcon(JsonElement root)
+    {
+        if (!root.TryGetProperty("payload", out var p)) return null;
+        string? fileName = null;
+        string? base64 = null;
+        if (p.TryGetProperty("fileName", out var fn)) fileName = fn.GetString();
+        if (p.TryGetProperty("data", out var d)) base64 = d.GetString();
+        if (string.IsNullOrEmpty(fileName) || string.IsNullOrEmpty(base64)) return null;
+
+        return IconHelper.SaveIconFromBase64(fileName, base64);
+    }
+
+    private void CreateAssociationUrls(string json)
+    {
+        var request = JsonSerializer.Deserialize(json, AppJsonContext.Default.CreateAssociationRequest);
+        if (request?.Entries == null) return;
+        ProtocolHelper.CreateMultipleUrlShortcuts(request.Entries, request.IconFileName);
+    }
+
+    private bool QuickRegisterAssociation()
+    {
+        try
+        {
+            // Ensure protocol is registered
+            if (!ProtocolHelper.IsRegistered())
+                ProtocolHelper.Register();
+
+            string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
+            string iconLine = string.IsNullOrEmpty(exePath) ? "" : $"\r\nIconIndex=0\r\nIconFile={exePath}";
+            string content = $"[InternetShortcut]\r\nURL=immersivedisplay://autostart{iconLine}";
+
+            string startMenuDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs");
+            Directory.CreateDirectory(startMenuDir);
+            File.WriteAllText(Path.Combine(startMenuDir, "Immersive Auto Launch.url"), content);
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool CleanAllAssociationUrls()
+    {
+        return ProtocolHelper.CleanAllAssociationUrls();
+    }
+
+    private bool CreateShareShortcut()
+    {
+        var path = configService.GetAssociatedLaunchPath();
+        if (string.IsNullOrWhiteSpace(path)) return false;
+
+        string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        string shortcutPath = Path.Combine(desktop, $"{Path.GetFileNameWithoutExtension(path)}.lnk");
+        return ShortcutResolver.CreateLnk(shortcutPath, path);
     }
 
     public string GetProcessCommandLine(string processName)

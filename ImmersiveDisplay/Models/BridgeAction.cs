@@ -44,6 +44,14 @@ public enum BridgeAction
     CleanAssociation,
     HandleAppProtocol,
 
+    // --- Icon & URL Registration ---
+    SelectIconFile,
+    ImportDroppedIcon,
+    CreateAssociationUrls,
+    QuickRegisterAssociation,
+    CleanAllAssociationUrls,
+    CreateDesktopShortcut,
+
     // --- Resources ---
     GetImageBase64,
     GetProcessCommandLine,

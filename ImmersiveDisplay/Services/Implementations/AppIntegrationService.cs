@@ -186,7 +186,7 @@ public class AppIntegrationService(
             }
             else
             {
-                resolvedPath = path.Contains(' ') ? $"\"{path}\"" : path;
+                resolvedPath = path;
             }
             configService.SetAssociatedLaunchPath(resolvedPath);
         }

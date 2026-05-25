@@ -1,7 +1,9 @@
 // File: Helpers/ProtocolHelper.cs
 
+using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Win32;
+using ImmersiveDisplay.Models;
 
 namespace ImmersiveDisplay.Helpers;
 
@@ -93,13 +95,88 @@ public static class ProtocolHelper
         }
     }
 
+    public static void CreateMultipleUrlShortcuts(List<UrlEntryDto> entries, string? iconFileName = null)
+    {
+        // Ensure protocol is registered first
+        if (!IsRegistered())
+            Register();
+
+        string iconPath;
+        if (!string.IsNullOrEmpty(iconFileName))
+        {
+            iconPath = Path.Combine(AppContext.BaseDirectory, "icons", iconFileName);
+            if (!File.Exists(iconPath))
+                iconPath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+        }
+        else
+        {
+            iconPath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+        }
+        string iconLine = string.IsNullOrEmpty(iconPath) ? "" : $"\r\nIconIndex=0\r\nIconFile={iconPath}";
+
+        foreach (var entry in entries)
+        {
+            string sanitizedName = string.Join("_", entry.Name.Split(Path.GetInvalidFileNameChars()));
+            string content = $"[InternetShortcut]\r\nURL={ProtocolScheme}{AutoStartArg}{iconLine}";
+
+            if (entry.Locations.StartMenu)
+            {
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs");
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, $"{sanitizedName}.url"), content);
+            }
+            if (entry.Locations.Desktop)
+            {
+                string dir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                File.WriteAllText(Path.Combine(dir, $"{sanitizedName}.url"), content);
+            }
+        }
+    }
+
+    public static bool CleanAllAssociationUrls()
+    {
+        // Clear registry key
+        try
+        {
+            Registry.CurrentUser.DeleteSubKeyTree($@"Software\Classes\{ProtocolName}", false);
+        }
+        catch { /* key may not exist */ }
+
+        string[] dirs =
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"),
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)
+        };
+
+        bool deletedAny = false;
+        foreach (var dir in dirs)
+        {
+            if (!Directory.Exists(dir)) continue;
+            foreach (var file in Directory.GetFiles(dir, "*.url"))
+            {
+                try
+                {
+                    string? urlLine = File.ReadLines(file)
+                        .FirstOrDefault(l => l.StartsWith("URL=", StringComparison.OrdinalIgnoreCase));
+                    if (urlLine != null && urlLine.Trim().StartsWith($"URL={ProtocolScheme}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.Delete(file);
+                        deletedAny = true;
+                    }
+                }
+                catch { /* skip locked files */ }
+            }
+        }
+        return deletedAny;
+    }
+
     private static void CreateShortcut(string folderPath, string exePath)
     {
         if (!Directory.Exists(folderPath)) return;
-        
+
         string shortcutPath = Path.Combine(folderPath, ShortcutName);
         string content = $"[InternetShortcut]\r\nURL={ProtocolScheme}{AutoStartArg}\r\nIconIndex=0\r\nIconFile={exePath}";
-        
+
         File.WriteAllText(shortcutPath, content);
     }
 

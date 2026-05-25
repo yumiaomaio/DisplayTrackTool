@@ -126,6 +126,84 @@ public static partial class ShortcutResolver
         return urlPath;
     }
 
+    public static bool CreateLnk(string shortcutPath, string commandLine)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(commandLine))
+                return false;
+
+            // Protocol URL -- create .url instead of .lnk
+            if (commandLine.Contains("://"))
+            {
+                string urlContent = $"[InternetShortcut]\r\nURL={commandLine}\r\n";
+                string urlPath = Path.ChangeExtension(shortcutPath, ".url");
+                File.WriteAllText(urlPath, urlContent);
+                return true;
+            }
+
+            // Parse target and args
+            string target;
+            string args = "";
+            string trimmed = commandLine.Trim();
+
+            if (trimmed.StartsWith("\""))
+            {
+                int nextQuote = trimmed.IndexOf("\"", 1);
+                if (nextQuote != -1)
+                {
+                    target = trimmed.Substring(1, nextQuote - 1);
+                    args = trimmed.Substring(nextQuote + 1).Trim();
+                }
+                else
+                {
+                    target = trimmed.Trim('\"');
+                }
+            }
+            else if (!File.Exists(trimmed) && trimmed.Contains(' '))
+            {
+                int firstSpace = trimmed.IndexOf(' ');
+                target = trimmed.Substring(0, firstSpace);
+                args = trimmed.Substring(firstSpace + 1).Trim();
+            }
+            else
+            {
+                target = trimmed;
+            }
+
+            // Create via IShellLink COM
+            Guid clsid = new Guid("00021401-0000-0000-C000-000000000046");
+            Guid iid = new Guid("000214F9-0000-0000-C000-000000000046");
+            int hr = CoCreateInstance(clsid, IntPtr.Zero, 1, iid, out IntPtr pUnknown);
+            if (hr < 0) return false;
+
+            try
+            {
+                var cw = new StrategyBasedComWrappers();
+                var obj = cw.GetOrCreateObjectForComInstance(pUnknown, CreateObjectFlags.None);
+                var shellLink = (IShellLinkW)obj;
+                var persistFile = (IPersistFile)obj;
+
+                shellLink.SetPath(target);
+                if (!string.IsNullOrWhiteSpace(args))
+                    shellLink.SetArguments(args);
+
+                string finalPath = shortcutPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)
+                    ? shortcutPath : Path.ChangeExtension(shortcutPath, ".lnk");
+                persistFile.Save(finalPath, true);
+                return true;
+            }
+            finally
+            {
+                Marshal.Release(pUnknown);
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     [GeneratedComInterface]
     [Guid("000214F9-0000-0000-C000-000000000046")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]

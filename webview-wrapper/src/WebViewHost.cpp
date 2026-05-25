@@ -36,7 +36,7 @@ struct WebView2Awaiter {
 WebViewHost::WebViewHost() : m_firstNavigationPerformed(false) {}
 WebViewHost::~WebViewHost() {}
 
-AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> onReady) {
+AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, bool debugMode, std::function<void()> onReady) {
     m_firstNavigationPerformed = false;
 
     // 1. Await Environment Creation
@@ -77,10 +77,10 @@ AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> on
         settings->put_IsScriptEnabled(TRUE);
         settings->put_IsWebMessageEnabled(TRUE);
         
-        // Security & UI Lockdown (Modified: Enabled Context Menus and DevTools for debugging)
-        settings->put_AreDefaultContextMenusEnabled(TRUE); 
-        settings->put_AreDevToolsEnabled(TRUE);            
-        settings->put_IsZoomControlEnabled(FALSE);          
+        // Security & UI Lockdown
+        settings->put_AreDefaultContextMenusEnabled(debugMode ? TRUE : FALSE);
+        settings->put_AreDevToolsEnabled(debugMode ? TRUE : FALSE);
+        settings->put_IsZoomControlEnabled(FALSE);
         settings->put_IsStatusBarEnabled(FALSE);            
     }
 
@@ -187,17 +187,25 @@ AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> on
                             continue;
                         }
 
-                        std::println("[C++ Drop] File dropped: {}", InteropHelper::WideToUtf8(path));
-                        
-                        // Forward to C# as a protocol command
-                        if (m_messageCallback) {
-                            std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::JsonEscape(InteropHelper::WideToUtf8(path)));
-                            m_messageCallback(json);
-                        }
+                        std::string pathUtf8 = InteropHelper::WideToUtf8(path);
+                    std::println("[C++ Drop] File dropped: {}", pathUtf8);
+
+                    // Let .ico files pass through to the DOM so the frontend can handle them via FileReader
+                    if (pathUtf8.ends_with(".ico") || pathUtf8.ends_with(".ICO"))
+                    {
                         CoTaskMemFree(path);
-                        
-                        // Normally we only process the first file for this tool
-                        return S_OK;
+                        continue;
+                    }
+
+                    // Forward to C# as a protocol command
+                    if (m_messageCallback) {
+                        std::string json = std::format(R"({{"action":"HandleAppProtocol","payload":"{}"}})", InteropHelper::JsonEscape(pathUtf8));
+                        m_messageCallback(json);
+                    }
+                    CoTaskMemFree(path);
+
+                    // Normally we only process the first file for this tool
+                    return S_OK;
                     }
                 }
             }
@@ -223,8 +231,8 @@ AsyncVoid WebViewHost::InitializeAsync(HWND parentHwnd, std::function<void()> on
     co_return;
 }
 
-HRESULT WebViewHost::Initialize(HWND parentHwnd, std::function<void()> onReady) {
-    InitializeAsync(parentHwnd, onReady);
+HRESULT WebViewHost::Initialize(HWND parentHwnd, bool debugMode, std::function<void()> onReady) {
+    InitializeAsync(parentHwnd, debugMode, onReady);
     return S_OK;
 }
 

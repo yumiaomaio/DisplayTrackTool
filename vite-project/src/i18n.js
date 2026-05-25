@@ -73,10 +73,33 @@ export const translations = {
       light: 'Light Mode',
       language: 'Language',
       about: 'About',
+      registerAssociation: 'REGISTER ASSOCIATION',
       cleanAssociation: 'Clean Association',
       aboutTitle: 'SYSTEM INFORMATION',
       aboutText: 'Immersive Window Control v1.0\nA hardcore UI prototype for window management.\nDeveloped for precision display override.',
+      cancel: 'CANCEL',
       close: 'CLOSE'
+    },
+    share: 'CREATE SHORTCUT',
+    registerModal: {
+      title: 'Register Association',
+      message: 'This will create a desktop/start menu shortcut for launching via custom protocol. Would you like to use a custom .ico icon? Select "Yes" to customize, or "No" to use the default program icon.',
+      yes: 'Yes',
+      no: 'No (default)'
+    },
+    iconRegistration: {
+      title: 'ICON REGISTRATION',
+      dragHere: 'DROP .ICO FILE HERE',
+      clickToSelect: 'or click to browse',
+    },
+    urlCreation: {
+      title: 'URL SHORTCUT CREATION',
+      urlNameLabel: 'SHORTCUT FILENAME',
+      locationLabel: 'CREATE LOCATION',
+      startMenu: 'Start Menu',
+      desktop: 'Desktop',
+      urlNameHint: 'The shortcut file name. Renaming to something different from the original can force Windows to flush the icon cache and pick up changes immediately.',
+      create: 'CREATE SHORTCUTS',
     },
     logs: {
       initialized: '> System control initialized.',
@@ -159,10 +182,33 @@ export const translations = {
       light: '亮色模式',
       language: '语言',
       about: '关于',
+      registerAssociation: '注册关联',
       cleanAssociation: '清理关联',
       aboutTitle: '系统信息',
       aboutText: '沉浸式窗口控制 v1.0\n硬核窗口管理 UI 原型。\n专为精准显示覆盖而开发。',
+      cancel: '取消',
       close: '关闭'
+    },
+    share: '创建快捷方式',
+    registerModal: {
+      title: '注册关联',
+      message: '这将创建桌面/开始菜单快捷方式，用于从第三方程序启动。是否需要自定义 .ico 图标？\n选择"是"进入图标选择页面，选择"否"将直接使用程序默认图标静默创建。',
+      yes: '是',
+      no: '否（默认）'
+    },
+    iconRegistration: {
+      title: '图标注册',
+      dragHere: '拖拽 .ico 文件到此处',
+      clickToSelect: '或点击浏览',
+    },
+    urlCreation: {
+      title: 'URL 快捷方式创建',
+      urlNameLabel: '快捷方式文件名',
+      locationLabel: '创建位置',
+      startMenu: '开始菜单',
+      desktop: '桌面',
+      urlNameHint: '自定义快捷方式文件名，使用不同的文件名可以避免图标缓存刷新不及时，让修改的图标立即生效。',
+      create: '创建快捷方式',
     },
     logs: {
       initialized: '> 系统控制已初始化。',

@@ -207,7 +207,7 @@ const detectCommandLine = async () => {
         @change="e => bridge.SetAssociatedLaunchPath(e.target.value)"
         placeholder="steam://... or C:\Path\To\Game.exe"
         class="path-input"
-        style="padding-right: 105px;"
+        style="padding-right: 135px;"
       >
       <div class="input-actions">
         <button class="action-btn detect-btn" @click="detectCommandLine" :title="i18n.t.detectCommandLine">
@@ -219,6 +219,15 @@ const detectCommandLine = async () => {
         <button class="action-btn browse-btn" @click="selectAssociatedProgram" :title="i18n.t.browse">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+        <button class="action-btn share-btn" @click="bridge.CreateDesktopShortcut()" :title="i18n.t.share">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
           </svg>
         </button>
       </div>

@@ -14,10 +14,10 @@ public:
     virtual ~WebViewHost();
 
     // Initialize using C++20 Coroutines (Fire and Forget)
-    AsyncVoid InitializeAsync(HWND parentHwnd, std::function<void()> onReady);
+    AsyncVoid InitializeAsync(HWND parentHwnd, bool debugMode, std::function<void()> onReady);
 
     // Entry point from main
-    HRESULT Initialize(HWND parentHwnd, std::function<void()> onReady);
+    HRESULT Initialize(HWND parentHwnd, bool debugMode, std::function<void()> onReady);
 
     // Navigate to a URL
     HRESULT Navigate(const std::wstring& url);

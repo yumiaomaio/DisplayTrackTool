@@ -38,18 +38,34 @@ bool IsDebugModeEnabled() {
 // Helper to truncate massive base64 data in logs
 std::string FilterBase64(std::string_view original) {
     std::string s(original);
+
+    // 1. Truncate data:image/...base64,... patterns (State Push from C#)
     size_t startPos = 0;
     while ((startPos = s.find("data:image/", startPos)) != std::string::npos) {
         size_t commaPos = s.find("base64,", startPos);
         if (commaPos != std::string::npos) {
             size_t endQuote = s.find('\"', commaPos);
             if (endQuote != std::string::npos) {
-                // Replace the massive base64 data with a short placeholder
                 s.replace(commaPos + 7, endQuote - (commaPos + 7), "...<base64 omitted>...");
             }
         }
-        startPos += 11; // move past "data:image/"
+        startPos += 11;
     }
+
+    // 2. Truncate raw base64 in "data":"..." fields (ImportDroppedIcon from JS)
+    //    Matches: "data":"<raw base64>"
+    startPos = 0;
+    while ((startPos = s.find("\"data\":\"", startPos)) != std::string::npos) {
+        size_t valueStart = startPos + 8; // after "data":"
+        size_t valueEnd = s.find('\"', valueStart);
+        if (valueEnd != std::string::npos && valueEnd - valueStart > 100) {
+            s.replace(valueStart + 10, valueEnd - (valueStart + 10), "...<truncated>...");
+            // adjust end position after replacement
+            valueEnd = valueStart + 10 + 16; // "...<truncated>..." length
+        }
+        startPos = valueEnd + 1;
+    }
+
     return s;
 }
 
@@ -144,7 +160,7 @@ __declspec(dllexport) void __stdcall Host_Start(
         PostQuitMessage(0);
     });
 
-    ctx->webViewHost.Initialize(ctx->appWindow.GetHwnd(), [ctx, onReady]() {
+    ctx->webViewHost.Initialize(ctx->appWindow.GetHwnd(), hasConsole, [ctx, onReady]() {
         std::println("[Host DLL] WebView2 initialized.");
         std::wstring indexPath = InteropHelper::GetWebUiPath();
         std::println("[Host DLL] Navigating to: {}", InteropHelper::WideToUtf8(indexPath.c_str()));
