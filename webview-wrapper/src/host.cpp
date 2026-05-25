@@ -145,7 +145,7 @@ __declspec(dllexport) void __stdcall Host_Start(
             if (adjHeightDips <= 850) {
                 targetDips = adjHeightDips;
             } else {
-                targetDips = (std::min)(adjHeightDips * 95 / 100, 1000);
+                targetDips = (std::min)(adjHeightDips * 92 / 100, 1000);
             }
 
             int finalHeight = MulDiv(targetDips, dpi, kWindowDpiBase);

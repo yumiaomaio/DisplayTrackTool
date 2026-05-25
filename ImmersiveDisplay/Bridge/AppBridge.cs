@@ -347,8 +347,27 @@ public class AppBridge(
         if (string.IsNullOrWhiteSpace(path)) return false;
 
         string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        string shortcutPath = Path.Combine(desktop, $"{Path.GetFileNameWithoutExtension(path)}.lnk");
+        string targetPath = ExtractTargetPath(path);
+        string fileName = Path.GetFileNameWithoutExtension(targetPath);
+        string shortcutPath = Path.Combine(desktop, $"{fileName}.lnk");
         return ShortcutResolver.CreateLnk(shortcutPath, path);
+    }
+
+    /// <summary>Extracts the executable path from a command line that may include arguments.</summary>
+    private static string ExtractTargetPath(string commandLine)
+    {
+        string trimmed = commandLine.Trim();
+        if (trimmed.StartsWith("\""))
+        {
+            int nextQuote = trimmed.IndexOf("\"", 1);
+            return nextQuote != -1 ? trimmed.Substring(1, nextQuote - 1) : trimmed.Trim('\"');
+        }
+        if (trimmed.Contains(' '))
+        {
+            int firstSpace = trimmed.IndexOf(' ');
+            return trimmed.Substring(0, firstSpace);
+        }
+        return trimmed;
     }
 
     public string GetProcessCommandLine(string processName)
