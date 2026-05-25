@@ -6,6 +6,7 @@
 /webview-wrapper/out/
 /Release/
 .claude/
+/TestDelayWindow/
 GEMINI.md
 /webview-wrapper/obj/
 /immersive-rust-wrapper/target/
