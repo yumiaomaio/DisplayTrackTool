@@ -45,7 +45,7 @@ public class AppConfig
             LaunchOnTaskStart = false,
             AutoStartFromThirdParty = false,
             AutoStartMonitoringOnProtocolLaunch = false,
-            WindowDetectionTimeout = 10,
+            WindowDetectionTimeout = 20,
             EnableFileLogging = false,
             Profiles = new ProfileCollection
             {

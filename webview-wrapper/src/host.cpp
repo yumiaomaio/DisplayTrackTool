@@ -76,7 +76,6 @@ struct HostContext {
 };
 
 static constexpr int kWindowWidthDips = 435;
-static constexpr int kWindowHeightDips = 850;
 static constexpr int kWindowDpiBase = 96;
 
 extern "C" {
@@ -120,14 +119,41 @@ __declspec(dllexport) void __stdcall Host_Start(
 
     UINT dpi = GetDpiForSystem();
     int width = MulDiv(kWindowWidthDips, dpi, kWindowDpiBase);
-    int height = MulDiv(kWindowHeightDips, dpi, kWindowDpiBase);
 
     HINSTANCE hInstance = GetModuleHandleW(NULL);
-    if (!ctx->appWindow.Create(hInstance, L"Immersive Display", width, height)) {
+    if (!ctx->appWindow.Create(hInstance, L"Immersive Display", width, width)) {
         delete ctx;
         CoUninitialize();
         if (hasConsole) FreeConsole();
         return;
+    }
+
+    // Reposition and resize window to fit the monitor work area
+    // - Available height ≤ 850 DIPs → fill full height
+    // - Available height > 850 DIPs → use 80%, cap at 1000 DIPs
+    {
+        HWND hWndAdj = ctx->appWindow.GetHwnd();
+        HMONITOR hMon = MonitorFromWindow(hWndAdj, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO miAdj{};
+        miAdj.cbSize = sizeof(miAdj);
+        if (GetMonitorInfoW(hMon, &miAdj)) {
+            RECT& work = miAdj.rcWork;
+            int adjHeightPx = work.bottom - work.top;
+            int adjHeightDips = MulDiv(adjHeightPx, kWindowDpiBase, dpi);
+
+            int targetDips;
+            if (adjHeightDips <= 850) {
+                targetDips = adjHeightDips;
+            } else {
+                targetDips = (std::min)(adjHeightDips * 95 / 100, 1000);
+            }
+
+            int finalHeight = MulDiv(targetDips, dpi, kWindowDpiBase);
+            int adjX = work.left + (work.right - work.left - width) / 2;
+            int adjY = work.top;
+            SetWindowPos(hWndAdj, NULL, adjX, adjY, width, finalHeight, SWP_NOZORDER | SWP_NOACTIVATE);
+            std::println("[Host] Window adjusted: {} DIPs ({} px) @ ({},{})", targetDips, finalHeight, adjX, adjY);
+        }
     }
 
     // Set window icon from WebUI/favicon.ico
