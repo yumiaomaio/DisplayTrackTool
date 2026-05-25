@@ -228,7 +228,7 @@ public class AppBridge(
             catch (Exception ex)
             {
                 loggingService.AddLog($"Failed to start monitoring: {ex.Message}");
-                NativeDialogHelper.ShowError($"An error occurred: {ex.Message}");
+                NativeDialogHelper.ShowError(DialogKey.StartMonitoringError, ex.Message);
             }
         });
     }
@@ -267,7 +267,7 @@ public class AppBridge(
     public void SelectImage()
     {
         var path = NativeDialogHelper.ShowOpenFileDialog(
-            "Select a Background Image",
+            DialogKey.SelectBackgroundImage,
             "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All files (*.*)|*.*");
 
         if (path != null)
@@ -280,7 +280,7 @@ public class AppBridge(
             }
             else
             {
-                NativeDialogHelper.ShowError("Failed to copy image to backgrounds folder.");
+                NativeDialogHelper.ShowError(DialogKey.CopyImageFailed);
             }
         }
     }
@@ -306,7 +306,7 @@ public class AppBridge(
 
     private void CreateAssociationUrls(string json)
     {
-        var request = JsonSerializer.Deserialize(json, AppJsonContext.Default.CreateAssociationRequest);
+        var request = JsonSerializer.Deserialize(json, AppJsonContext.Default.UrlRequest);
         if (request?.Entries == null) return;
         ProtocolHelper.CreateMultipleUrlShortcuts(request.Entries, request.IconFileName);
     }
@@ -358,13 +358,7 @@ public class AppBridge(
         if (permissionDenied)
         {
             loggingService.AddLog($"[AppBridge] Command line detection failed (Permission Denied) for '{processName}'.");
-            NativeDialogHelper.ShowWarning(
-                "权限不足，无法获取目标进程的启动命令行参数（Launch Arguments）。\n\n" +
-                "当前已自动降级为仅获取程序执行文件路径。若要抓取完整的启动参数（如 Steam 或 Epic 游戏的特殊启动参数），请以【管理员身份】重新运行本工具。\n\n" +
-                "-----------------------------------------\n\n" +
-                "Insufficient permissions to capture process startup arguments.\n\n" +
-                "Falling back to executable path only. To capture complete launch parameters (e.g. for Steam/Epic games), please restart this tool as Administrator.",
-                "权限提示 / Permission Warning");
+            NativeDialogHelper.ShowWarning(DialogKey.CommandLinePermission, DialogKey.CommandLinePermissionTitle);
         }
 
         return commandLine ?? "";
@@ -372,9 +366,7 @@ public class AppBridge(
     
     public void ShowAbout()
     {
-        NativeDialogHelper.ShowInfo(
-            "Responsive Window Tool\nVersion 1.2.0\n\nGitHub: https://github.com/yumiaomaio/GameWindowTool",
-            "About");
+        NativeDialogHelper.ShowInfo(DialogKey.AboutMessage, DialogKey.AboutTitle);
     }
     
     public void HandleAppProtocol(string uri)

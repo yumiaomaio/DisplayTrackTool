@@ -9,7 +9,7 @@ public static class IconHelper
     public static IconImportResult? SelectAndCopyIcon()
     {
         var path = NativeDialogHelper.ShowOpenFileDialog(
-            "Select Icon File",
+            DialogKey.SelectIconFile,
             "Icon Files|*.ico|All files (*.*)|*.*");
 
         if (path == null) return null;

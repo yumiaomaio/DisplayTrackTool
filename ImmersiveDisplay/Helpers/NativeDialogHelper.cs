@@ -56,14 +56,31 @@ public static partial class NativeDialogHelper
         MessageBox(GetActiveWindow(), message, title, MB_OK | MB_ICONINFORMATION);
     }
 
+    public static void ShowInfo(DialogKey message, DialogKey? title = null, params string[] args)
+    {
+        ShowInfo(DialogMessages.Format(message, args),
+                 title.HasValue ? DialogMessages.Get(title.Value) : "Info");
+    }
+
     public static void ShowWarning(string message, string title = "Warning")
     {
         MessageBox(GetActiveWindow(), message, title, MB_OK | MB_ICONWARNING);
     }
 
+    public static void ShowWarning(DialogKey message, DialogKey? title = null, params string[] args)
+    {
+        ShowWarning(DialogMessages.Format(message, args),
+                    title.HasValue ? DialogMessages.Get(title.Value) : "Warning");
+    }
+
     public static void ShowError(string message, string title = "Error")
     {
         MessageBox(GetActiveWindow(), message, title, MB_OK | MB_ICONERROR);
+    }
+
+    public static void ShowError(DialogKey message, params string[] args)
+    {
+        ShowError(DialogMessages.Format(message, args), "Error");
     }
 
     public static string? ShowOpenFileDialog(string title, string filter)
@@ -102,5 +119,10 @@ public static partial class NativeDialogHelper
         }
 
         return null;
+    }
+
+    public static string? ShowOpenFileDialog(DialogKey title, string filter)
+    {
+        return ShowOpenFileDialog(DialogMessages.Get(title), filter);
     }
 }

@@ -170,7 +170,7 @@ public class AppIntegrationService(
     public void SelectAssociatedProgram()
     {
         var path = NativeDialogHelper.ShowOpenFileDialog(
-            "Select Application or Shortcut",
+            DialogKey.SelectApplication,
             "Applications & Shortcuts|*.exe;*.lnk;*.url|All files (*.*)|*.*");
 
         if (path != null)

@@ -10,7 +10,7 @@ namespace ImmersiveDisplay.Bridge;
 [JsonSerializable(typeof(IconImportResult))]
 [JsonSerializable(typeof(List<UrlEntryDto>))]
 [JsonSerializable(typeof(UrlEntryDto))]
-[JsonSerializable(typeof(CreateAssociationRequest))]
+[JsonSerializable(typeof(UrlRequest))]
 [JsonSerializable(typeof(object))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(bool))]

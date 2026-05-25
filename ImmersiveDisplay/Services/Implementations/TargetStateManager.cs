@@ -204,18 +204,7 @@ public class TargetStateManager(
             lockHeld = false;
             await StopAsync();
             
-            // 弹窗提示可能需要管理员权限
-            NativeDialogHelper.ShowWarning(
-                $"""
-                无法修改目标窗口样式。
-
-                这通常是因为目标程序（游戏）是以管理员权限运行的，而本工具权限不足。
-
-                请尝试【以管理员身份运行】本工具后再试。
-
-                (错误信息: {ex.Message})
-                """,
-                "权限不足 / Privilege Elevation Required");
+            NativeDialogHelper.ShowWarning(DialogKey.WindowStylePermission, DialogKey.WindowStylePermissionTitle, ex.Message);
                 
             return;
         }
