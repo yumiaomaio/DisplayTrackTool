@@ -73,35 +73,36 @@ function createCaseInsensitiveProxy(obj) {
 }
 
 /**
- * Receives messages from the DLL (Responses & State Pushes).
+ * Receives state pushes from the DLL via WebView2 PostWebMessageAsJson.
  */
-window.onStateChangedFromDll = function(dataOrJson) {
-    try {
-        const data = typeof dataOrJson === 'string' ? JSON.parse(dataOrJson) : dataOrJson;
-        
-        // 1. Resolve Promise for Method Calls
-        if (data.callId && pendingCalls.has(data.callId)) {
-            const resolve = pendingCalls.get(data.callId);
-            pendingCalls.delete(data.callId);
-            
-            // Methods can return objects, make them case-insensitive
-            const result = (data.result && typeof data.result === 'object') 
-                ? createCaseInsensitiveProxy(data.result) 
-                : data.result;
-            resolve(result);
+if (window.chrome && window.chrome.webview) {
+    window.chrome.webview.addEventListener('message', (e) => {
+        try {
+            const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+            if (!data || typeof data !== 'object') return;
+
+            // 1. Resolve Promise for RPC calls
+            if (data.callId && pendingCalls.has(data.callId)) {
+                const resolve = pendingCalls.get(data.callId);
+                pendingCalls.delete(data.callId);
+                const result = (data.result && typeof data.result === 'object')
+                    ? createCaseInsensitiveProxy(data.result)
+                    : data.result;
+                resolve(result);
+                return;
+            }
+
+            // 2. Global State Push
+            if (data.status === 'ok' && data.hasOwnProperty('result') && data.result && typeof data.result === 'object') {
+                stateChangeCallback(createCaseInsensitiveProxy(data.result));
+            } else {
+                stateChangeCallback(createCaseInsensitiveProxy(data));
+            }
+        } catch (e) {
+            console.error("[Bridge] Message Error:", e);
         }
-        
-        // 2. Global State Push
-        const rawUpdate = (data.status === 'ok' && data.hasOwnProperty('result')) ? data.result : data;
-        
-        if (rawUpdate && typeof rawUpdate === 'object') {
-            // Provide a Case-Insensitive Proxy to the frontend components
-            stateChangeCallback(createCaseInsensitiveProxy(rawUpdate));
-        }
-    } catch (e) {
-        console.error("[Bridge] Message Error:", e, dataOrJson);
-    }
-};
+    });
+}
 
 /**
  * Hook for Vue components to listen for state changes.

@@ -25,6 +25,9 @@ public:
     // Execute JavaScript in the WebView
     HRESULT ExecuteScript(const std::wstring& script);
 
+    // Post a JSON message to the web content (thread-safe, marshals to STA internally)
+    HRESULT PostJsonMessage(const std::wstring& json);
+
     // Resize the WebView to match the parent window's client area
     void Resize(HWND parentHwnd);
 

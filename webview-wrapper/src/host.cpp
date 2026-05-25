@@ -156,10 +156,10 @@ __declspec(dllexport) void __stdcall Host_Start(
 
     ctx->appWindow.SetCustomMessageCallback([ctx](UINT msg, WPARAM wp, LPARAM lp) {
         if (msg == WM_EXECUTE_SCRIPT) {
-            auto* scriptPtr = reinterpret_cast<std::wstring*>(lp);
-            if (scriptPtr) {
-                ctx->webViewHost.ExecuteScript(*scriptPtr);
-                delete scriptPtr;
+            auto* jsonPtr = reinterpret_cast<std::wstring*>(lp);
+            if (jsonPtr) {
+                ctx->webViewHost.PostJsonMessage(*jsonPtr);
+                delete jsonPtr;
             }
         }
     });
@@ -195,21 +195,13 @@ __declspec(dllexport) void __stdcall Host_Start(
 __declspec(dllexport) void __stdcall Host_PostMessage(void* ctx, const char* jsonUtf8)
 {
     if (!ctx || !jsonUtf8) return;
-    
-    // Print the raw JSON (with base64 truncated) to the C++ console
-    std::println("[C++ Host] Received State Push from C#: {}", FilterBase64(jsonUtf8));
+
+    std::println("[C++ Host] State Push -> JS: {}", FilterBase64(jsonUtf8));
 
     auto* host = static_cast<HostContext*>(ctx);
-    std::wstring jsonWide = InteropHelper::Utf8ToWide(jsonUtf8);
-    if (!jsonWide.empty()) {
-        std::wstring script = std::format(
-            L"if(window.onStateChangedFromDll) {{ window.onStateChangedFromDll({}); }}",
-            jsonWide);
-        
-        auto* scriptPtr = new std::wstring(script);
-        if (!PostMessageW(host->appWindow.GetHwnd(), WM_EXECUTE_SCRIPT, 0, reinterpret_cast<LPARAM>(scriptPtr))) {
-            delete scriptPtr;
-        }
+    auto* jsonPtr = new std::wstring(InteropHelper::Utf8ToWide(jsonUtf8));
+    if (!PostMessageW(host->appWindow.GetHwnd(), WM_EXECUTE_SCRIPT, 0, reinterpret_cast<LPARAM>(jsonPtr))) {
+        delete jsonPtr;
     }
 }
 

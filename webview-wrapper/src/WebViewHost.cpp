@@ -246,6 +246,11 @@ HRESULT WebViewHost::ExecuteScript(const std::wstring& script) {
     return m_webView->ExecuteScript(script.c_str(), nullptr);
 }
 
+HRESULT WebViewHost::PostJsonMessage(const std::wstring& json) {
+    if (!m_webView) return E_POINTER;
+    return m_webView->PostWebMessageAsJson(json.c_str());
+}
+
 void WebViewHost::Resize(HWND parentHwnd) {
     if (m_controller) {
         RECT bounds;
