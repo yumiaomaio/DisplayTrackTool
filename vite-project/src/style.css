@@ -5,7 +5,7 @@
     /* Theme Gold - Used for Header and Accents */
     --theme-gold: #EBA832;
     --theme-gold-light: #FFDD9D;
-    --header-gradient: linear-gradient(135deg, #ffcc33 0%, #ffc107 74.5%, #ffd54f 75%, #ffb347 100%);
+    --header-gradient: linear-gradient(135deg, #FF9831 0%, #FFB347 74.5%, #FFDDB0 74.5%, #FDCFA1 100%);
 
     /* Primary Orange - Used for Main Buttons and Highlights */
     --primary-color: #ff8c00;

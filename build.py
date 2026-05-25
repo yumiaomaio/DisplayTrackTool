@@ -264,15 +264,26 @@ def main():
 
     if args.frontend:
         build_frontend()
-        log("前端构建完成。执行完整构建 (python build.py) 以部署到输出目录。")
+        if DOTNET_PUBLISH_DIR.exists():
+            deploy_frontend()
+        else:
+            log("前端构建完成。执行完整构建 (python build.py) 或 --csharp 生成输出目录后自动部署。")
         return
 
     if args.cpp:
         build_cpp()
+        if DOTNET_PUBLISH_DIR.exists():
+            deploy_cpp_to_csharp()
+        else:
+            log("C++ 构建完成。执行完整构建 (python build.py) 或 --csharp 生成输出目录后自动部署。")
         return
 
     if args.csharp:
         build_csharp()
+        if FRONTEND_OUTPUT.exists():
+            deploy_frontend()
+        if HOST_DLL_SOURCE.exists():
+            deploy_cpp_to_csharp()
         return
 
     if args.package:
