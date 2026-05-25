@@ -198,14 +198,20 @@ public class TargetStateManager(
         catch (Win32Exception ex)
         {
             AddLog($"[TargetStateManager] Failed to apply initial window layout: {ex.Message}. Exiting control process.");
-            
-            // 退出控制流程并执行清理（先释放锁避免 StopAsync 死锁）
+
+            // 最小清理
+            if (configService.IsBackgroundOverlayEnabled()) overlayService.Hide();
+            if (configService.IsDisplaySyncEnabled() && _targetHwnd != IntPtr.Zero && NativeMethods.IsWindow(_targetHwnd))
+                displayService.RestoreOriginalState(_targetHwnd);
+            if (configService.IsTaskbarAutoHideEnabled()) taskbarService.RestoreOriginalState();
+
+            IsRunning = false;
+            _targetHwnd = IntPtr.Zero;
             _opLock.Release();
             lockHeld = false;
-            await StopAsync();
-            
-            NativeDialogHelper.ShowWarning(DialogKey.WindowStylePermission, DialogKey.WindowStylePermissionTitle, ex.Message);
-                
+
+            _ = Task.Run(() => NativeDialogHelper.ShowWarning(DialogKey.WindowStylePermission, DialogKey.WindowStylePermissionTitle, ex.Message));
+
             return;
         }
         
