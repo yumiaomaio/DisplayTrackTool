@@ -25,6 +25,7 @@ public class AppConfig
     public bool LaunchOnAppStartup { get; set; }
     public bool LaunchOnTaskStart { get; set; }
     public bool AutoStartFromThirdParty { get; set; }
+    public bool ProtocolRegistrationEnabled { get; set; }
     public bool AutoStartMonitoringOnProtocolLaunch { get; set; }
     public int WindowDetectionTimeout { get; set; }
     public bool EnableFileLogging { get; set; }

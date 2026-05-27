@@ -31,6 +31,8 @@ public interface IConfigService
     void SetLaunchOnTaskStart(bool enabled);
     bool IsAutoStartFromThirdPartyEnabled();
     void SetAutoStartFromThirdParty(bool enabled);
+    bool IsProtocolRegistrationEnabled();
+    void SetProtocolRegistrationEnabled(bool enabled);
     bool IsAutoStartMonitoringOnProtocolLaunchEnabled();
     void SetAutoStartMonitoringOnProtocolLaunch(bool enabled);
     int GetWindowDetectionTimeout();

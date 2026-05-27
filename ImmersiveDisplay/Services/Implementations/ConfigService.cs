@@ -70,6 +70,9 @@ public class ConfigService : IConfigService
     public bool IsAutoStartFromThirdPartyEnabled() => _config.AutoStartFromThirdParty;
     public void SetAutoStartFromThirdParty(bool enabled) => Update(c => c.AutoStartFromThirdParty = enabled);
 
+    public bool IsProtocolRegistrationEnabled() => _config.ProtocolRegistrationEnabled;
+    public void SetProtocolRegistrationEnabled(bool enabled) => Update(c => c.ProtocolRegistrationEnabled = enabled);
+
     public bool IsAutoStartMonitoringOnProtocolLaunchEnabled() => _config.AutoStartMonitoringOnProtocolLaunch;
     public void SetAutoStartMonitoringOnProtocolLaunch(bool enabled) => Update(c => c.AutoStartMonitoringOnProtocolLaunch = enabled);
 

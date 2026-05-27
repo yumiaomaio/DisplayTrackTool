@@ -82,8 +82,8 @@ public class AppIntegrationService(
     {
         bool autoStartedByThirdParty = false;
 
-        // Check for path updates if feature is enabled
-        if (configService.IsAutoStartFromThirdPartyEnabled())
+        // Check and repair protocol association if user has registered it
+        if (configService.IsProtocolRegistrationEnabled())
         {
             if (!ProtocolHelper.IsAssociationValid())
             {

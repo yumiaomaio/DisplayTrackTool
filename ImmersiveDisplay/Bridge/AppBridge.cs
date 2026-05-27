@@ -97,8 +97,8 @@ public class AppBridge(
 
                 // --- Value Returning Actions ---
                 BridgeAction.ShouldShowUacPrompt => SerializeResponse("ok", appIntegrationService.ShouldShowUacPrompt, callId),
-                BridgeAction.RegisterProtocol   => SerializeResponse("ok", ProtocolHelper.Register(), callId),
-                BridgeAction.UnregisterProtocol => SerializeResponse("ok", ProtocolHelper.Unregister(), callId),
+                BridgeAction.RegisterProtocol   => Run(() => { ProtocolHelper.Register(); configService.SetProtocolRegistrationEnabled(true); }, callId),
+                BridgeAction.UnregisterProtocol => Run(() => { ProtocolHelper.Unregister(); configService.SetProtocolRegistrationEnabled(false); }, callId),
                 BridgeAction.IsProtocolRegistered => SerializeResponse("ok", ProtocolHelper.IsRegistered(), callId),
                 BridgeAction.IsAssociationValid => SerializeResponse("ok", ProtocolHelper.IsAssociationValid(), callId),
                 BridgeAction.CleanAssociation   => SerializeResponse("ok", CleanAssociation(), callId),
