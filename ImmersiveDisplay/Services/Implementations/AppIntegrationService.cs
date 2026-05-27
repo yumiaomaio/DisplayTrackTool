@@ -100,29 +100,30 @@ public class AppIntegrationService(
             loggingService.AddLog($"[Startup] Protocol launch detected. Starting monitoring.");
             autoStartedByThirdParty = true;
 
-            // Ensure the associated program is launched first (LaunchService deduplicates,
-            // so it's safe if StartAsync also tries via IsLaunchOnTaskStartEnabled)
+            // Always launch the associated program
             var path = configService.GetAssociatedLaunchPath();
-            var targetProc = configService.GetDefaultProcessName();
             if (!string.IsNullOrWhiteSpace(path))
                 launchService.Launch(path);
 
-            // Start the full monitoring flow: countdown waiting for the target window,
-            // then layout application. StartAsync handles the launch-with-task-start
-            // path internally and LaunchService prevents double-launch.
-            if (!string.IsNullOrWhiteSpace(targetProc) && !stateManager.IsRunning)
+            // Start monitoring with countdown only if the user has opted in
+            if (configService.IsAutoStartFromThirdPartyEnabled() &&
+                configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
             {
-                _ = Task.Run(async () =>
+                var targetProc = configService.GetDefaultProcessName();
+                if (!string.IsNullOrWhiteSpace(targetProc) && !stateManager.IsRunning)
                 {
-                    try
+                    _ = Task.Run(async () =>
                     {
-                        await stateManager.StartAsync(targetProc, programAlreadyLaunched: true);
-                    }
-                    catch (Exception ex)
-                    {
-                        loggingService.AddLog($"Startup monitoring failed: {ex.Message}");
-                    }
-                });
+                        try
+                        {
+                            await stateManager.StartAsync(targetProc, programAlreadyLaunched: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            loggingService.AddLog($"Startup monitoring failed: {ex.Message}");
+                        }
+                    });
+                }
             }
         }
 

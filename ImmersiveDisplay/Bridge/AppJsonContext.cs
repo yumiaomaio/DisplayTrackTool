@@ -21,6 +21,12 @@ namespace ImmersiveDisplay.Bridge;
     DictionaryKeyPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = true
 )]
+
 internal partial class AppJsonContext : JsonSerializerContext
 {
+}
+
+public class FrontendLogsDto
+{
+    public string[]? Logs { get; set; }
 }

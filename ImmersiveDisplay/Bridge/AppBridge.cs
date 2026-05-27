@@ -253,8 +253,8 @@ public class AppBridge(
     {
         loggingService.AddLog($"[AppBridge] SetBackgroundMode called with: {mode}");
         BackgroundMode? targetMode = null;
-        if (mode.Equals("color", StringComparison.OrdinalIgnoreCase)) targetMode = Models.BackgroundMode.COLOR;
-        else if (mode.Equals("image", StringComparison.OrdinalIgnoreCase)) targetMode = Models.BackgroundMode.IMAGE;
+        if (mode.Equals("color", StringComparison.OrdinalIgnoreCase)) targetMode = BackgroundMode.COLOR;
+        else if (mode.Equals("image", StringComparison.OrdinalIgnoreCase)) targetMode = BackgroundMode.IMAGE;
         else if (Enum.TryParse<BackgroundMode>(mode, true, out var result)) targetMode = result;
 
         if (targetMode.HasValue)
@@ -275,7 +275,7 @@ public class AppBridge(
             string? fileName = OverlayImageHelper.CopyToBackgrounds(path);
             if (fileName != null)
             {
-                configService.SetBackgroundMode(Models.BackgroundMode.IMAGE);
+                configService.SetBackgroundMode(BackgroundMode.IMAGE);
                 configService.SetBackgroundImageFileName(fileName);
             }
             else
