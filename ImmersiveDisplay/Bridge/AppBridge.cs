@@ -362,6 +362,10 @@ public class AppBridge(
             int nextQuote = trimmed.IndexOf("\"", 1);
             return nextQuote != -1 ? trimmed.Substring(1, nextQuote - 1) : trimmed.Trim('\"');
         }
+        // If the whole string is an existing file, return it as-is.
+        // Handles unquoted paths with spaces like "C:\Program Files\App\app.exe".
+        if (File.Exists(trimmed))
+            return trimmed;
         if (trimmed.Contains(' '))
         {
             int firstSpace = trimmed.IndexOf(' ');

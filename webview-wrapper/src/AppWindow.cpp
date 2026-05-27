@@ -38,6 +38,11 @@ bool AppWindow::Create(HINSTANCE hInstance, const std::wstring& title, int width
 
     if (!m_hWnd) return false;
 
+    // Allow drag-drop from non-elevated processes (UIPI bypass).
+    // Without this, dragging files from Explorer fails when the app runs as admin.
+    ChangeWindowMessageFilterEx(m_hWnd, WM_DROPFILES, MSGFLT_ALLOW, nullptr);
+    ChangeWindowMessageFilterEx(m_hWnd, 0x0049, MSGFLT_ALLOW, nullptr); // WM_COPYGLOBALDATA (OLE drag-drop)
+
     // Apply Acrylic backdrop material (Win11 22H2+)
     int backdrop = 3; // DWMSBT_TRANSIENTWINDOW = Acrylic
     HRESULT hr = DwmSetWindowAttribute(m_hWnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &backdrop, sizeof(backdrop));

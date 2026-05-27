@@ -16,14 +16,14 @@ public sealed class HostBridge : IDisposable
     private readonly ConcurrentQueue<string> _pendingMessages = new();
     private IntPtr _hostContext = IntPtr.Zero;
 
-    public HostBridge()
+    public HostBridge(bool isProtocolAutoStart = false)
     {
         _current = this;
 
         _engine = new AppHost
         {
             OnStatePush = PushToFrontend,
-            IsProtocolAutoStart = false
+            IsProtocolAutoStart = isProtocolAutoStart
         };
     }
 

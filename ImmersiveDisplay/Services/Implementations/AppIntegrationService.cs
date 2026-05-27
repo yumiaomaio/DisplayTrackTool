@@ -95,20 +95,21 @@ public class AppIntegrationService(
             }
         }
 
-        if (configService.IsAutoStartFromThirdPartyEnabled() && IsProtocolAutoStart)
+        if (IsProtocolAutoStart)
         {
-            loggingService.AddLog($"[Startup] Third-party launcher detected via protocol. Auto-launching target program.");
+            loggingService.AddLog($"[Startup] Protocol launch detected. Auto-launching target program.");
             autoStartedByThirdParty = true;
 
-            // 1. Launch associated program
+            // 1. Always launch associated program
             var path = configService.GetAssociatedLaunchPath();
             if (!string.IsNullOrWhiteSpace(path))
             {
                 launchService.Launch(path);
             }
 
-            // 2. Start monitoring task conditionally
-            if (configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
+            // 2. Start monitoring only if user has opted in
+            if (configService.IsAutoStartFromThirdPartyEnabled() &&
+                configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
             {
                 bool isExe = IsAssociatedPathExe();
                 bool isAdmin = PrivilegeHelper.IsAdministrator();
@@ -139,7 +140,7 @@ public class AppIntegrationService(
             }
             else
             {
-                loggingService.AddLog($"[Startup] Auto-start monitoring disabled by default settings. Opening in standby mode.");
+                loggingService.AddLog($"[Startup] Auto-start monitoring disabled by settings. Opening in standby mode.");
             }
         }
 
