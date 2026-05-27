@@ -7,6 +7,6 @@ public interface ITargetStateManager
     event Action<int>? WaitingCountdownChanged;
     bool IsRunning { get; }
     int WaitingCountdown { get; }
-    Task StartAsync(string processName);
+    Task StartAsync(string processName, bool programAlreadyLaunched = false);
     Task StopAsync();
 }

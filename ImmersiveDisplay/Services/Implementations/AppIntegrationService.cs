@@ -97,50 +97,32 @@ public class AppIntegrationService(
 
         if (IsProtocolAutoStart)
         {
-            loggingService.AddLog($"[Startup] Protocol launch detected. Auto-launching target program.");
+            loggingService.AddLog($"[Startup] Protocol launch detected. Starting monitoring.");
             autoStartedByThirdParty = true;
 
-            // 1. Always launch associated program
+            // Ensure the associated program is launched first (LaunchService deduplicates,
+            // so it's safe if StartAsync also tries via IsLaunchOnTaskStartEnabled)
             var path = configService.GetAssociatedLaunchPath();
+            var targetProc = configService.GetDefaultProcessName();
             if (!string.IsNullOrWhiteSpace(path))
-            {
                 launchService.Launch(path);
-            }
 
-            // 2. Start monitoring only if user has opted in
-            if (configService.IsAutoStartFromThirdPartyEnabled() &&
-                configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
+            // Start the full monitoring flow: countdown waiting for the target window,
+            // then layout application. StartAsync handles the launch-with-task-start
+            // path internally and LaunchService prevents double-launch.
+            if (!string.IsNullOrWhiteSpace(targetProc) && !stateManager.IsRunning)
             {
-                bool isExe = IsAssociatedPathExe();
-                bool isAdmin = PrivilegeHelper.IsAdministrator();
-
-                if (isExe || isAdmin)
+                _ = Task.Run(async () =>
                 {
-                    loggingService.AddLog($"[Startup] Auto-start monitoring active. (Bypass UAC or Admin confirmed). Starting monitoring.");
-                    var targetProc = configService.GetDefaultProcessName();
-                    if (!stateManager.IsRunning && !string.IsNullOrWhiteSpace(targetProc))
+                    try
                     {
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                await stateManager.StartAsync(targetProc);
-                            }
-                            catch (Exception ex)
-                            {
-                                loggingService.AddLog($"Startup monitoring failed: {ex.Message}");
-                            }
-                        });
+                        await stateManager.StartAsync(targetProc, programAlreadyLaunched: true);
                     }
-                }
-                else
-                {
-                    loggingService.AddLog($"[Startup] Auto-start monitoring blocked: Standard user running a URL protocol launch. UAC warning prompted.");
-                }
-            }
-            else
-            {
-                loggingService.AddLog($"[Startup] Auto-start monitoring disabled by settings. Opening in standby mode.");
+                    catch (Exception ex)
+                    {
+                        loggingService.AddLog($"Startup monitoring failed: {ex.Message}");
+                    }
+                });
             }
         }
 

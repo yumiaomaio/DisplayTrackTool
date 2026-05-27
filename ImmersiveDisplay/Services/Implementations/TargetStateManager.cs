@@ -63,7 +63,7 @@ public class TargetStateManager(
     public event Action<bool>? IsRunningChanged;
     public event Action<int>? WaitingCountdownChanged;
 
-    public async Task StartAsync(string processName)
+    public async Task StartAsync(string processName, bool programAlreadyLaunched = false)
     {
         if (IsRunning)
         {
@@ -81,8 +81,8 @@ public class TargetStateManager(
         try
         {
             AddLog($"Attempting to start for process: {processName}...");
-        
-        bool didLaunchAssociated = false;
+
+        bool didLaunchAssociated = programAlreadyLaunched;
 
         // --- 1. 关联启动 ---
         if (configService.IsLaunchOnTaskStartEnabled())
