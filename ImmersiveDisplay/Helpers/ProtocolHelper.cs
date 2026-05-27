@@ -18,32 +18,40 @@ public static class ProtocolHelper
     {
         try
         {
+            RegisterProtocolCore();
             string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? throw new InvalidOperationException("Could not determine executable path.");
-            
-            using (var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{ProtocolName}"))
-            {
-                key.SetValue("", $"URL:{ProtocolName} Protocol");
-                key.SetValue("URL Protocol", "");
-                
-                using (var shellKey = key.CreateSubKey(@"shell\open\command"))
-                {
-                    shellKey.SetValue("", $"\"{exePath}\" \"%1\"");
-                }
-
-                using (var iconKey = key.CreateSubKey("DefaultIcon"))
-                {
-                    iconKey.SetValue("", $"{exePath},0");
-                }
-            }
-
             CreateShortcut(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), exePath);
             CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"), exePath);
-
             return true;
         }
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Registers the protocol in registry without creating shortcuts.
+    /// Used by CreateMultipleUrlShortcuts to avoid duplicating default shortcuts on the desktop.
+    /// </summary>
+    private static void RegisterProtocolCore()
+    {
+        string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? throw new InvalidOperationException("Could not determine executable path.");
+
+        using (var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{ProtocolName}"))
+        {
+            key.SetValue("", $"URL:{ProtocolName} Protocol");
+            key.SetValue("URL Protocol", "");
+
+            using (var shellKey = key.CreateSubKey(@"shell\open\command"))
+            {
+                shellKey.SetValue("", $"\"{exePath}\" \"%1\"");
+            }
+
+            using (var iconKey = key.CreateSubKey("DefaultIcon"))
+            {
+                iconKey.SetValue("", $"{exePath},0");
+            }
         }
     }
 
@@ -97,9 +105,9 @@ public static class ProtocolHelper
 
     public static void CreateMultipleUrlShortcuts(List<UrlEntryDto> entries, string? iconFileName = null)
     {
-        // Ensure protocol is registered first
+        // Ensure protocol is registered first (registry only, no default shortcuts)
         if (!IsRegistered())
-            Register();
+            RegisterProtocolCore();
 
         string iconPath;
         if (!string.IsNullOrEmpty(iconFileName))

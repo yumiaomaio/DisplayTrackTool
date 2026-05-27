@@ -162,9 +162,33 @@ public static partial class ShortcutResolver
             }
             else if (!File.Exists(trimmed) && trimmed.Contains(' '))
             {
-                int firstSpace = trimmed.IndexOf(' ');
-                target = trimmed.Substring(0, firstSpace);
-                args = trimmed.Substring(firstSpace + 1).Trim();
+                // Walk from the last space backwards to find an existing file
+                // This handles unquoted paths like "C:\Program Files\App\app.exe --flag"
+                int searchPos = trimmed.Length;
+                int? foundPos = null;
+                do
+                {
+                    searchPos = trimmed.LastIndexOf(' ', searchPos - 1);
+                    if (searchPos == -1) break;
+                    if (File.Exists(trimmed.Substring(0, searchPos)))
+                    {
+                        foundPos = searchPos;
+                        break;
+                    }
+                } while (searchPos > 0);
+
+                if (foundPos.HasValue)
+                {
+                    target = trimmed.Substring(0, foundPos.Value);
+                    args = trimmed.Substring(foundPos.Value + 1).Trim();
+                }
+                else
+                {
+                    // Fallback: first-space split
+                    int firstSpace = trimmed.IndexOf(' ');
+                    target = trimmed.Substring(0, firstSpace);
+                    args = trimmed.Substring(firstSpace + 1).Trim();
+                }
             }
             else
             {

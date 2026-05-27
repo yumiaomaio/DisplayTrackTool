@@ -411,6 +411,7 @@ public class AppBridge(
                 }
 
                 string finalPath = path;
+                string exeTarget = finalPath;
 
                 // 1. file 并且是 .lnk 就调用 ShortcutResolver.Resolve 解析
                 if (path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
@@ -418,18 +419,19 @@ public class AppBridge(
                     finalPath = ShortcutResolver.Resolve(path);
                     loggingService.AddLog($"[AppBridge] Resolved LNK to: {finalPath}");
                     
-                    if (string.IsNullOrEmpty(finalPath) || !finalPath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                    exeTarget = ExtractTargetPath(finalPath);
+                    if (string.IsNullOrEmpty(exeTarget) || !exeTarget.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     {
                         loggingService.AddLog("[AppBridge] Resolved LNK does not point to a valid EXE. Discarding.");
                         return;
                     }
                 }
 
-                // 2. file 并且是 .exe 就保存路径
+                // 2. file 并且是 .exe 就保存路径（保留参数，供 LaunchService 使用）
                 configService.SetAssociatedLaunchPath(finalPath);
 
                 // 1, 2 调用 SetTargetProcessName
-                string processName = Path.GetFileNameWithoutExtension(finalPath);
+                string processName = Path.GetFileNameWithoutExtension(exeTarget);
                 if (!string.IsNullOrEmpty(processName)){ configService.SetDefaultProcessName(processName); }
                 
             }
