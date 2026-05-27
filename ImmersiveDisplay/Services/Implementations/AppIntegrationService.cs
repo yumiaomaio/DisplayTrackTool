@@ -142,19 +142,16 @@ public class AppIntegrationService(
             }
         }
 
-        if (IsProtocolAutoStart)
+        if (IsProtocolAutoStart && configService.IsAutoStartFromThirdPartyEnabled())
         {
-            loggingService.AddLog($"[Startup] Protocol launch detected. Starting monitoring.");
+            loggingService.AddLog($"[Startup] Protocol launch detected. Starting associated program.");
             autoStartedByThirdParty = true;
 
-            // Always launch the associated program
             var path = configService.GetAssociatedLaunchPath();
             if (!string.IsNullOrWhiteSpace(path))
                 launchService.Launch(path);
 
-            // Start monitoring with countdown only if the user has opted in
-            if (configService.IsAutoStartFromThirdPartyEnabled() &&
-                configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
+            if (configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
             {
                 var targetProc = configService.GetDefaultProcessName();
                 if (!string.IsNullOrWhiteSpace(targetProc) && !stateManager.IsRunning)
