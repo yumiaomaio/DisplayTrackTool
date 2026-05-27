@@ -47,6 +47,8 @@ public class TargetStateManager(
         }
     }
 
+    public IntPtr? CurrentTargetHwnd => _targetHwnd == IntPtr.Zero ? null : _targetHwnd;
+
     public int WaitingCountdown
     {
         get => field;

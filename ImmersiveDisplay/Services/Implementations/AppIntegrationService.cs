@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using ImmersiveDisplay.Helpers;
+using ImmersiveDisplay.Interop;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
@@ -74,6 +76,51 @@ public class AppIntegrationService(
                         }
                     });
                 }
+            }
+            else if (vkCode == 0x73 /* VK_F4 */ && stateManager.IsRunning && IsProtocolAutoStart)
+            {
+                loggingService.AddLog("F4 key pressed. Terminating target and exiting...");
+                var hwnd = stateManager.CurrentTargetHwnd;
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await stateManager.StopAsync();
+
+                        if (hwnd.HasValue)
+                        {
+                            NativeMethods.GetWindowThreadProcessId(hwnd.Value, out uint pid);
+                            if (pid != 0)
+                            {
+                                loggingService.AddLog($"Terminating target process (PID: {pid})...");
+                                try
+                                {
+                                    using var process = Process.GetProcessById((int)pid);
+                                    if (!process.HasExited)
+                                    {
+                                        process.CloseMainWindow();
+                                        if (!process.WaitForExit(3000))
+                                        {
+                                            process.Kill();
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    loggingService.AddLog($"Failed to terminate target: {ex.Message}");
+                                }
+                            }
+                        }
+
+                        loggingService.AddLog("Exiting application by F4.");
+                        Environment.Exit(0);
+                    }
+                    catch (Exception ex)
+                    {
+                        loggingService.AddLog($"F4 shutdown failed: {ex.Message}");
+                        Environment.Exit(1);
+                    }
+                });
             }
         };
     }
