@@ -91,7 +91,7 @@ public class TargetStateManager(
 
             bool didLaunchAssociated = programAlreadyLaunched;
 
-            // --- 1. 关联启动 ---
+            // --- 1. Launch associated program ---
             if (configService.IsLaunchOnTaskStartEnabled())
             {
                 var path = configService.GetAssociatedLaunchPath();
@@ -102,13 +102,13 @@ public class TargetStateManager(
                 }
             }
 
-            // --- 2. 首次瞬时探测 ---
+            // --- 2. First probe ---
             _targetHwnd = FindWindowByProcessName(processName);
 
-            // --- 3. 结果判断与倒计时分流 ---
+            // --- 3. Decide result: error vs. countdown wait ---
             if (_targetHwnd == IntPtr.Zero)
             {
-                // 情况 A：没找到，而且本次也没有启动任何关联程序 -> 立即报错退出
+                // Case A: process not found and no program was launched — error out immediately
                 if (!didLaunchAssociated)
                 {
                     WaitingCountdown = -1;
@@ -116,7 +116,7 @@ public class TargetStateManager(
                     return;
                 }
 
-                // 情况 B：没找到，但刚才刚刚调起了关联程序 -> 进入倒计时等待
+                // Case B: process not found but we just launched it — wait with countdown
                 _targetHwnd = await WaitForWindowAsync(processName, configService.GetWindowDetectionTimeout(), token);
 
                 if (_targetHwnd == IntPtr.Zero)
@@ -127,7 +127,7 @@ public class TargetStateManager(
                 }
             }
 
-            // 检查并还原最小化窗口
+            // Check and restore minimized window
             if (NativeMethods.IsIconic(_targetHwnd))
             {
                 AddLog("Target window is minimized. Restoring it to normal state before proceeding...");
@@ -136,21 +136,21 @@ public class TargetStateManager(
 
             AddLog($"Target window found: HWND {_targetHwnd}.");
 
-            // --- 核心解耦：让服务自行备份状态 ---
+            // --- Decouple: services capture their own state ---
             layoutManager.CaptureOriginalState(_targetHwnd);
             displayService.CaptureOriginalState(_targetHwnd);
 
             IsRunning = true;
             _lastOrientation = WindowOrientation.UNKNOWN;
 
-            // --- 背景遮罩 ---
+            // --- Background overlay ---
             if (configService.IsBackgroundOverlayEnabled())
             {
                 AddLog("Background overlay is ENABLED. Showing overlay.");
                 overlayService.Show(_targetHwnd);
             }
 
-            // --- 任务栏控制 ---
+            // --- Taskbar control ---
             if (configService.IsTaskbarAutoHideEnabled())
             {
                 taskbarService.CaptureOriginalState();
@@ -158,7 +158,7 @@ public class TargetStateManager(
                 AddLog("Taskbar auto-hide enabled.");
             }
 
-            // --- 初始布局应用 ---
+            // --- Initial layout application ---
             AddLog("Applying initial portrait layout and monitor settings.");
             var profile = configService.GetPortraitProfile();
             try
@@ -170,7 +170,7 @@ public class TargetStateManager(
                 AddLog(
                     $"[TargetStateManager] Failed to apply initial window layout: {ex.Message}. Exiting control process.");
 
-                // 最小清理
+                // Minimal cleanup
                 if (configService.IsBackgroundOverlayEnabled()) overlayService.Hide();
                 if (configService.IsDisplaySyncEnabled() && _targetHwnd != IntPtr.Zero &&
                     NativeMethods.IsWindow(_targetHwnd))
@@ -190,7 +190,7 @@ public class TargetStateManager(
 
             _lastOrientation = WindowOrientation.PORTRAIT;
 
-            // --- 监控启动（在布局稳定后才开始监听）---
+            // --- Start monitoring (only after layout is stable) ---
             _runCts = CancellationTokenSource.CreateLinkedTokenSource(token);
             windowMonitor.WindowStateChanged += OnWindowStateChanged;
             windowMonitor.MonitorChanged += OnMonitorChanged;
@@ -207,7 +207,7 @@ public class TargetStateManager(
 
     public async Task StopAsync()
     {
-        // 先发取消信号（不加锁），让 StartAsync 的倒计时循环能退出
+        // Cancel first (without lock) so StartAsync countdown loop can exit
         _startCts?.Cancel();
         _runCts?.Cancel();
 
@@ -227,7 +227,7 @@ public class TargetStateManager(
 
             AddLog("Stopping service and restoring original states...");
 
-            // 1. 停止监控
+            // 1. Stop monitoring
             windowMonitor.StopMonitoring();
             windowMonitor.WindowStateChanged -= OnWindowStateChanged;
             windowMonitor.MonitorChanged -= OnMonitorChanged;
@@ -235,7 +235,7 @@ public class TargetStateManager(
 
             var lastHwnd = _targetHwnd;
 
-            // 2. 依次还原各模块状态
+            // 2. Restore each module state
             if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
             {
                 layoutManager.RestoreOriginalState(lastHwnd);
@@ -258,7 +258,7 @@ public class TargetStateManager(
                 overlayService.Hide();
             }
 
-            // 3. 清理状态
+            // 3. Clean up state
             _targetHwnd = IntPtr.Zero;
             IsRunning = false;
             _startCts?.Dispose();
@@ -331,7 +331,7 @@ public class TargetStateManager(
                 return;
             }
 
-            // --- Topmost 状态维持 ---
+            // --- Topmost style maintenance ---
             var currentExStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
             if (!currentExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST))
             {

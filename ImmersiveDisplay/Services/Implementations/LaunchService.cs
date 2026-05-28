@@ -125,13 +125,13 @@ public class LaunchService(ILoggingService loggingService) : ILaunchService
     {
         try
         {
-            // 排除网址类协议，比如 steam://
+            // Skip URL-based protocols like steam://
             if (exePath.Contains("://") || !exePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 return false;
 
             string processName = Path.GetFileNameWithoutExtension(exePath);
             
-            // 查找同名进程
+            // Find process by name
             Process[] processes = Process.GetProcessesByName(processName);
             if (processes.Length == 0) return false;
 
@@ -146,10 +146,10 @@ public class LaunchService(ILoggingService loggingService) : ILaunchService
                 }
                 catch
                 {
-                    // 某些系统进程或高权限进程无法读取 MainModule，直接忽略
+                    // System processes or high-integrity processes may deny MainModule access — skip silently
                 }
             }
-            // 如果有同名进程运行，这里默认返回 true (即使用户权限不够读不到完整路径)
+            // Fall back to true if a same-named process exists (even when permission is insufficient to read full path)
             return true; 
         }
         catch (Exception)

@@ -129,7 +129,7 @@ public class WindowLayoutManager(IOverlayService overlayService, ILoggingService
         // --- 4. Step-by-step repositioning ---
         IntPtr hwndInsertAfter = profile.ExStyles.HasFlag(WindowExStyles.WS_EX_TOPMOST) ? new IntPtr(-1) : IntPtr.Zero;
 
-        // --- 4.1 执行最终拉伸 ---
+        // --- 4.1 Final stretch ---
         var flags = SetWindowPosFlags.SWP_FRAMECHANGED | 
                     SetWindowPosFlags.SWP_NOACTIVATE | 
                     SetWindowPosFlags.SWP_SHOWWINDOW |

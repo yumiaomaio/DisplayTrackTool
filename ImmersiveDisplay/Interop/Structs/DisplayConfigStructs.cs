@@ -48,7 +48,7 @@ public struct DisplayconfigPathTargetInfo
     public Luid adapterId;
     public uint id;
     public uint modeInfoIdx;
-    public uint outputTechnology; // <-- 这个字段之前漏掉了，导致后面全部错位！
+    public uint outputTechnology; // <-- was missing before, caused all subsequent fields to shift!
     public DisplayConfigRotation rotation;
     public uint scaling;
     public DisplayconfigRational refreshRate;
