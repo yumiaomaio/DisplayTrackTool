@@ -30,6 +30,7 @@ public class TargetStateManager(
     // State
     private IntPtr _targetHwnd = IntPtr.Zero;
     private WindowOrientation _lastOrientation = WindowOrientation.UNKNOWN;
+    private DisplayConfigRotation? _lastAppliedDisplayRotation;
     private CancellationTokenSource? _startCts;
     private readonly SemaphoreSlim _opLock = new(1, 1);
     private CancellationTokenSource? _runCts;
@@ -194,9 +195,11 @@ public class TargetStateManager(
         if (configService.IsDisplaySyncEnabled())
         {
             displayService.ApplyDisplayProfile(_targetHwnd, profile.Display);
-            await Task.Delay(500); 
+            if (profile.Display?.Orientation.HasValue == true)
+                _lastAppliedDisplayRotation = MapOrientationToCcdRotation(profile.Display.Orientation.Value);
+            await Task.Delay(500);
         }
-        
+
         try
         {
             layoutManager.ApplyLayout(_targetHwnd, profile);
@@ -355,6 +358,8 @@ public class TargetStateManager(
                         if (configService.IsDisplaySyncEnabled())
                         {
                             displayService.ApplyDisplayProfile(_targetHwnd, portraitProfile.Display);
+                            if (portraitProfile.Display?.Orientation.HasValue == true)
+                                _lastAppliedDisplayRotation = MapOrientationToCcdRotation(portraitProfile.Display.Orientation.Value);
                             await Task.Delay(500);
                         }
                         layoutManager.ApplyLayout(_targetHwnd, portraitProfile);
@@ -366,6 +371,8 @@ public class TargetStateManager(
                         if (configService.IsDisplaySyncEnabled())
                         {
                             displayService.ApplyDisplayProfile(_targetHwnd, landscapeProfile.Display);
+                            if (landscapeProfile.Display?.Orientation.HasValue == true)
+                                _lastAppliedDisplayRotation = MapOrientationToCcdRotation(landscapeProfile.Display.Orientation.Value);
                             await Task.Delay(500);
                         }
                         layoutManager.ApplyLayout(_targetHwnd, landscapeProfile);
@@ -391,6 +398,27 @@ public class TargetStateManager(
                 else if (_lastOrientation == WindowOrientation.LANDSCAPE)
                 {
                     layoutManager.EnsureTopmost(_targetHwnd);
+                }
+            }
+            else if (_lastAppliedDisplayRotation.HasValue)
+            {
+                var currentRotation = displayService.GetCurrentDisplayRotation(hwnd);
+                if (currentRotation.HasValue && currentRotation.Value != _lastAppliedDisplayRotation.Value)
+                {
+                    bool isPortraitRotation = currentRotation.Value is DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE90
+                                              or DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE270;
+                    bool isLandscapeRotation = currentRotation.Value is DisplayConfigRotation.DISPLAYCONFIG_ROTATION_IDENTITY
+                                               or DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE180;
+                    bool matchesWindow = (_lastOrientation == WindowOrientation.PORTRAIT && isPortraitRotation)
+                                      || (_lastOrientation == WindowOrientation.LANDSCAPE && isLandscapeRotation);
+
+                    if (!matchesWindow)
+                    {
+                        AddLog($"Display rotation externally changed to {currentRotation.Value}, conflicting with {_lastOrientation} window. Shutting down.");
+                        _opLock.Release();
+                        lockHeld = false;
+                        await StopAsync();
+                    }
                 }
             }
         }
@@ -493,6 +521,14 @@ public class TargetStateManager(
             AddLog($"[TargetStateManager] Unexpected error in verification retry task: {ex.Message}");
         }
     }
+
+    private static DisplayConfigRotation MapOrientationToCcdRotation(int orientation) => orientation switch
+    {
+        1 => DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE90,
+        2 => DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE180,
+        3 => DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE270,
+        _ => DisplayConfigRotation.DISPLAYCONFIG_ROTATION_IDENTITY
+    };
 
     private static IntPtr FindWindowByProcessName(string processName)
     {

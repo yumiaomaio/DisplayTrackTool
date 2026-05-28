@@ -184,6 +184,63 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
         _capturedDeviceName = null;
     }
 
+    public DisplayConfigRotation? GetCurrentDisplayRotation(IntPtr hwnd)
+    {
+        try
+        {
+            var deviceName = _capturedDeviceName;
+            if (string.IsNullOrEmpty(deviceName))
+            {
+                deviceName = GetGdiDeviceName(hwnd);
+            }
+            if (string.IsNullOrEmpty(deviceName))
+            {
+                return null;
+            }
+
+            if (NativeMethods.GetDisplayConfigBufferSizes(QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS, out uint pathCount, out uint modeCount) != 0)
+            {
+                return null;
+            }
+
+            var paths = new DisplayconfigPathInfo[pathCount];
+            var modes = new DisplayconfigModeInfo[modeCount];
+
+            if (NativeMethods.QueryDisplayConfig(QueryDisplayConfigFlags.QDC_ONLY_ACTIVE_PATHS, ref pathCount, paths, ref modeCount, modes, IntPtr.Zero) != 0)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < pathCount; i++)
+            {
+                var sourceNameRequest = new DisplayconfigSourceDeviceName
+                {
+                    header = new DisplayconfigDeviceInfo_Header
+                    {
+                        type = DisplayConfigDeviceInfoType.DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME,
+                        size = (uint)Marshal.SizeOf<DisplayconfigSourceDeviceName>(),
+                        adapterId = paths[i].sourceInfo.adapterId,
+                        id = paths[i].sourceInfo.id
+                    }
+                };
+
+                if (NativeMethods.DisplayConfigGetDeviceInfo(ref sourceNameRequest) == 0)
+                {
+                    if (deviceName.Equals(sourceNameRequest.viewGdiDeviceName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return paths[i].targetInfo.rotation;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            loggingService.AddLog($"[DisplayService] GetCurrentDisplayRotation error: {ex.Message}");
+        }
+
+        return null;
+    }
+
     private string GetGdiDeviceName(IntPtr hwnd)
     {
         IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
