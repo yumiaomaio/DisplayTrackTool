@@ -20,9 +20,7 @@ public class AppHost : IDisposable
 
     public AppBridge? Bridge { get; private set; }
 
-    public bool IsProtocolAutoStart { get; set; }
-
-    public void Initialize()
+    public void Initialize(bool isProtocolAutoStart)
     {
         if (_isInitialized) return;
 
@@ -47,10 +45,7 @@ public class AppHost : IDisposable
 
         // 5. Initialize hooks and startup logic
         var loggingService = _serviceProvider.GetRequiredService<ILoggingService>();
-        var appIntegrationService = _serviceProvider.GetRequiredService<IAppIntegrationService>();
-        appIntegrationService.IsProtocolAutoStart = IsProtocolAutoStart;
-        appIntegrationService.InitializeHooksAndTriggers();
-        appIntegrationService.ExecuteStartupLogic();
+        _serviceProvider.GetRequiredService<IAppIntegrationService>().Initialize(isProtocolAutoStart);
 
         _isInitialized = true;
         loggingService.AddLog("[Engine] Immersive Engine initialized successfully.");

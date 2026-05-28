@@ -2,10 +2,6 @@ namespace ImmersiveDisplay.Services;
 
 public interface IAppIntegrationService
 {
-    bool IsProtocolAutoStart { get; set; }
+    void Initialize(bool isProtocolAutoStart);
     bool ShouldShowUacPrompt { get; }
-    void InitializeHooksAndTriggers();
-    void ExecuteStartupLogic();
-    void SelectAssociatedProgram();
 }
-

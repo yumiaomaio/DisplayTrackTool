@@ -222,6 +222,8 @@ public class TargetStateManager(
                 _runCts = null;
                 return;
             }
+            
+            
 
             AddLog("Stopping service and restoring original states...");
 

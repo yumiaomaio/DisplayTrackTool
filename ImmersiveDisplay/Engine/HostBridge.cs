@@ -14,16 +14,17 @@ public sealed class HostBridge : IDisposable
 
     private readonly AppHost _engine;
     private readonly ConcurrentQueue<string> _pendingMessages = new();
+    private readonly bool _isProtocolAutoStart;
     private IntPtr _hostContext = IntPtr.Zero;
 
     public HostBridge(bool isProtocolAutoStart = false)
     {
         _current = this;
+        _isProtocolAutoStart = isProtocolAutoStart;
 
         _engine = new AppHost
         {
-            OnStatePush = PushToFrontend,
-            IsProtocolAutoStart = isProtocolAutoStart
+            OnStatePush = PushToFrontend
         };
     }
 
@@ -32,10 +33,8 @@ public sealed class HostBridge : IDisposable
     /// </summary>
     public unsafe void Run()
     {
-        _engine.Initialize();
-
+        _engine.Initialize(_isProtocolAutoStart);
         NativeHost.Host_Start(&OnJsMessage, &OnWindowResized, &OnHostReady);
-
         // Host_Start returned — host window closed
         _engine.Dispose();
     }
@@ -47,7 +46,6 @@ public sealed class HostBridge : IDisposable
     }
 
     // --- C++ → C# callbacks (invoked from host.dll on its thread) ---
-
     [UnmanagedCallersOnly]
     private static void OnJsMessage(IntPtr jsonPtr)
     {
