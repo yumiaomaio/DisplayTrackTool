@@ -3,6 +3,7 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
+using ImmersiveDisplay.Interop.Enums;
 using ImmersiveDisplay.Interop.Structs;
 using ImmersiveDisplay.Services;
 
@@ -85,7 +86,7 @@ public class OverlayWindowShell : IDisposable
 
     public void Create(int x, int y, int width, int height)
     {
-        uint dwExStyle = NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TOPMOST | NativeMethods.WS_EX_NOACTIVATE;
+        uint dwExStyle = NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE;
         uint dwStyle = NativeMethods.WS_POPUP; // Create invisible first to prevent activation issues during CreateWindowEx
 
         _creatingInstance = this;
@@ -118,6 +119,15 @@ public class OverlayWindowShell : IDisposable
         {
             // Use SW_SHOWNOACTIVATE to prevent taking input focus and causing focus struggle loops
             NativeMethods.ShowWindow(_hwnd, NativeMethods.SW_SHOWNOACTIVATE);
+        }
+    }
+
+    public void Reposition(int x, int y, int width, int height)
+    {
+        if (_hwnd != IntPtr.Zero)
+        {
+            NativeMethods.SetWindowPos(_hwnd, IntPtr.Zero, x, y, width, height,
+                SetWindowPosFlags.SWP_NOACTIVATE | SetWindowPosFlags.SWP_NOZORDER);
         }
     }
 

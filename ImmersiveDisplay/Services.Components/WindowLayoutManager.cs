@@ -16,7 +16,7 @@ public record WindowSnapshot
     public Rect Rect { get; init; }
 }
 
-public class WindowLayoutManager(OverlayService overlayService, ILoggingService loggingService)
+public class WindowLayoutManager(ILoggingService loggingService)
 {
     private WindowSnapshot? _originalSnapshot;
 
@@ -81,13 +81,6 @@ public class WindowLayoutManager(OverlayService overlayService, ILoggingService 
             }
         }
 
-        // 4. Resize overlay to match target monitor, placed directly behind target
-        var overlayHwnd = overlayService.WindowHandle;
-        if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
-        {
-            NativeMethods.SetWindowPos(overlayHwnd.Value, hwnd, finalX, finalY, finalWidth, finalHeight,
-                SetWindowPosFlags.SWP_NOACTIVATE | SetWindowPosFlags.SWP_SHOWWINDOW);
-        }
     }
 
     public void ApplyAggressiveLayout(IntPtr hwnd, LayoutProfile profile)
@@ -144,14 +137,6 @@ public class WindowLayoutManager(OverlayService overlayService, ILoggingService 
             }
         }
 
-        // --- 4.2 Resize overlay to match target monitor, placed directly behind target ---
-        var overlayHwnd = overlayService.WindowHandle;
-        if (overlayHwnd.HasValue && overlayHwnd.Value != IntPtr.Zero)
-        {
-            NativeMethods.SetWindowPos(overlayHwnd.Value, hwnd, finalX, finalY, finalWidth, finalHeight,
-                SetWindowPosFlags.SWP_NOACTIVATE | SetWindowPosFlags.SWP_SHOWWINDOW);
-        }
-        
         // Final kick
         NativeMethods.ShowWindow(hwnd, NativeMethods.SW_SHOWNOACTIVATE);
     }

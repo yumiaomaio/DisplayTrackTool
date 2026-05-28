@@ -12,9 +12,9 @@ namespace ImmersiveDisplay.Services.Implementations;
 
 public enum WindowOrientation
 {
-    UNKNOWN,
-    PORTRAIT,
-    LANDSCAPE
+    Unknown,
+    Portrait,
+    Landscape
 }
 
 public class TargetStateManager(
@@ -30,7 +30,7 @@ public class TargetStateManager(
 {
     // State
     private IntPtr _targetHwnd = IntPtr.Zero;
-    private WindowOrientation _lastOrientation = WindowOrientation.UNKNOWN;
+    private WindowOrientation _lastOrientation = WindowOrientation.Unknown;
     private DisplayConfigRotation? _lastAppliedDisplayRotation;
     private CancellationTokenSource? _startCts;
     private readonly SemaphoreSlim _opLock = new(1, 1);
@@ -142,7 +142,7 @@ public class TargetStateManager(
             displayService.CaptureOriginalState(_targetHwnd);
 
             IsRunning = true;
-            _lastOrientation = WindowOrientation.UNKNOWN;
+            _lastOrientation = WindowOrientation.Unknown;
 
             // --- Background overlay ---
             if (configService.IsBackgroundOverlayEnabled())
@@ -189,7 +189,7 @@ public class TargetStateManager(
                 return;
             }
 
-            _lastOrientation = WindowOrientation.PORTRAIT;
+            _lastOrientation = WindowOrientation.Portrait;
 
             // --- Start monitoring (only after layout is stable) ---
             _runCts = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -223,8 +223,6 @@ public class TargetStateManager(
                 _runCts = null;
                 return;
             }
-            
-            
 
             AddLog("Stopping service and restoring original states...");
 
@@ -246,7 +244,6 @@ public class TargetStateManager(
             {
                 if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
                     displayService.RestoreOriginalState(lastHwnd);
-                await Task.Delay(500);
             }
 
             if (configService.IsTaskbarAutoHideEnabled())
@@ -309,8 +306,8 @@ public class TargetStateManager(
         {
             if (hwnd != _targetHwnd || !IsRunning) return;
             var currentOrientation = newRect.Width > newRect.Height
-                ? WindowOrientation.LANDSCAPE
-                : WindowOrientation.PORTRAIT;
+                ? WindowOrientation.Landscape
+                : WindowOrientation.Portrait;
 
             if (currentOrientation != _lastOrientation)
             {
@@ -319,11 +316,11 @@ public class TargetStateManager(
 
                 switch (currentOrientation)
                 {
-                    case WindowOrientation.PORTRAIT:
+                    case WindowOrientation.Portrait:
                         AddLog("Applying Portrait layout and monitor settings...");
                         await ApplyDisplayAndLayoutAsync(configService.GetPortraitProfile(), _runCts!.Token);
                         break;
-                    case WindowOrientation.LANDSCAPE:
+                    case WindowOrientation.Landscape:
                         AddLog("Applying Landscape layout and monitor settings...");
                         await ApplyDisplayAndLayoutAsync(configService.GetLandscapeProfile(), _runCts!.Token);
                         break;
@@ -338,13 +335,13 @@ public class TargetStateManager(
             {
                 AddLog($"Topmost style lost on HWND {hwnd} in {_lastOrientation} mode. Restoring...");
 
-                if (_lastOrientation == WindowOrientation.PORTRAIT)
+                if (_lastOrientation == WindowOrientation.Portrait)
                 {
                     var profile = configService.GetPortraitProfile();
                     layoutManager.ApplyLayout(_targetHwnd, profile);
                     _ = VerifyAndRetryLayoutAsync(_targetHwnd, profile, _runCts!.Token);
                 }
-                else if (_lastOrientation == WindowOrientation.LANDSCAPE)
+                else if (_lastOrientation == WindowOrientation.Landscape)
                 {
                     layoutManager.EnsureTopmost(_targetHwnd);
                 }
@@ -354,11 +351,10 @@ public class TargetStateManager(
                 var currentRotation = displayService.GetCurrentDisplayRotation(hwnd);
                 if (currentRotation.HasValue && currentRotation.Value != _lastAppliedDisplayRotation.Value)
                 {
-                    bool matchesWindow = (_lastOrientation == WindowOrientation.PORTRAIT &&
+                    bool matchesWindow = (_lastOrientation == WindowOrientation.Portrait &&
                                           IsPortraitRotation(currentRotation.Value))
-                                         || (_lastOrientation == WindowOrientation.LANDSCAPE &&
+                                         || (_lastOrientation == WindowOrientation.Landscape &&
                                              IsLandscapeRotation(currentRotation.Value));
-
                     if (!matchesWindow)
                     {
                         AddLog(
@@ -397,7 +393,7 @@ public class TargetStateManager(
         try
         {
             // Wait a bit for OS/drivers to settle
-            await Task.Delay(300, token);
+            await Task.Delay(150, token);
 
             if (token.IsCancellationRequested) return;
 
@@ -457,10 +453,13 @@ public class TargetStateManager(
             displayService.ApplyDisplayProfile(_targetHwnd, profile.Display);
             if (profile.Display?.Orientation.HasValue == true)
                 _lastAppliedDisplayRotation = DisplayService.MapToCcdRotation(profile.Display.Orientation.Value);
-            await Task.Delay(500);
         }
-
+        
+        if (configService.IsBackgroundOverlayEnabled()) 
+            overlayService.UpdatePosition(_targetHwnd);
+        
         layoutManager.ApplyLayout(_targetHwnd, profile);
+        
         _ = VerifyAndRetryLayoutAsync(_targetHwnd, profile, token);
     }
 

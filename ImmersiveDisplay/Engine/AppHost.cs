@@ -64,6 +64,12 @@ public class AppHost : IDisposable
         Bridge?.Dispose();
         Bridge = null;
 
+        var stateManager = _serviceProvider?.GetService<ITargetStateManager>();
+        if (stateManager != null && stateManager.IsRunning)
+        {
+            stateManager.StopAsync().GetAwaiter().GetResult();
+        }
+
         // Shutdown services in reverse order
         _serviceProvider?.GetService<WindowMonitorService>()?.StopMonitoring();
         _serviceProvider?.GetService<KeyboardHookService>()?.Uninstall();

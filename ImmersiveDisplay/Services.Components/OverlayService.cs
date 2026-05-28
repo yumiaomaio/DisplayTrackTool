@@ -18,16 +18,6 @@ public class OverlayService
     // Owned on the WindowThread — accessed from both threads
     private OverlayWindowShell? _overlayWindow;
 
-    public IntPtr? WindowHandle
-    {
-        get
-        {
-            if (_overlayWindow == null) return null;
-            var h = _overlayWindow.Hwnd;
-            return h != IntPtr.Zero ? h : null;
-        }
-    }
-
     public OverlayService(WindowThread windowThread, IConfigService configService, ILoggingService loggingService)
     {
         _windowThread = windowThread;
@@ -53,10 +43,20 @@ public class OverlayService
     {
         _windowThread.Post(() =>
         {
-            if (_overlayWindow?.Hwnd == IntPtr.Zero) return;
-            _loggingService.AddLog("[OverlayService] Orientation change detected. Re-syncing overlay window...");
-            HideInternal();
-            ShowInternal(targetHwnd);
+            if (_overlayWindow == null || _overlayWindow.Hwnd == IntPtr.Zero) return;
+            _loggingService.AddLog("[OverlayService] Re-syncing overlay position...");
+
+            var hMonitor = NativeMethods.MonitorFromWindow(targetHwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
+            var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
+            if (NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
+            {
+                var mr = monitorInfo.rcMonitor;
+                _overlayWindow.Reposition(mr.Left, mr.Top, mr.Right - mr.Left, mr.Bottom - mr.Top);
+            }
+
+            // Re-affirm non-topmost layer — never use a window handle as hWndInsertAfter
+            NativeMethods.SetWindowPos(_overlayWindow.Hwnd, new IntPtr(-2), 0, 0, 0, 0,
+                SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
         });
     }
 
@@ -101,16 +101,9 @@ public class OverlayService
         _overlayWindow.Create(x, y, width, height);
         _overlayWindow.Show();
 
-        // Sync Z-order with target window
-        var targetExStyle = (WindowExStyles)NativeMethods.GetWindowLong(targetHwnd, NativeMethods.GWL_EXSTYLE);
-        bool isTargetTopmost = targetExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST);
-
-        NativeMethods.SetWindowPos(_overlayWindow.Hwnd,
-            isTargetTopmost ? new IntPtr(-1) : new IntPtr(-2),
-            0, 0, 0, 0,
-            SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
-
-        NativeMethods.SetWindowPos(_overlayWindow.Hwnd, targetHwnd, 0, 0, 0, 0,
+        // Explicitly place overlay in non-topmost layer (HWND_NOTOPMOST)
+        // Never use a window handle as hWndInsertAfter — it can infect the overlay with topmost
+        NativeMethods.SetWindowPos(_overlayWindow.Hwnd, new IntPtr(-2), 0, 0, 0, 0,
             SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_NOACTIVATE);
 
         _loggingService.AddLog("[OverlayService] Overlay shown.");
