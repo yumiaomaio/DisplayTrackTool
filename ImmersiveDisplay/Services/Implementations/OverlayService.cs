@@ -18,7 +18,15 @@ public class OverlayService : IOverlayService
     // Owned on the WindowThread — accessed from both threads
     private OverlayWindowShell? _overlayWindow;
 
-    public IntPtr? WindowHandle => _overlayWindow?.Hwnd != IntPtr.Zero ? _overlayWindow!.Hwnd : null;
+    public IntPtr? WindowHandle
+    {
+        get
+        {
+            if (_overlayWindow == null) return null;
+            var h = _overlayWindow.Hwnd;
+            return h != IntPtr.Zero ? h : null;
+        }
+    }
 
     public OverlayService(WindowThread windowThread, IConfigService configService, ILoggingService loggingService)
     {
