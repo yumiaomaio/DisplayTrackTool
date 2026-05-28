@@ -73,6 +73,10 @@ public class TargetStateManager(
             return;
         }
 
+        AddLog($"> StartAsync: processName='{processName}', programAlreadyLaunched={programAlreadyLaunched}, "
+            + $"IsLaunchOnTaskStart={configService.IsLaunchOnTaskStartEnabled()}, "
+            + $"HasLaunchPath={!string.IsNullOrWhiteSpace(configService.GetAssociatedLaunchPath())}");
+
         _startCts?.Cancel();
         _startCts?.Dispose();
         _startCts = new CancellationTokenSource();
