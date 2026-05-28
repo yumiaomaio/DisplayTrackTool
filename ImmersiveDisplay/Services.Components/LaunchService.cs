@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace ImmersiveDisplay.Services.Implementations;
+namespace ImmersiveDisplay.Services.Components;
 
 public class LaunchService(ILoggingService loggingService)
 {

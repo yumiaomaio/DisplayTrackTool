@@ -6,7 +6,7 @@ using ImmersiveDisplay.Interop.Structs;
 using ImmersiveDisplay.Models;
 using ImmersiveDisplay.Views;
 
-namespace ImmersiveDisplay.Services.Implementations;
+namespace ImmersiveDisplay.Services.Components;
 
 public class OverlayService
 {

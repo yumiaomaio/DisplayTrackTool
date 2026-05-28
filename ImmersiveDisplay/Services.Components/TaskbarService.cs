@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Structs;
 
-namespace ImmersiveDisplay.Services.Implementations;
+namespace ImmersiveDisplay.Services.Components;
 
 public class TaskbarService
 {

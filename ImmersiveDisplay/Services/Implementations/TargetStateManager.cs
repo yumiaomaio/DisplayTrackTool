@@ -6,6 +6,7 @@ using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Enums;
 using ImmersiveDisplay.Interop.Structs;
 using ImmersiveDisplay.Models;
+using ImmersiveDisplay.Services.Components;
 
 namespace ImmersiveDisplay.Services.Implementations;
 

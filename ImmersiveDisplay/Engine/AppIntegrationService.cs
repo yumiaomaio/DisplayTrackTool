@@ -1,8 +1,11 @@
 using System.Diagnostics;
 using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
+using ImmersiveDisplay.Services;
+using ImmersiveDisplay.Services.Components;
+using ImmersiveDisplay.Services.Implementations;
 
-namespace ImmersiveDisplay.Services.Implementations;
+namespace ImmersiveDisplay.Engine;
 
 public class AppIntegrationService(
     KeyboardHookService keyboardHook,

@@ -4,7 +4,7 @@ using ImmersiveDisplay.Interop.Enums;
 using ImmersiveDisplay.Interop.Structs;
 using ImmersiveDisplay.Models;
 
-namespace ImmersiveDisplay.Services.Implementations;
+namespace ImmersiveDisplay.Services.Components;
 
 public class DisplayService(ILoggingService loggingService)
  {

@@ -1,5 +1,6 @@
 using ImmersiveDisplay.Bridge;
 using ImmersiveDisplay.Services;
+using ImmersiveDisplay.Services.Components;
 using ImmersiveDisplay.Services.Implementations;
 using Microsoft.Extensions.DependencyInjection;
 
