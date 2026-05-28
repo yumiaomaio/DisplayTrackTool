@@ -260,7 +260,7 @@ public class DisplayService(ILoggingService loggingService) : IDisplayService
         return string.Empty;
     }
 
-    private DisplayConfigRotation MapToCcdRotation(int orientation)
+    internal static DisplayConfigRotation MapToCcdRotation(int orientation)
     {
         return orientation switch
         {
