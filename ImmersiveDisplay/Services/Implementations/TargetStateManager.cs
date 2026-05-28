@@ -17,14 +17,14 @@ public enum WindowOrientation
 }
 
 public class TargetStateManager(
-    IWindowMonitorService windowMonitor,
-    IWindowLayoutManager layoutManager,
-    IOverlayService overlayService,
+    WindowMonitorService windowMonitor,
+    WindowLayoutManager layoutManager,
+    OverlayService overlayService,
     IConfigService configService,
     ILoggingService loggingService,
-    ITaskbarService taskbarService,
-    IDisplayService displayService,
-    ILaunchService launchService)
+    TaskbarService taskbarService,
+    DisplayService displayService,
+    LaunchService launchService)
     : ITargetStateManager, IDisposable
 {
     // State

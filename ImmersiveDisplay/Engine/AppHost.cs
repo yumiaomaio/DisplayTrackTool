@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using ImmersiveDisplay.Bridge;
 using ImmersiveDisplay.Services;
+using ImmersiveDisplay.Services.Implementations;
 using Microsoft.Extensions.DependencyInjection;
 
 [assembly: DisableRuntimeMarshalling]
@@ -34,7 +35,7 @@ public class AppHost : IDisposable
         windowThread.Start();
 
         // 3. Install keyboard hook (runs on WindowThread)
-        var keyboardHook = _serviceProvider.GetRequiredService<IKeyboardHookService>();
+        var keyboardHook = _serviceProvider.GetRequiredService<KeyboardHookService>();
         keyboardHook.Install();
 
         // 4. Setup Bridge and wire up state forwarding BEFORE any service logic runs
@@ -45,7 +46,7 @@ public class AppHost : IDisposable
 
         // 5. Initialize hooks and startup logic
         var loggingService = _serviceProvider.GetRequiredService<ILoggingService>();
-        _serviceProvider.GetRequiredService<IAppIntegrationService>().Initialize(isProtocolAutoStart);
+        _serviceProvider.GetRequiredService<AppIntegrationService>().Initialize(isProtocolAutoStart);
 
         _isInitialized = true;
         loggingService.AddLog("[Engine] Immersive Engine initialized successfully.");
@@ -63,9 +64,9 @@ public class AppHost : IDisposable
         Bridge = null;
 
         // Shutdown services in reverse order
-        _serviceProvider?.GetService<IWindowMonitorService>()?.StopMonitoring();
-        _serviceProvider?.GetService<IKeyboardHookService>()?.Uninstall();
-        _serviceProvider?.GetService<IOverlayService>()?.Hide();
+        _serviceProvider?.GetService<WindowMonitorService>()?.StopMonitoring();
+        _serviceProvider?.GetService<KeyboardHookService>()?.Uninstall();
+        _serviceProvider?.GetService<OverlayService>()?.Hide();
         _serviceProvider?.GetService<WindowThread>()?.Stop();
         _serviceProvider?.GetService<WindowThread>()?.Dispose();
 

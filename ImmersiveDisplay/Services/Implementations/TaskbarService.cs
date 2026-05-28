@@ -4,7 +4,7 @@ using ImmersiveDisplay.Interop.Structs;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class TaskbarService : ITaskbarService
+public class TaskbarService
 {
     private bool _originalAutoHide;
 

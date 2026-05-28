@@ -6,7 +6,7 @@ using ImmersiveDisplay.Models;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class DisplayService(ILoggingService loggingService) : IDisplayService
+public class DisplayService(ILoggingService loggingService)
  {
     private DisplayProfile? _originalDisplayProfile;
     private string? _capturedDeviceName;

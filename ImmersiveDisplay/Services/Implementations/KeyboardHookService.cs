@@ -6,7 +6,7 @@ using ImmersiveDisplay.Interop.Structs;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class KeyboardHookService : IKeyboardHookService
+public class KeyboardHookService
 {
     private readonly WindowThread _windowThread;
     private readonly ILoggingService _loggingService;

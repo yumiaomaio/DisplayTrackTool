@@ -4,6 +4,7 @@ using System.Text.Json.Serialization.Metadata;
 using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Models;
 using ImmersiveDisplay.Services;
+using ImmersiveDisplay.Services.Implementations;
 
 namespace ImmersiveDisplay.Bridge;
 
@@ -11,8 +12,8 @@ public partial class AppBridge(
     ITargetStateManager stateManager,
     IConfigService configService,
     ILoggingService loggingService,
-    ILaunchService launchService,
-    IAppIntegrationService appIntegrationService,
+    LaunchService launchService,
+    AppIntegrationService appIntegrationService,
     AppProtocolHandler appProtocolHandler)
     : IDisposable
 {

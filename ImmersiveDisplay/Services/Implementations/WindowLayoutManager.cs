@@ -16,8 +16,7 @@ public record WindowSnapshot
     public Rect Rect { get; init; }
 }
 
-public class WindowLayoutManager(IOverlayService overlayService, ILoggingService loggingService)
-    : IWindowLayoutManager
+public class WindowLayoutManager(OverlayService overlayService, ILoggingService loggingService)
 {
     private WindowSnapshot? _originalSnapshot;
 

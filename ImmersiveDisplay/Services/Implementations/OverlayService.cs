@@ -8,7 +8,7 @@ using ImmersiveDisplay.Views;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class OverlayService : IOverlayService
+public class OverlayService
 {
     private readonly WindowThread _windowThread;
     private readonly IConfigService _configService;

@@ -5,12 +5,11 @@ using ImmersiveDisplay.Interop;
 namespace ImmersiveDisplay.Services.Implementations;
 
 public class AppIntegrationService(
-    IKeyboardHookService keyboardHook,
+    KeyboardHookService keyboardHook,
     ITargetStateManager stateManager,
     IConfigService configService,
     ILoggingService loggingService,
-    ILaunchService launchService)
-    : IAppIntegrationService
+    LaunchService launchService)
 {
     private bool _isProtocolAutoStart;
 

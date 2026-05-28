@@ -5,7 +5,7 @@ using ImmersiveDisplay.Interop.Structs;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class WindowMonitorService : IWindowMonitorService
+public class WindowMonitorService
 {
     private readonly WindowThread _windowThread;
     private readonly ILoggingService _loggingService;

@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace ImmersiveDisplay.Services.Implementations;
 
-public class LaunchService(ILoggingService loggingService) : ILaunchService
+public class LaunchService(ILoggingService loggingService)
 {
     private readonly HashSet<string> _launchedPaths = new(StringComparer.OrdinalIgnoreCase);
 
