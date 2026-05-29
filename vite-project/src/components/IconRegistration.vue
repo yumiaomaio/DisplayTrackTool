@@ -2,16 +2,53 @@
 import { ref } from 'vue'
 import { i18n } from '../i18n'
 import { bridge } from '../services/bridge'
+import { convertImageToIco } from '../services/png2ico'
 
 const emit = defineEmits(['back', 'complete'])
 
 const selectedFileName = ref('')
 const selectedBase64 = ref('')
 const isDragOver = ref(false)
+const fileInputRef = ref(null)
 
 const urlName = ref('Immersive Auto Launch')
 const startMenu = ref(true)
 const desktop = ref(false)
+
+const imageExts = ['.ico', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif', '.avif']
+
+async function handleFile(file) {
+  const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
+  let blob = file
+  let targetFileName = file.name
+  let previewUrl = null
+
+  if (ext !== '.ico' && imageExts.includes(ext)) {
+    try {
+      const result = await convertImageToIco(file)
+      blob = result.icoBlob
+      targetFileName = result.fileName
+      previewUrl = result.previewUrl
+    } catch (err) {
+      console.error('Image to ICO conversion failed:', err)
+      return
+    }
+  }
+
+  const reader = new FileReader()
+  reader.onload = async () => {
+    const dataUrl = reader.result
+    const rawBase64 = dataUrl.split(',')[1]
+    const result = await bridge.ImportDroppedIcon({ fileName: targetFileName, data: rawBase64 })
+    if (result) {
+      selectedFileName.value = result.fileName
+      // Use PNG preview for <img> display (browser can't reliably render
+      // image/x-icon in <img> tags). Fall back to backend base64 for .ico files.
+      selectedBase64.value = previewUrl || result.base64
+    }
+  }
+  reader.readAsDataURL(blob)
+}
 
 const handleDrop = async (e) => {
   e.preventDefault()
@@ -20,27 +57,17 @@ const handleDrop = async (e) => {
   if (!files || files.length === 0) return
 
   const file = files[0]
-  if (!file.name.toLowerCase().endsWith('.ico')) return
+  const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
+  if (!imageExts.includes(ext)) return
 
-  const reader = new FileReader()
-  reader.onload = async () => {
-    const dataUrl = reader.result
-    const rawBase64 = dataUrl.split(',')[1]
-    const result = await bridge.ImportDroppedIcon({ fileName: file.name, data: rawBase64 })
-    if (result) {
-      selectedFileName.value = result.fileName
-      selectedBase64.value = result.base64
-    }
-  }
-  reader.readAsDataURL(file)
+  await handleFile(file)
 }
 
-const handleClickSelect = async () => {
-  const result = await bridge.SelectIconFile()
-  if (result) {
-    selectedFileName.value = result.fileName
-    selectedBase64.value = result.base64
-  }
+const handleFileSelect = (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  handleFile(file)
+  e.target.value = ''
 }
 
 const handleCreate = async () => {
@@ -64,13 +91,21 @@ const handleCreate = async () => {
 
     <div class="section-title">{{ i18n.t.iconRegistration.title }}</div>
 
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept="image/*,.ico"
+      @change="handleFileSelect"
+      style="display: none"
+    >
+
     <div
       class="drop-zone"
       :class="{ 'drag-over': isDragOver }"
       @dragover.prevent="isDragOver = true"
       @dragleave="isDragOver = false"
       @drop="handleDrop"
-      @click="handleClickSelect"
+      @click="fileInputRef?.click()"
     >
       <template v-if="selectedBase64">
         <img :src="selectedBase64" class="icon-preview" alt="Icon preview">

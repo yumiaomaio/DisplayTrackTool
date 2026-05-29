@@ -89,7 +89,7 @@ export const translations = {
     },
     iconRegistration: {
       title: 'ICON REGISTRATION',
-      dragHere: 'DROP .ICO FILE HERE',
+      dragHere: 'DROP IMAGE / .ICO FILE HERE',
       clickToSelect: 'or click to browse',
     },
     urlCreation: {
@@ -198,7 +198,7 @@ export const translations = {
     },
     iconRegistration: {
       title: '图标注册',
-      dragHere: '拖拽 .ico 文件到此处',
+      dragHere: '拖拽图片或 .ico 文件到此处',
       clickToSelect: '或点击浏览',
     },
     urlCreation: {
