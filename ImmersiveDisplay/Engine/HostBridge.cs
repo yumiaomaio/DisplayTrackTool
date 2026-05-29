@@ -28,13 +28,15 @@ public sealed class HostBridge : IDisposable
         };
     }
 
+    public static IntPtr HostHwnd { get; private set; } = IntPtr.Zero;
+
     /// <summary>
     /// Start the engine and the C++ host window. Blocks until the host window closes.
     /// </summary>
     public unsafe void Run()
     {
         _engine.Initialize(_isProtocolAutoStart);
-        NativeHost.Host_Start(&OnJsMessage, &OnWindowResized, &OnHostReady);
+        NativeHost.Host_Start(&OnJsMessage, &OnHostReady);
         // Host_Start returned — host window closed
         _engine.Dispose();
     }
@@ -63,14 +65,10 @@ public sealed class HostBridge : IDisposable
     }
 
     [UnmanagedCallersOnly]
-    private static void OnWindowResized(int w, int h)
+    private static void OnHostReady(IntPtr ctx, IntPtr hwnd)
     {
-        // Overlay repositioning is handled by WindowMonitorService via WinEvent hooks
-    }
+        HostHwnd = hwnd;
 
-    [UnmanagedCallersOnly]
-    private static void OnHostReady(IntPtr ctx)
-    {
         var bridge = _current;
         if (bridge == null) return;
 

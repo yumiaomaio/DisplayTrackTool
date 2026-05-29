@@ -96,6 +96,7 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
+    public const int SW_MINIMIZE = 6;
     public const int SW_RESTORE = 9;
     public const int SW_SHOWNOACTIVATE = 4;
     public const uint WINEVENT_OUTOFCONTEXT = 0;

@@ -82,8 +82,7 @@ extern "C" {
 
 __declspec(dllexport) void __stdcall Host_Start(
     void (*onMessage)(const char*),
-    void (*onResized)(int, int),
-    void (*onReady)(void*))
+    void (*onReady)(void*, HWND))
 {
     FILE* fp{};
     bool hasConsole = false;
@@ -190,13 +189,8 @@ __declspec(dllexport) void __stdcall Host_Start(
         }
     });
 
-    ctx->appWindow.SetResizeCallback([ctx, onResized]() {
+    ctx->appWindow.SetResizeCallback([ctx]() {
         ctx->webViewHost.Resize(ctx->appWindow.GetHwnd());
-        if (ctx->appWindow.GetHwnd()) {
-            RECT r{};
-            GetClientRect(ctx->appWindow.GetHwnd(), &r);
-            if (onResized) onResized(r.right - r.left, r.bottom - r.top);
-        }
     });
 
     ctx->appWindow.SetDestroyCallback([]() {
@@ -208,7 +202,7 @@ __declspec(dllexport) void __stdcall Host_Start(
         std::wstring indexPath = InteropHelper::GetWebUiPath();
         std::println("[Host DLL] Navigating to: {}", InteropHelper::WideToUtf8(indexPath.c_str()));
         ctx->webViewHost.Navigate(InteropHelper::PathToUri(indexPath));
-        if (onReady) onReady(ctx);
+        if (onReady) onReady(ctx, ctx->appWindow.GetHwnd());
     });
 
     ctx->appWindow.Run();

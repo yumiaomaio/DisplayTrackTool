@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using ImmersiveDisplay.Engine;
 using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Interop;
 using ImmersiveDisplay.Interop.Enums;
@@ -158,6 +159,8 @@ public class TargetStateManager(
                 taskbarService.SetAutoHide(true);
                 AddLog("Taskbar auto-hide enabled.");
             }
+            
+            MinimizeHostWindow();
 
             // --- Initial layout application ---
             AddLog("Applying initial portrait layout and monitor settings.");
@@ -171,6 +174,7 @@ public class TargetStateManager(
                 AddLog(
                     $"[TargetStateManager] Failed to apply initial window layout: {ex.Message}. Exiting control process.");
 
+                RestoreHostWindow();
                 // Minimal cleanup
                 if (configService.IsBackgroundOverlayEnabled()) overlayService.Hide();
                 if (configService.IsDisplaySyncEnabled() && _targetHwnd != IntPtr.Zero &&
@@ -182,7 +186,7 @@ public class TargetStateManager(
                 _targetHwnd = IntPtr.Zero;
                 _opLock.Release();
                 lockHeld = false;
-
+                
                 _ = Task.Run(() => NativeDialogHelper.ShowWarning(DialogKey.WindowStylePermission,
                     DialogKey.WindowStylePermissionTitle, ex.Message));
 
@@ -235,6 +239,8 @@ public class TargetStateManager(
             var lastHwnd = _targetHwnd;
 
             // 2. Restore each module state
+            RestoreHostWindow();
+            
             if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
             {
                 layoutManager.RestoreOriginalState(lastHwnd);
@@ -507,6 +513,20 @@ public class TargetStateManager(
         var processes = Process.GetProcessesByName(processName);
         var process = processes.FirstOrDefault(p => p.MainWindowHandle != IntPtr.Zero);
         return process?.MainWindowHandle ?? IntPtr.Zero;
+    }
+
+    private static void MinimizeHostWindow()
+    {
+        var hwnd = HostBridge.HostHwnd;
+        if (hwnd != IntPtr.Zero)
+            NativeMethods.ShowWindow(hwnd, NativeMethods.SW_MINIMIZE);
+    }
+
+    private static void RestoreHostWindow()
+    {
+        var hwnd = HostBridge.HostHwnd;
+        if (hwnd != IntPtr.Zero)
+            NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
     }
 
     private void AddLog(string message)
