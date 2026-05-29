@@ -1,6 +1,5 @@
 using System.Text.Json;
 using ImmersiveDisplay.Helpers;
-using ImmersiveDisplay.Models;
 using ImmersiveDisplay.Services;
 
 namespace ImmersiveDisplay.Bridge;
@@ -10,7 +9,6 @@ public class AppProtocolHandler(IConfigService configService, ILoggingService lo
     public void HandleAppProtocol(string uri)
     {
         loggingService.AddLog($"[AppBridge] App Protocol trigger received: {uri}");
-
         try
         {
             if (string.IsNullOrEmpty(uri)) return;
@@ -97,15 +95,11 @@ public class AppProtocolHandler(IConfigService configService, ILoggingService lo
         }
     }
 
-    public bool CleanAllAssociationUrls()
-    {
-        return ProtocolHelper.CleanAllAssociationUrls();
-    }
-
     public bool CleanAssociation()
     {
         bool cleaned = ProtocolHelper.CleanAllAssociationUrls();
         configService.SetAutoStartFromThirdParty(false);
+        configService.SetProtocolRegistrationEnabled(false);
         return cleaned;
     }
 

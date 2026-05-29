@@ -95,7 +95,6 @@ public partial class AppBridge(
                 BridgeAction.ImportDroppedIcon      => SerializeTypedResponse("ok", ImportDroppedIcon(root), callId, AppJsonContext.Default.IconImportResult),
                 BridgeAction.CreateAssociationUrls  => Run(() => appProtocolHandler.CreateAssociationUrls(PString(root)), callId),
                 BridgeAction.QuickRegisterAssociation => SerializeResponse("ok", appProtocolHandler.QuickRegisterAssociation(), callId),
-                BridgeAction.CleanAllAssociationUrls => SerializeResponse("ok", appProtocolHandler.CleanAllAssociationUrls(), callId),
                 BridgeAction.CreateDesktopShortcut  => SerializeResponse("ok", appProtocolHandler.CreateShareShortcut(), callId),
 
                 BridgeAction.GetImageBase64         => SerializeResponse("ok", OverlayImageHelper.GetImageBase64(PString(root)), callId),
