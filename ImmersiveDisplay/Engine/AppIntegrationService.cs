@@ -117,8 +117,6 @@ public class AppIntegrationService(
 
     private void HandleF12()
     {
-        if (!stateManager.IsRunning) return;
-
         loggingService.AddLog("F12 key pressed. Shutting down...");
         _ = Task.Run(async () =>
         {

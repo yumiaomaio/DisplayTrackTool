@@ -141,37 +141,6 @@ public class WindowLayoutManager(ILoggingService loggingService)
         NativeMethods.ShowWindow(hwnd, NativeMethods.SW_SHOWNOACTIVATE);
     }
 
-    public void EnsureTopmost(IntPtr hwnd)
-    {
-        if (hwnd == IntPtr.Zero) return;
-
-        var currentExStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
-
-        if (currentExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST))
-        {
-            return;
-        }
-
-        loggingService.AddLog($"[WindowLayoutManager] Patching HWND {hwnd} to add WS_EX_TOPMOST.");
-        var newExStyle = currentExStyle | WindowExStyles.WS_EX_TOPMOST;
-        Marshal.SetLastPInvokeError(0);
-        int result = NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, (int)newExStyle);
-        if (result == 0 && Marshal.GetLastWin32Error() != 0)
-            throw new Win32Exception(Marshal.GetLastWin32Error(), $"Failed to set GWL_EXSTYLE for EnsureTopmost. System Error Code: {Marshal.GetLastWin32Error()}");
-        
-        var topmostHwnd = new IntPtr(-1);
-        bool posResult = NativeMethods.SetWindowPos(hwnd, topmostHwnd, 0, 0, 0, 0,
-            SetWindowPosFlags.SWP_NOMOVE | SetWindowPosFlags.SWP_NOSIZE | SetWindowPosFlags.SWP_FRAMECHANGED | SetWindowPosFlags.SWP_NOACTIVATE);
-        if (!posResult)
-        {
-            int error = Marshal.GetLastWin32Error();
-            if (error != 0)
-            {
-                throw new Win32Exception(error, $"Failed to set window position for EnsureTopmost. System Error Code: {error}");
-            }
-        }
-    }
-
     public void RestoreOriginalState(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero || _originalSnapshot == null) return;
