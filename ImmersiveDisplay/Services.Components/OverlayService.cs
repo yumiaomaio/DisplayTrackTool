@@ -41,7 +41,7 @@ public class OverlayService
 
     public void UpdatePosition(IntPtr targetHwnd)
     {
-        _windowThread.Post(() =>
+        _windowThread.Send(() =>
         {
             if (_overlayWindow == null || _overlayWindow.Hwnd == IntPtr.Zero) return;
             _loggingService.AddLog("[OverlayService] Re-syncing overlay position...");

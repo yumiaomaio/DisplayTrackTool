@@ -66,6 +66,18 @@ public class WindowThread : IDisposable
         NativeMethods.PostMessage(_hwnd, WM_EXECUTE, IntPtr.Zero, IntPtr.Zero);
     }
 
+    /// <summary>
+    /// Queue an action and block until the WindowThread has executed it.
+    /// Uses SendMessageW which blocks the calling thread until the
+    /// WindowThread's WndProc drains the queue.
+    /// </summary>
+    public void Send(Action action)
+    {
+        if (_hwnd == IntPtr.Zero) return;
+        _actionQueue.Enqueue(action);
+        NativeMethods.SendMessage(_hwnd, WM_EXECUTE, IntPtr.Zero, IntPtr.Zero);
+    }
+
     // --- Thread lifecycle ---
 
     private void ThreadProc()
