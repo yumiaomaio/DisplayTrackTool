@@ -81,6 +81,7 @@ public class TargetStateManager(
                + $"IsLaunchOnTaskStart={configService.IsLaunchOnTaskStartEnabled()}, "
                + $"HasLaunchPath={!string.IsNullOrWhiteSpace(configService.GetAssociatedLaunchPath())}");
 
+        // Phase 1: cancel previous run, create fresh token
         _startCts?.Cancel();
         _startCts?.Dispose();
         _startCts = new CancellationTokenSource();
@@ -92,45 +93,59 @@ public class TargetStateManager(
         {
             AddLog($"Attempting to start for process: {processName}...");
 
-            bool didLaunchAssociated = programAlreadyLaunched;
+            // Phase 2: launch associated program (fire-and-forget)
+            var path = configService.GetAssociatedLaunchPath();
+            var shouldLaunch = configService.IsLaunchOnTaskStartEnabled() && !string.IsNullOrWhiteSpace(path);
+            if (shouldLaunch) _ = launchService.LaunchAsync(path!);
 
-            // --- 1. Launch associated program ---
-            if (configService.IsLaunchOnTaskStartEnabled())
-            {
-                var path = configService.GetAssociatedLaunchPath();
-                if (!string.IsNullOrWhiteSpace(path))
-                {
-                    _ = launchService.LaunchAsync(path);
-                    didLaunchAssociated = true;
-                }
-            }
-
-            // --- 2. First probe ---
+            // Phase 3: first window probe
             _targetHwnd = FindWindowByProcessName(processName);
 
-            // --- 3. Decide result: error vs. countdown wait ---
+            // Phase 4: nothing launched + not running → error
+            var didLaunch = shouldLaunch || programAlreadyLaunched;
+            if (!didLaunch && _targetHwnd == IntPtr.Zero)
+            {
+                WaitingCountdown = -1;
+                AddLog($"Error: Target process '{processName}' is not running. Start the process first.");
+                return;
+            }
+
+            // Phase 5: wait loop — window not yet visible after launch
             if (_targetHwnd == IntPtr.Zero)
             {
-                // Case A: process not found and no program was launched — error out immediately
-                if (!didLaunchAssociated)
+                var remaining = configService.GetWindowDetectionTimeout();
+                AddLog($"Waiting for launched target window to appear (up to {remaining}s)...");
+                try
                 {
-                    WaitingCountdown = -1;
-                    AddLog($"Error: Target process '{processName}' is not running. Start the process first.");
-                    return;
+                    while (remaining > 0)
+                    {
+                        if (token.IsCancellationRequested) break;
+
+                        WaitingCountdown = remaining;
+                        _targetHwnd = FindWindowByProcessName(processName);
+                        if (_targetHwnd != IntPtr.Zero) break;
+
+                        if (remaining <= 1) break;
+                        await Task.Delay(1000, token);
+                        remaining--;
+                    }
                 }
-
-                // Case B: process not found but we just launched it — wait with countdown
-                _targetHwnd = await WaitForWindowAsync(processName, configService.GetWindowDetectionTimeout(), token);
-
-                if (_targetHwnd == IntPtr.Zero)
+                catch (OperationCanceledException)
                 {
-                    WaitingCountdown = -1;
-                    AddLog($"Error: Could not find a visible window for process '{processName}' after launching.");
-                    return;
+                    // frontend cancel or StopAsync cancelled the token
+                    WaitingCountdown = 0;
                 }
             }
 
-            // Check and restore minimized window
+            // Phase 6: timeout or cancelled — window never appeared
+            if (_targetHwnd == IntPtr.Zero)
+            {
+                WaitingCountdown = -1;
+                AddLog($"Error: Could not find a visible window for process '{processName}' after launching.");
+                return;
+            }
+
+            // Phase 7: restore minimized window
             if (NativeMethods.IsIconic(_targetHwnd))
             {
                 AddLog("Target window is minimized. Restoring it to normal state before proceeding...");
@@ -139,31 +154,31 @@ public class TargetStateManager(
 
             AddLog($"Target window found: HWND {_targetHwnd}.");
 
-            // --- Decouple: services capture their own state ---
+            // Phase 8: capture original window + display state (for later restore)
             layoutManager.CaptureOriginalState(_targetHwnd);
             displayService.CaptureOriginalState(_targetHwnd);
 
             IsRunning = true;
             _lastOrientation = WindowOrientation.Unknown;
 
-            // --- Background overlay ---
+            // Phase 9: show background overlay
             if (configService.IsBackgroundOverlayEnabled())
             {
                 AddLog("Background overlay is ENABLED. Showing overlay.");
                 overlayService.Show(_targetHwnd);
             }
 
-            // --- Taskbar control ---
+            // Phase 10: auto-hide taskbar
             if (configService.IsTaskbarAutoHideEnabled())
             {
                 taskbarService.CaptureOriginalState();
                 taskbarService.SetAutoHide(true);
                 AddLog("Taskbar auto-hide enabled.");
             }
-            
+
             MinimizeHostWindow();
 
-            // --- Initial layout application ---
+            // Phase 11: apply initial portrait layout + display rotation
             AddLog("Applying initial portrait layout and monitor settings.");
             var profile = configService.GetPortraitProfile();
             try
@@ -175,19 +190,13 @@ public class TargetStateManager(
                 AddLog(
                     $"[TargetStateManager] Failed to apply initial window layout: {ex.Message}. Exiting control process.");
 
-                RestoreHostWindow();
-                // Minimal cleanup
-                if (configService.IsBackgroundOverlayEnabled()) overlayService.Hide();
-                if (configService.IsDisplaySyncEnabled() && _targetHwnd != IntPtr.Zero &&
-                    NativeMethods.IsWindow(_targetHwnd))
-                    displayService.RestoreOriginalState(_targetHwnd);
-                if (configService.IsTaskbarAutoHideEnabled()) taskbarService.RestoreOriginalState();
+                RestoreServices(_targetHwnd);
 
                 IsRunning = false;
                 _targetHwnd = IntPtr.Zero;
                 _opLock.Release();
                 lockHeld = false;
-                
+
                 _ = Task.Run(() => NativeDialogHelper.ShowWarning(DialogKey.WindowStylePermission,
                     DialogKey.WindowStylePermissionTitle, ex.Message));
 
@@ -196,7 +205,7 @@ public class TargetStateManager(
 
             _lastOrientation = WindowOrientation.Portrait;
 
-            // --- Start monitoring (only after layout is stable) ---
+            // Phase 12: subscribe window events, start monitoring loop
             _runCts = CancellationTokenSource.CreateLinkedTokenSource(token);
             windowMonitor.WindowStateChanged += OnWindowStateChanged;
             windowMonitor.MonitorChanged += OnMonitorChanged;
@@ -213,7 +222,7 @@ public class TargetStateManager(
 
     public async Task StopAsync()
     {
-        // Cancel first (without lock) so StartAsync countdown loop can exit
+        // Phase 1: cancel tokens before acquiring lock, so StartAsync wait loop exits
         _startCts?.Cancel();
         _runCts?.Cancel();
 
@@ -222,16 +231,13 @@ public class TargetStateManager(
         {
             if (!IsRunning)
             {
-                _startCts?.Dispose();
-                _startCts = null;
-                _runCts?.Dispose();
-                _runCts = null;
+                CleanupCancellationTokens();
                 return;
             }
 
             AddLog("Stopping service and restoring original states...");
 
-            // 1. Stop monitoring
+            // Phase 2: unsubscribe window events, stop monitoring
             windowMonitor.StopMonitoring();
             windowMonitor.WindowStateChanged -= OnWindowStateChanged;
             windowMonitor.MonitorChanged -= OnMonitorChanged;
@@ -239,37 +245,15 @@ public class TargetStateManager(
 
             var lastHwnd = _targetHwnd;
 
-            // 2. Restore each module state
-            RestoreHostWindow();
-            
+            // Phase 3: restore window layout, display, taskbar, overlay
+            RestoreServices(lastHwnd);
             if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
-            {
                 layoutManager.RestoreOriginalState(lastHwnd);
-            }
 
-            if (configService.IsDisplaySyncEnabled())
-            {
-                if (lastHwnd != IntPtr.Zero && NativeMethods.IsWindow(lastHwnd))
-                    displayService.RestoreOriginalState(lastHwnd);
-            }
-
-            if (configService.IsTaskbarAutoHideEnabled())
-            {
-                taskbarService.RestoreOriginalState();
-            }
-
-            if (configService.IsBackgroundOverlayEnabled())
-            {
-                overlayService.Hide();
-            }
-
-            // 3. Clean up state
+            // Phase 4: reset state, dispose tokens
             _targetHwnd = IntPtr.Zero;
             IsRunning = false;
-            _startCts?.Dispose();
-            _startCts = null;
-            _runCts?.Dispose();
-            _runCts = null;
+            CleanupCancellationTokens();
 
             AddLog("Service stopped.");
         }
@@ -298,7 +282,6 @@ public class TargetStateManager(
     private async void OnMonitorChanged(IntPtr hwnd, IntPtr hMonitor)
     {
         if (hwnd != _targetHwnd || !IsRunning) return;
-
         AddLog($"Window moved to a different monitor ({hMonitor}). Triggering automatic shutdown...");
         await StopAsync();
     }
@@ -306,7 +289,6 @@ public class TargetStateManager(
     private async void OnWindowStateChanged(IntPtr hwnd, Rect newRect)
     {
         if (hwnd != _targetHwnd || !IsRunning) return;
-
         await _opLock.WaitAsync();
         var lockHeld = true;
         try
@@ -316,60 +298,50 @@ public class TargetStateManager(
                 ? WindowOrientation.Landscape
                 : WindowOrientation.Portrait;
 
+            var layoutProfile = currentOrientation == WindowOrientation.Portrait
+                ? configService.GetPortraitProfile()
+                : configService.GetLandscapeProfile();
+
             if (currentOrientation != _lastOrientation)
             {
+                // orientation flipped → re-apply layout for new direction
                 AddLog($"Orientation changed: {_lastOrientation} -> {currentOrientation}");
                 _lastOrientation = currentOrientation;
-
-                switch (currentOrientation)
-                {
-                    case WindowOrientation.Portrait:
-                        AddLog("Applying Portrait layout and monitor settings...");
-                        await ApplyDisplayAndLayoutAsync(configService.GetPortraitProfile(), _runCts!.Token);
-                        break;
-                    case WindowOrientation.Landscape:
-                        AddLog("Applying Landscape layout and monitor settings...");
-                        await ApplyDisplayAndLayoutAsync(configService.GetLandscapeProfile(), _runCts!.Token);
-                        break;
-                }
-
+                await ApplyDisplayAndLayoutAsync(layoutProfile, _runCts!.Token);
                 return;
             }
 
-            // --- Topmost style maintenance ---
+            // topmost style maintenance: other apps may strip WS_EX_TOPMOST
             var currentExStyle = (WindowExStyles)NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
             if (!currentExStyle.HasFlag(WindowExStyles.WS_EX_TOPMOST))
             {
                 AddLog($"Topmost style lost on HWND {hwnd} in {_lastOrientation} mode. Restoring...");
-
-                if (_lastOrientation == WindowOrientation.Portrait)
-                {
-                    var profile = configService.GetPortraitProfile();
-                    layoutManager.ApplyLayout(_targetHwnd, profile);
-                    _ = VerifyAndRetryLayoutAsync(_targetHwnd, profile, _runCts!.Token);
-                }
-                else if (_lastOrientation == WindowOrientation.Landscape)
-                {
-                    layoutManager.EnsureTopmost(_targetHwnd);
-                }
+                layoutManager.ApplyLayout(_targetHwnd, layoutProfile);
+                _ = VerifyAndRetryLayoutAsync(_targetHwnd, layoutProfile, _runCts!.Token);
             }
-            else if (_lastAppliedDisplayRotation.HasValue)
+
+            if (!_lastAppliedDisplayRotation.HasValue) return;
+
+            // rotation guard: if display rotation was externally changed to conflict
+            var currentRotation = displayService.GetCurrentDisplayRotation(hwnd);
+            if (currentRotation.HasValue && currentRotation.Value != _lastAppliedDisplayRotation.Value)
             {
-                var currentRotation = displayService.GetCurrentDisplayRotation(hwnd);
-                if (currentRotation.HasValue && currentRotation.Value != _lastAppliedDisplayRotation.Value)
+                var isPortraitRotation = currentRotation.Value
+                    is DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE90
+                    or DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE270;
+                var isLandscapeRotation = currentRotation.Value
+                    is DisplayConfigRotation.DISPLAYCONFIG_ROTATION_IDENTITY
+                    or DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE180;
+
+                var matchesWindow = (_lastOrientation == WindowOrientation.Portrait && isPortraitRotation)
+                                    || (_lastOrientation == WindowOrientation.Landscape && isLandscapeRotation);
+                if (!matchesWindow)
                 {
-                    bool matchesWindow = (_lastOrientation == WindowOrientation.Portrait &&
-                                          IsPortraitRotation(currentRotation.Value))
-                                         || (_lastOrientation == WindowOrientation.Landscape &&
-                                             IsLandscapeRotation(currentRotation.Value));
-                    if (!matchesWindow)
-                    {
-                        AddLog(
-                            $"Display rotation externally changed to {currentRotation.Value}, conflicting with {_lastOrientation} window. Shutting down.");
-                        _opLock.Release();
-                        lockHeld = false;
-                        await StopAsync();
-                    }
+                    AddLog(
+                        $"Display rotation externally changed to {currentRotation.Value}, conflicting with {_lastOrientation} window. Shutting down.");
+                    _opLock.Release();
+                    lockHeld = false;
+                    await StopAsync();
                 }
             }
         }
@@ -406,40 +378,36 @@ public class TargetStateManager(
 
             if (hwnd == IntPtr.Zero || !NativeMethods.IsWindow(hwnd) || !IsRunning) return;
 
-            if (NativeMethods.GetWindowRect(hwnd, out var rect))
+            if (!NativeMethods.GetWindowRect(hwnd, out var rect)) return;
+
+            int currentW = rect.Right - rect.Left;
+            int currentH = rect.Bottom - rect.Top;
+
+            IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
+            var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
+            if (!NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo)) return;
+
+            int targetW = monitorInfo.rcMonitor.Right - monitorInfo.rcMonitor.Left;
+            int targetH = monitorInfo.rcMonitor.Bottom - monitorInfo.rcMonitor.Top;
+
+            if (Math.Abs(currentW - targetW) <= 5 && Math.Abs(currentH - targetH) <= 5) return;
+
+            var now = DateTime.UtcNow;
+            if ((now - _lastMismatchTime).TotalSeconds < 1)
             {
-                int currentW = rect.Right - rect.Left;
-                int currentH = rect.Bottom - rect.Top;
-
-                // Get target monitor info to see what the size should be
-                IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, MonitorOptions.MONITOR_DEFAULTTONEAREST);
-                var monitorInfo = new Monitorinfo { cbSize = Marshal.SizeOf<Monitorinfo>() };
-                if (NativeMethods.GetMonitorInfo(hMonitor, ref monitorInfo))
-                {
-                    int targetW = monitorInfo.rcMonitor.Right - monitorInfo.rcMonitor.Left;
-                    int targetH = monitorInfo.rcMonitor.Bottom - monitorInfo.rcMonitor.Top;
-
-                    // If deviation is more than a few pixels, retry
-                    if (Math.Abs(currentW - targetW) > 5 || Math.Abs(currentH - targetH) > 5)
-                    {
-                        var now = DateTime.UtcNow;
-                        if ((now - _lastMismatchTime).TotalSeconds < 1)
-                        {
-                            AddLog(
-                                "Rapid consecutive layout mismatches detected within 1s (display sync may be disabled). Stopping service.");
-                            _ = Task.Run(() =>
-                                NativeDialogHelper.ShowWarning(DialogKey.LayoutMismatch,
-                                    DialogKey.LayoutMismatchTitle));
-                            await StopAsync();
-                            return;
-                        }
-                        _lastMismatchTime = now;
-                        AddLog(
-                            $"[TargetStateManager] Layout mismatch detected (Current: {currentW}x{currentH}, Target: {targetW}x{targetH}).");
-                        layoutManager.ApplyAggressiveLayout(hwnd, profile);
-                    }
-                }
+                AddLog(
+                    "Rapid consecutive layout mismatches detected within 1s (display sync may be disabled). Stopping service.");
+                _ = Task.Run(() =>
+                    NativeDialogHelper.ShowWarning(DialogKey.LayoutMismatch,
+                        DialogKey.LayoutMismatchTitle));
+                await StopAsync();
+                return;
             }
+
+            _lastMismatchTime = now;
+            AddLog(
+                $"[TargetStateManager] Layout mismatch detected (Current: {currentW}x{currentH}, Target: {targetW}x{targetH}).");
+            layoutManager.ApplyAggressiveLayout(hwnd, profile);
         }
         catch (OperationCanceledException)
         {
@@ -456,15 +424,7 @@ public class TargetStateManager(
         }
     }
 
-    private static bool IsPortraitRotation(DisplayConfigRotation r) =>
-        r is DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE90
-            or DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE270;
-
-    private static bool IsLandscapeRotation(DisplayConfigRotation r) =>
-        r is DisplayConfigRotation.DISPLAYCONFIG_ROTATION_IDENTITY
-            or DisplayConfigRotation.DISPLAYCONFIG_ROTATION_ROTATE180;
-
-    private async Task ApplyDisplayAndLayoutAsync(LayoutProfile profile, CancellationToken token)
+    private Task ApplyDisplayAndLayoutAsync(LayoutProfile profile, CancellationToken token)
     {
         if (configService.IsDisplaySyncEnabled())
         {
@@ -472,52 +432,15 @@ public class TargetStateManager(
             if (profile.Display?.Orientation.HasValue == true)
                 _lastAppliedDisplayRotation = DisplayService.MapToCcdRotation(profile.Display.Orientation.Value);
         }
-        
-        if (configService.IsBackgroundOverlayEnabled()) 
+
+        if (configService.IsBackgroundOverlayEnabled())
             overlayService.UpdatePosition(_targetHwnd);
-        
+
         layoutManager.ApplyLayout(_targetHwnd, profile);
-        
+
         _ = VerifyAndRetryLayoutAsync(_targetHwnd, profile, token);
-    }
 
-    private async Task<IntPtr> WaitForWindowAsync(string processName, int timeoutSeconds, CancellationToken token)
-    {
-        AddLog($"Waiting for launched target window to appear (up to {timeoutSeconds}s)...");
-
-        for (int i = timeoutSeconds; i >= 0; i--)
-        {
-            if (token.IsCancellationRequested)
-            {
-                WaitingCountdown = 0;
-                return IntPtr.Zero;
-            }
-
-            WaitingCountdown = i;
-
-            var hwnd = await Task.Run(() => FindWindowByProcessName(processName));
-
-            if (hwnd != IntPtr.Zero)
-            {
-                WaitingCountdown = 0;
-                return hwnd;
-            }
-
-            if (i > 0)
-            {
-                try
-                {
-                    await Task.Delay(1000, token);
-                }
-                catch (TaskCanceledException)
-                {
-                    WaitingCountdown = 0;
-                    return IntPtr.Zero;
-                }
-            }
-        }
-
-        return IntPtr.Zero;
+        return Task.CompletedTask;
     }
 
     private static IntPtr FindWindowByProcessName(string processName)
@@ -539,6 +462,23 @@ public class TargetStateManager(
         var hwnd = HostBridge.HostHwnd;
         if (hwnd != IntPtr.Zero)
             NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
+    }
+
+    private void CleanupCancellationTokens()
+    {
+        _startCts?.Dispose();
+        _startCts = null;
+        _runCts?.Dispose();
+        _runCts = null;
+    }
+
+    private void RestoreServices(IntPtr hwnd)
+    {
+        RestoreHostWindow();
+        if (configService.IsBackgroundOverlayEnabled()) overlayService.Hide();
+        if (configService.IsDisplaySyncEnabled() && hwnd != IntPtr.Zero && NativeMethods.IsWindow(hwnd))
+            displayService.RestoreOriginalState(hwnd);
+        if (configService.IsTaskbarAutoHideEnabled()) taskbarService.RestoreOriginalState();
     }
 
     private void AddLog(string message)
