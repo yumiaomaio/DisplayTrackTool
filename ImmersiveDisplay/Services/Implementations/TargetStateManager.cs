@@ -36,6 +36,7 @@ public class TargetStateManager(
     private CancellationTokenSource? _startCts;
     private readonly SemaphoreSlim _opLock = new(1, 1);
     private CancellationTokenSource? _runCts;
+    private DateTime _lastMismatchTime = DateTime.MinValue;
 
     public bool IsRunning
     {
@@ -421,9 +422,20 @@ public class TargetStateManager(
                     // If deviation is more than a few pixels, retry
                     if (Math.Abs(currentW - targetW) > 5 || Math.Abs(currentH - targetH) > 5)
                     {
+                        var now = DateTime.UtcNow;
+                        if ((now - _lastMismatchTime).TotalSeconds < 1)
+                        {
+                            AddLog(
+                                "Rapid consecutive layout mismatches detected within 1s (display sync may be disabled). Stopping service.");
+                            _ = Task.Run(() =>
+                                NativeDialogHelper.ShowWarning(DialogKey.LayoutMismatch,
+                                    DialogKey.LayoutMismatchTitle));
+                            await StopAsync();
+                            return;
+                        }
+                        _lastMismatchTime = now;
                         AddLog(
                             $"[TargetStateManager] Layout mismatch detected (Current: {currentW}x{currentH}, Target: {targetW}x{targetH}).");
-                        AddLog("Retrying with AGGRESSIVE measures...");
                         layoutManager.ApplyAggressiveLayout(hwnd, profile);
                     }
                 }
