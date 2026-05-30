@@ -132,6 +132,8 @@ onMounted(() => {
     if (state.logs !== undefined) logs.value = state.logs
     if (state.targetProcessName !== undefined) { processName.value = state.targetProcessName; bridge.GetProcessIconBase64(state.targetProcessName).then(icon => { processIcon.value = icon }) }
     if (state.backgroundMode !== undefined) bgMode.value = String(state.backgroundMode).toLowerCase()
+    if (state.enableTaskbarAutoHide !== undefined) autoHideTaskbar.value = state.enableTaskbarAutoHide
+    if (state.enableDisplaySync !== undefined) enableDisplaySync.value = state.enableDisplaySync
     if (state.propertyErrors !== undefined) propertyErrors.value = { ...propertyErrors.value, ...state.propertyErrors }
     if (state.backgroundImageFileName !== undefined) { state.backgroundImageFileName ? bridge.GetImageBase64(state.backgroundImageFileName).then(b64 => { bgImage.value = b64 }) : (bgImage.value = '') }
     if (state.associatedLaunchPath !== undefined) associatedLaunchPath.value = state.associatedLaunchPath

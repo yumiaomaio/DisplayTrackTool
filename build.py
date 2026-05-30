@@ -209,21 +209,43 @@ def package():
     zip_path = ROOT / "DisplayTrackTool.zip"
     staging = ROOT / "DisplayTrackTool"
 
-    # PowerShell: 复制到 staging 目录（排除 .pdb），然后打包
+    # 读取 .ignore.txt 排除列表
+    ignore_patterns = []
+    ignore_txt = DOTNET_PUBLISH_DIR / ".ignore.txt"
+    if ignore_txt.exists():
+        lines = ignore_txt.read_text(encoding="utf-8").splitlines()
+        for line in lines:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                ignore_patterns.append(line)
+        log(f"从 .ignore.txt 加载了 {len(ignore_patterns)} 个排除条目")
+
+    # 构建 PowerShell Where-Object 条件（处理通配符和精确匹配）
+    conditions = []
+    for p in ignore_patterns:
+        if "*" in p or "?" in p:
+            conditions.append(f"($_.Name -notlike '{p}')")
+        else:
+            conditions.append(f"($_.Name -ne '{p}')")
+    # 始终排除 .WebView2 目录和 .pdb 文件
+    conditions.append("($_ -notmatch '\\.WebView2$')")
+    conditions.append("($_.Name -notlike '*.pdb')")
+    where_filter = " -and ".join(conditions)
+
     ps = f"""
 $src = '{DOTNET_PUBLISH_DIR}'
 $dst = '{staging}'
 if (Test-Path $dst) {{ Remove-Item -Recurse -Force $dst }}
 New-Item -ItemType Directory -Path $dst -Force > $null
-Get-ChildItem $src -Exclude '*.pdb' |
-  Where-Object {{ $_ -notmatch '\\.WebView2$' }} |
+Get-ChildItem $src |
+  Where-Object {{ {where_filter} }} |
   Copy-Item -Destination $dst -Recurse
 Compress-Archive -Path $dst -DestinationPath '{zip_path}' -Force
 Remove-Item -Recurse -Force $dst
 """
     run(
         ["powershell", "-NoProfile", "-Command", ps],
-        description="打包为 zip（外层文件夹 + 排除 .pdb）",
+        description="打包为 zip（外层文件夹 + .ignore.txt 排除）",
     )
 
     size = zip_path.stat().st_size

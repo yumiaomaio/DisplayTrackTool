@@ -56,7 +56,7 @@ const toggleSwitch = (key, bridgeFn) => (e) => {
     <div class="row-setting">
       <span>{{ i18n.t.autoHideTaskbar }}</span>
       <label class="switch-label">
-        <input type="checkbox" :checked="autoHideTaskbar" @change="toggleSwitch('autoHideTaskbar', bridge.SetEnableTaskbarAutoHide)">
+        <input type="checkbox" :checked="autoHideTaskbar" @change="toggleSwitch('autoHideTaskbar', bridge.SetEnableTaskbarAutoHide)($event)">
         <span class="slider"></span>
       </label>
     </div>
@@ -65,7 +65,7 @@ const toggleSwitch = (key, bridgeFn) => (e) => {
     <div class="row-setting">
       <span>{{ i18n.t.displaySync }}</span>
       <label class="switch-label">
-        <input type="checkbox" :checked="enableDisplaySync" @change="toggleSwitch('enableDisplaySync', bridge.SetEnableDisplaySync)">
+        <input type="checkbox" :checked="enableDisplaySync" @change="toggleSwitch('enableDisplaySync', bridge.SetEnableDisplaySync)($event)">
         <span class="slider"></span>
       </label>
     </div>
