@@ -6,45 +6,48 @@ public class LaunchService(ILoggingService loggingService)
 {
     private readonly HashSet<string> _launchedPaths = new(StringComparer.OrdinalIgnoreCase);
 
-    public void Launch(string commandLine)
+    public Task LaunchAsync(string commandLine)
     {
-        if (string.IsNullOrWhiteSpace(commandLine)) return;
+        if (string.IsNullOrWhiteSpace(commandLine)) return Task.CompletedTask;
 
-        try
+        return Task.Run(() =>
         {
-            if (!_launchedPaths.Add(commandLine))
+            try
             {
-                loggingService.AddLog($"> Associated program already launched in this session. Skipping: {commandLine}");
-                return;
+                if (!_launchedPaths.Add(commandLine))
+                {
+                    loggingService.AddLog($"> Associated program already launched in this session. Skipping: {commandLine}");
+                    return;
+                }
+
+                var (fileName, arguments, workingDir) = ParseCommandLine(commandLine);
+
+                if (IsProcessRunning(fileName))
+                {
+                    loggingService.AddLog($"> Program is already running in the system. Skipping launch: {fileName}");
+                    return;
+                }
+
+                loggingService.AddLog($"> Launching associated program: {fileName}");
+                if (!string.IsNullOrWhiteSpace(arguments))
+                    loggingService.AddLog($"> With arguments: {arguments}");
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = fileName,
+                    Arguments = arguments,
+                    WorkingDirectory = workingDir ?? "",
+                    UseShellExecute = true,
+                    CreateNoWindow = false
+                };
+
+                Process.Start(psi);
             }
-
-            var (fileName, arguments, workingDir) = ParseCommandLine(commandLine);
-            
-            if (IsProcessRunning(fileName))
+            catch (Exception ex)
             {
-                loggingService.AddLog($"> Program is already running in the system. Skipping launch: {fileName}");
-                return;
+                loggingService.AddLog($"> ERROR: Failed to launch associated program: {ex.Message}");
             }
-
-            loggingService.AddLog($"> Launching associated program: {fileName}");
-            if (!string.IsNullOrWhiteSpace(arguments))
-                loggingService.AddLog($"> With arguments: {arguments}");
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = fileName,
-                Arguments = arguments,
-                WorkingDirectory = workingDir ?? "",
-                UseShellExecute = true,
-                CreateNoWindow = false // Let the target app decide its window state
-            };
-            
-            Process.Start(psi);
-        }
-        catch (Exception ex)
-        {
-            loggingService.AddLog($"> ERROR: Failed to launch associated program: {ex.Message}");
-        }
+        });
     }
 
     public void ClearHistory()

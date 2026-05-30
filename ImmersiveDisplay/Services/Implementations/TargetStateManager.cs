@@ -100,7 +100,7 @@ public class TargetStateManager(
                 var path = configService.GetAssociatedLaunchPath();
                 if (!string.IsNullOrWhiteSpace(path))
                 {
-                    launchService.Launch(path);
+                    _ = launchService.LaunchAsync(path);
                     didLaunchAssociated = true;
                 }
             }

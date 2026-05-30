@@ -59,7 +59,7 @@ public class AppIntegrationService(
 
             var path = configService.GetAssociatedLaunchPath();
             if (!string.IsNullOrWhiteSpace(path))
-                launchService.Launch(path);
+                _ = launchService.LaunchAsync(path);
 
             if (configService.IsAutoStartMonitoringOnProtocolLaunchEnabled())
             {
@@ -86,7 +86,7 @@ public class AppIntegrationService(
             var path = configService.GetAssociatedLaunchPath();
             if (!string.IsNullOrWhiteSpace(path))
             {
-                launchService.Launch(path);
+                _ = launchService.LaunchAsync(path);
             }
         }
     }
