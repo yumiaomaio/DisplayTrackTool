@@ -6,7 +6,6 @@ using ImmersiveDisplay.Helpers;
 using ImmersiveDisplay.Models;
 using ImmersiveDisplay.Services;
 using ImmersiveDisplay.Services.Components;
-using ImmersiveDisplay.Services.Implementations;
 
 namespace ImmersiveDisplay.Bridge;
 
@@ -84,7 +83,7 @@ public partial class AppBridge(
                 BridgeAction.ShowAbout               => Run(ShowAbout, callId),
 
                 BridgeAction.ShouldShowUacPrompt => SerializeResponse("ok", appIntegrationService.ShouldShowUacPrompt, callId),
-                BridgeAction.RegisterProtocol   => Run(() => { ProtocolHelper.Register(); configService.SetProtocolRegistrationEnabled(true); }, callId),
+                BridgeAction.RegisterProtocol   => Run(() => { bool ok = ProtocolHelper.Register(); if (ok) configService.SetProtocolRegistrationEnabled(true); return ok; }, callId),
                 BridgeAction.UnregisterProtocol => Run(() => { ProtocolHelper.Unregister(); configService.SetProtocolRegistrationEnabled(false); }, callId),
                 BridgeAction.IsProtocolRegistered => SerializeResponse("ok", ProtocolHelper.IsRegistered(), callId),
                 BridgeAction.IsAssociationValid => SerializeResponse("ok", ProtocolHelper.IsAssociationValid(), callId),
@@ -113,6 +112,7 @@ public partial class AppBridge(
     }
 
     private string Run(Action act, string? callId) { act(); return SerializeResponse("ok", null, callId); }
+    private string Run(Func<bool> func, string? callId) { bool result = func(); return SerializeResponse("ok", result, callId); }
     private static string PString(JsonElement root) => root.TryGetProperty("payload", out var p) ? p.GetString() ?? "" : "";
     private static bool PBool(JsonElement root) => root.TryGetProperty("payload", out var p) && p.GetBoolean();
     private static int PInt(JsonElement root, int def) => root.TryGetProperty("payload", out var p) ? p.GetInt32() : def;
