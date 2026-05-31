@@ -2,16 +2,16 @@ using System.Runtime.InteropServices;
 
 namespace ImmersiveDisplay.Engine;
 
-internal static class NativeHost
+internal static partial class NativeHost
 {
-    [DllImport("host.dll", CallingConvention = CallingConvention.Winapi)]
-    public static extern unsafe void Host_Start(
+    [LibraryImport("host.dll")]
+    public static unsafe partial void Host_Start(
         delegate* unmanaged<IntPtr, void> onMessage,
         delegate* unmanaged<IntPtr, IntPtr, void> onReady);
 
-    [DllImport("host.dll", CallingConvention = CallingConvention.Winapi)]
-    public static extern void Host_PostMessage(IntPtr ctx, IntPtr jsonUtf8);
+    [LibraryImport("host.dll")]
+    public static partial void Host_PostMessage(IntPtr ctx, IntPtr jsonUtf8);
 
-    [DllImport("host.dll", CallingConvention = CallingConvention.Winapi)]
-    public static extern void Host_Shutdown(IntPtr ctx);
+    [LibraryImport("host.dll")]
+    public static partial void Host_Shutdown(IntPtr ctx);
 }
