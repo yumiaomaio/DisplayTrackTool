@@ -45,7 +45,7 @@ public static class IconHelper
         }
     }
 
-    public static string GetIconBase64(string fileName)
+    private static string GetIconBase64(string fileName)
     {
         try
         {

@@ -14,8 +14,8 @@ public partial class AppBridge(
     IConfigService configService,
     ILoggingService loggingService,
     LaunchService launchService,
-    AppIntegrationService appIntegrationService,
-    AppProtocolHandler appProtocolHandler)
+    AppIntegrationService appIntegrationService
+    )
     : IDisposable
 {
     public event Action<string>? OnMessageSent;
@@ -87,14 +87,14 @@ public partial class AppBridge(
                 BridgeAction.UnregisterProtocol => Run(() => { ProtocolHelper.Unregister(); configService.SetProtocolRegistrationEnabled(false); }, callId),
                 BridgeAction.IsProtocolRegistered => SerializeResponse("ok", ProtocolHelper.IsRegistered(), callId),
                 BridgeAction.IsAssociationValid => SerializeResponse("ok", ProtocolHelper.IsAssociationValid(), callId),
-                BridgeAction.CleanAssociation   => SerializeResponse("ok", appProtocolHandler.CleanAssociation(), callId),
-                BridgeAction.HandleAppProtocol  => Run(() => appProtocolHandler.HandleAppProtocol(PString(root)), callId),
+                BridgeAction.CleanAssociation   => SerializeResponse("ok", CleanAssociation(), callId),
+                BridgeAction.HandleAppProtocol  => Run(() => HandleAppProtocol(PString(root)), callId),
 
                 BridgeAction.SelectIconFile         => SerializeTypedResponse("ok", IconHelper.SelectAndCopyIcon(), callId, AppJsonContext.Default.IconImportResult),
                 BridgeAction.ImportDroppedIcon      => SerializeTypedResponse("ok", ImportDroppedIcon(root), callId, AppJsonContext.Default.IconImportResult),
-                BridgeAction.CreateAssociationUrls  => Run(() => appProtocolHandler.CreateAssociationUrls(PString(root)), callId),
+                BridgeAction.CreateAssociationUrls  => Run(() => CreateAssociationUrls(PString(root)), callId),
                 BridgeAction.QuickRegisterAssociation => SerializeResponse("ok", ProtocolHelper.Register(), callId),
-                BridgeAction.CreateDesktopShortcut  => SerializeResponse("ok", appProtocolHandler.CreateShareShortcut(), callId),
+                BridgeAction.CreateDesktopShortcut  => SerializeResponse("ok", CreateShareShortcut(), callId),
 
                 BridgeAction.GetImageBase64         => SerializeResponse("ok", OverlayImageHelper.GetImageBase64(PString(root)), callId),
                 BridgeAction.GetProcessCommandLine  => SerializeResponse("ok", GetProcessCommandLine(PString(root)), callId),

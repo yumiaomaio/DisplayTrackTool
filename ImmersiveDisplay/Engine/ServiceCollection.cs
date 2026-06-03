@@ -37,7 +37,6 @@ public static class ServiceCollection
 
     private static void AddBridge(this IServiceCollection services)
     {
-        services.AddSingleton<AppProtocolHandler>();
         services.AddSingleton<AppBridge>();
     }
 }
