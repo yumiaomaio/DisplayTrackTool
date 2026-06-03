@@ -1,6 +1,3 @@
-// File: Helpers/ProtocolHelper.cs
-
-using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Win32;
 using ImmersiveDisplay.Models;
@@ -13,6 +10,7 @@ public static class ProtocolHelper
     private const string ProtocolScheme = "immersivedisplay://";
     private const string AutoStartArg = "autostart";
     private const string ShortcutName = "Immersive Auto Launch.url";
+    private const string StartMenuSubFolder = "ImmersiveDisplay";
 
     public static bool Register()
     {
@@ -21,7 +19,9 @@ public static class ProtocolHelper
             RegisterProtocolCore();
             string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? throw new InvalidOperationException("Could not determine executable path.");
             CreateShortcut(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), exePath);
-            CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"), exePath);
+            string startMenuShortcuts = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", StartMenuSubFolder);
+            Directory.CreateDirectory(startMenuShortcuts);
+            CreateShortcut(startMenuShortcuts, exePath);
             return true;
         }
         catch
@@ -38,20 +38,18 @@ public static class ProtocolHelper
     {
         string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? throw new InvalidOperationException("Could not determine executable path.");
 
-        using (var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{ProtocolName}"))
+        using var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{ProtocolName}");
+        key.SetValue("", $"URL:{ProtocolName} Protocol");
+        key.SetValue("URL Protocol", "");
+
+        using (var shellKey = key.CreateSubKey(@"shell\open\command"))
         {
-            key.SetValue("", $"URL:{ProtocolName} Protocol");
-            key.SetValue("URL Protocol", "");
+            shellKey.SetValue("", $"\"{exePath}\" \"%1\"");
+        }
 
-            using (var shellKey = key.CreateSubKey(@"shell\open\command"))
-            {
-                shellKey.SetValue("", $"\"{exePath}\" \"%1\"");
-            }
-
-            using (var iconKey = key.CreateSubKey("DefaultIcon"))
-            {
-                iconKey.SetValue("", $"{exePath},0");
-            }
+        using (var iconKey = key.CreateSubKey("DefaultIcon"))
+        {
+            iconKey.SetValue("", $"{exePath},0");
         }
     }
 
@@ -62,8 +60,13 @@ public static class ProtocolHelper
             Registry.CurrentUser.DeleteSubKeyTree($@"Software\Classes\{ProtocolName}", false);
 
             DeleteShortcut(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
-            DeleteShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"));
 
+            string startMenuShortcuts = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", StartMenuSubFolder);
+            CleanUrlFiles(startMenuShortcuts);
+            if (Directory.Exists(startMenuShortcuts))
+            {
+                try { Directory.Delete(startMenuShortcuts); } catch { }
+            }
             return true;
         }
         catch
@@ -94,7 +97,7 @@ public static class ProtocolHelper
                 return false;
             }
 
-            string startMenuPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", ShortcutName);
+            string startMenuPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", StartMenuSubFolder, ShortcutName);
             return File.Exists(startMenuPath);
         }
         catch
@@ -129,7 +132,7 @@ public static class ProtocolHelper
 
             if (entry.Locations.StartMenu)
             {
-                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs");
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", StartMenuSubFolder);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, $"{sanitizedName}.url"), content);
             }
@@ -152,28 +155,36 @@ public static class ProtocolHelper
 
         string[] dirs =
         {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", StartMenuSubFolder),
             Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)
         };
 
         bool deletedAny = false;
         foreach (var dir in dirs)
         {
-            if (!Directory.Exists(dir)) continue;
-            foreach (var file in Directory.GetFiles(dir, "*.url"))
+            if (CleanUrlFiles(dir))
+                deletedAny = true;
+        }
+        return deletedAny;
+    }
+
+    private static bool CleanUrlFiles(string dir)
+    {
+        if (!Directory.Exists(dir)) return false;
+        bool deletedAny = false;
+        foreach (var file in Directory.GetFiles(dir, "*.url"))
+        {
+            try
             {
-                try
+                string? urlLine = File.ReadLines(file)
+                    .FirstOrDefault(l => l.StartsWith("URL=", StringComparison.OrdinalIgnoreCase));
+                if (urlLine != null && urlLine.Trim().StartsWith($"URL={ProtocolScheme}", StringComparison.OrdinalIgnoreCase))
                 {
-                    string? urlLine = File.ReadLines(file)
-                        .FirstOrDefault(l => l.StartsWith("URL=", StringComparison.OrdinalIgnoreCase));
-                    if (urlLine != null && urlLine.Trim().StartsWith($"URL={ProtocolScheme}", StringComparison.OrdinalIgnoreCase))
-                    {
-                        File.Delete(file);
-                        deletedAny = true;
-                    }
+                    File.Delete(file);
+                    deletedAny = true;
                 }
-                catch { /* skip locked files */ }
             }
+            catch { /* skip locked files */ }
         }
         return deletedAny;
     }

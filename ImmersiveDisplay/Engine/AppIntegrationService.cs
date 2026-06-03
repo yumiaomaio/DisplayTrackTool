@@ -45,10 +45,9 @@ public class AppIntegrationService(
             if (!ProtocolHelper.IsAssociationValid())
             {
                 loggingService.AddLog("[ProtocolHelper] Association invalid or Start Menu shortcut missing. Restoring associations...");
-                if (ProtocolHelper.Register())
-                    loggingService.AddLog("[ProtocolHelper] Protocol and shortcuts registered.");
-                else
-                    loggingService.AddLog("[ProtocolHelper] Failed to register protocol.");
+                loggingService.AddLog(ProtocolHelper.Register()
+                    ? "[ProtocolHelper] Protocol and shortcuts registered."
+                    : "[ProtocolHelper] Failed to register protocol.");
             }
         }
 

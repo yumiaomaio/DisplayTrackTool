@@ -71,30 +71,6 @@ public class AppProtocolHandler(IConfigService configService, ILoggingService lo
         ProtocolHelper.CreateMultipleUrlShortcuts(request.Entries, request.IconFileName);
     }
 
-    public bool QuickRegisterAssociation()
-    {
-        try
-        {
-            if (!ProtocolHelper.IsRegistered())
-                ProtocolHelper.Register();
-
-            string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
-            string iconLine = string.IsNullOrEmpty(exePath) ? "" : $"\r\nIconIndex=0\r\nIconFile={exePath}";
-            string content = $"[InternetShortcut]\r\nURL=immersivedisplay://autostart{iconLine}";
-
-            string startMenuDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs");
-            Directory.CreateDirectory(startMenuDir);
-            File.WriteAllText(Path.Combine(startMenuDir, "Immersive Auto Launch.url"), content);
-
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     public bool CleanAssociation()
     {
         bool cleaned = ProtocolHelper.CleanAllAssociationUrls();
